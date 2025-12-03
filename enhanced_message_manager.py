@@ -21,6 +21,8 @@ from correction_handler import CorrectionDetector, MemoryCorrector, get_correcti
 from voice_tracker import VoiceTracker, get_voice_join_reaction, get_voice_duration_reaction
 from debug_logger import log_message, log_context, log_correction, log_response
 from visual_memory_system import VisualMemorySystem
+from active_search import ActiveSearch
+from models.model_factory import get_model_connector
 import random
 from typing import List, Dict, Optional, Tuple
 
@@ -65,6 +67,16 @@ class EnhancedMessageManagerV3:
         self.correction_detector = CorrectionDetector()
         self.memory_corrector = MemoryCorrector(self.memory)
         self.voice_tracker = VoiceTracker(self.memory)
+        
+        # TIER 7: Active Search (Thinking Brain)
+        # We need a model connector for this
+        try:
+            model_connector = get_model_connector()
+            self.active_search = ActiveSearch(model_connector)
+            logger.info("   ✓ Active Search (Thinking) enabled")
+        except Exception as e:
+            self.active_search = None
+            logger.error(f"❌ Active Search disabled: {e}")
         
         # TIER 6: Visual Cortex
         if hasattr(self.memory, 'qdrant_client'):
@@ -585,6 +597,39 @@ class EnhancedMessageManagerV3:
             
             # TIER 8: Update Observable State
             self.current_state['abort_flag'] = False # Reset flag
+            self.update_state(
+                status='THINKING',
+                prompt=formatted_context,
+                user_message=user_messages[-1]['content']
+            )
+
+            # TIER 7: Active Retrieval (Thinking Loop)
+            active_search_results = []
+            if self.active_search:
+                logger.info("🤔 Entering Thinking Loop...")
+                needs_search, query, reason = await self.active_search.analyze_need_to_search(
+                    user_message=user_messages[-1]['content'],
+                    recent_context=formatted_context
+                )
+                
+                if needs_search and query:
+                    logger.info(f"🧠 Thought: I need to search for '{query}' ({reason})")
+                    # Execute Search
+                    active_search_results = self.memory.search_memories(
+                        query=query,
+                        user_id=primary_user_id,
+                        n_results=3
+                    )
+                    logger.info(f"📚 Found {len(active_search_results)} results from active search")
+                    
+                    # Add to context
+                    if active_search_results:
+                        formatted_context += "\n\n--- ACTIVE RECALL (I decided to remember this) ---\n"
+                        for mem in active_search_results:
+                            formatted_context += f"- {mem['content']} (from {mem['timestamp'][:10]})\n"
+                else:
+                    logger.info(f"⚡ Fast path: No search needed ({reason})")
+
             self.update_state(
                 status='GENERATING',
                 prompt=formatted_context,
