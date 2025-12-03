@@ -22,7 +22,7 @@ def get_model_connector(
     Returns appropriate connector based on LLM_PROVIDER env variable.
     
     Args:
-        provider: Override provider (otherwise uses LLM_PROVIDER env var)
+        provider: Override provider (otherwise uses LLM_PROVIDER env var). If not provided, defaults to 'vllm'.
         model_name: Model name/identifier
     
     Returns:

@@ -23,7 +23,7 @@ class VLLMConnector(ModelInterface):
 
     def __init__(self, model_name: Optional[str] = None):
         # Configuration
-        self.base_url = os.getenv("LLM_BASE_URL", "http://172.19.88.128:8000/v1")
+        self.base_url = os.getenv("VLLM_BASE_URL", "http://localhost:8000/v1")
         self.api_key = os.getenv("LLM_API_KEY", "unused")  # vLLM usually ignores API key
 
         # Model configuration
