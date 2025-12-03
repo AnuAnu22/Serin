@@ -168,66 +168,6 @@ class SGLangConnector(ModelInterface):
             lambda: self.blocking_chat_completion(messages, temperature, max_tokens, stop, **kwargs)
         )
 
-    async def chat_completion_stream(
-        self,
-        messages: List[Dict[str, str]],
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        stop: Optional[List[str]] = None,
-        **kwargs
-    ):
-        if self.client is None or self.adapter is None:
-            raise RuntimeError("Client not initialized. Call load_model() first.")
-
-        formatted_messages = self.adapter.format_messages(messages)
-        model_stop_tokens = self.adapter.get_stop_tokens()
-        if stop:
-            model_stop_tokens.extend(stop)
-
-        params = {
-            "model": self.model_name,
-            "messages": formatted_messages,
-            "max_tokens": max_tokens or self.max_tokens,
-            "temperature": temperature if temperature is not None else self.temperature,
-            "top_p": self.top_p,
-            "stream": True
-        }
-
-        if model_stop_tokens:
-            params["stop"] = model_stop_tokens
-
-        params.update(kwargs)
-
-        try:
-            # We need to run the sync iterator in a way that yields async
-            # Since OpenAI client is sync, we can't just await it.
-            # Ideally we'd use AsyncOpenAI, but for now we'll wrap it or assume it's fast enough
-            # Actually, let's switch to AsyncOpenAI if possible, but that requires refactoring load_model.
-            # For now, we will use the sync client in a thread for the initial call, but iterating is tricky.
-            # SGLang/vLLM are local, so latency is low. We can iterate synchronously in a separate thread?
-            # No, that blocks the event loop if we do it directly.
-            
-            # Better approach: Use AsyncOpenAI. But self.client is sync OpenAI.
-            # Let's create a temporary AsyncOpenAI client just for this call?
-            # Or just use the sync client and yield. Since it's local, it might be fine.
-            # But "async def" expects "yield".
-            
-            # Let's try to use AsyncOpenAI for the stream.
-            from openai import AsyncOpenAI
-            async_client = AsyncOpenAI(base_url=self.base_url, api_key=self.api_key)
-            
-            stream = await async_client.chat.completions.create(**params)
-            
-            async for chunk in stream:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
-                    
-            await async_client.close()
-
-        except Exception as e:
-            logger.error(f"❌ Error during streaming chat completion: {e}")
-            raise
-
     def blocking_send_input(
         self,
         prompt: str,

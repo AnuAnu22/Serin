@@ -249,4 +249,62 @@ class VoiceTracker:
         }
 
 
-# Legacy reaction logic removed in favor of Agentic ThinkingManager
+# Natural reactions to voice activity (for message_manager integration)
+VOICE_JOIN_REACTIONS = [
+    "oh hey you're in vc",
+    "in vc? gaming session?",
+    "voice channel vibes",
+    "vc time?",
+    "just joined vc?",
+]
+
+VOICE_LONG_SESSION_REACTIONS = [
+    "damn {duration} {unit} vc session. productive or just vibing?",
+    "that's a long vc session. {duration} {unit}",
+    "{duration} {unit} in vc? dedicated",
+    "been in vc for {duration} {unit} huh",
+]
+
+
+def get_voice_join_reaction() -> Optional[str]:
+    """
+    Get natural reaction to voice join.
+    Returns None 70% of the time (don't react to everything).
+    """
+    import random
+    
+    if random.random() < 0.3:  # 30% chance to react
+        return random.choice(VOICE_JOIN_REACTIONS)
+    return None
+
+
+def get_voice_duration_reaction(duration_minutes: int) -> Optional[str]:
+    """
+    Get natural reaction to long voice session.
+    
+    Args:
+        duration_minutes: Session duration in minutes
+    
+    Returns:
+        Reaction message, or None if duration not notable
+    """
+    import random
+    
+    # Only react to sessions >30 minutes
+    if duration_minutes < 30:
+        return None
+    
+    # Format duration
+    if duration_minutes < 60:
+        duration = duration_minutes
+        unit = "min"
+    else:
+        duration = round(duration_minutes / 60, 1)
+        unit = "hour" if duration == 1 else "hours"
+    
+    # 40% chance to react to long sessions
+    if random.random() < 0.4:
+        template = random.choice(VOICE_LONG_SESSION_REACTIONS)
+        return template.format(duration=duration, unit=unit)
+    
+    return None

@@ -40,14 +40,7 @@ def get_model_connector(
         - openai: OpenAI API
         - custom: Custom OpenAI-compatible endpoint
     """
-    try:
-        provider = provider or os.getenv("LLM_PROVIDER")
-    except Exception as e:
-        logger.error(f"Failed to get LLM_PROVIDER: {e}")
-    if not provider:
-        logger.warning("⚠️ No LLM_PROVIDER set, defaulting to 'sglang' (User Preference)")
-        provider = "sglang"
-        
+    provider = provider or os.getenv("LLM_PROVIDER", "vllm")
     provider = provider.lower().strip()
     
     logger.info(f"🏭 Model factory: Creating connector for provider '{provider}'")

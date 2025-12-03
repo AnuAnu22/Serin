@@ -26,7 +26,7 @@ class AudioStreamProcessor:
     Buffers audio while user is speaking, chunks at natural pauses.
     """
     
-    def __init__(self, whisper_transcriber, voice_pipeline, silence_threshold: float = 0.8, voice_output_manager=None):
+    def __init__(self, whisper_transcriber, voice_pipeline, silence_threshold: float = 3.0, voice_output_manager=None):
         """
         Initialize audio stream processor.
         
@@ -126,18 +126,13 @@ class AudioStreamProcessor:
             if is_voice:
                 # Voice detected - add to buffer
                 self.user_buffers[user_id].extend(audio_data)
-                
-                # Log state change: Silence -> Voice
-                if self.user_silence_frames.get(user_id, 0) > 0:
-                     logger.debug(f"🎤 {username} started speaking (Silence broken)")
-
                 self.user_silence_frames[user_id] = 0
                 
                 # Mark as speaking
                 if user_id not in self.currently_speaking:
                     self.currently_speaking.add(user_id)
                     self.stats['vad_detections'] += 1
-                    logger.debug(f"🎤 {username} started speaking (VAD Trigger)")
+                    logger.debug(f"🎤 {username} started speaking")
                     
                     # INTERRUPT: If bot is speaking, stop it!
                     if self.voice_output_manager:
@@ -155,13 +150,8 @@ class AudioStreamProcessor:
                 if user_id in self.currently_speaking:
                     self.user_silence_frames[user_id] += 1
                     
-                    # Log silence progress occasionally
-                    if self.user_silence_frames[user_id] % 50 == 0:
-                         logger.debug(f"🤫 {username} silence: {self.user_silence_frames[user_id]}/{self.SILENCE_FRAMES_THRESHOLD} frames")
-
                     # Check if silence threshold reached
                     if self.user_silence_frames[user_id] >= self.SILENCE_FRAMES_THRESHOLD:
-                        logger.info(f"🛑 Silence threshold reached for {username}. Queueing transcription...")
                         # Silence detected - process buffer
                         self._queue_for_transcription(
                             user_id=user_id,
@@ -271,21 +261,16 @@ class AudioStreamProcessor:
                 except asyncio.TimeoutError:
                     continue
                 
-                logger.debug(f"📥 Processing queue item for {item.get('username')}")
-                
                 # Transcribe
                 await self._transcribe_and_store(item)
                 
                 self.stats['chunks_processed'] += 1
-                logger.debug(f"✅ Queue item processed. Queue size: {self.processing_queue.qsize()}")
             
             except asyncio.CancelledError:
                 logger.info("🛑 Transcription queue processor cancelled")
                 break
             except Exception as e:
                 logger.error(f"❌ Error in transcription queue: {e}")
-                import traceback
-                logger.error(traceback.format_exc())
                 self.stats['errors'] += 1
                 await asyncio.sleep(0.5)
         
@@ -309,15 +294,12 @@ class AudioStreamProcessor:
             logger.info(f"🎤 Transcribing audio from {username} ({len(audio_data)} bytes)...")
             
             # Transcribe
-            start_time = datetime.now()
             transcription = await self.transcriber.transcribe(audio_data, language="en")
-            duration = (datetime.now() - start_time).total_seconds()
             
             if transcription and len(transcription.strip()) > 0:
-                logger.info(f"✅ Transcribed in {duration:.2f}s: '{transcription}'")
+                logger.info(f"✅ Transcribed: '{transcription}'")
                 
                 # Store in memory pipeline
-                logger.debug(f"📤 Handoff to voice pipeline for {username}")
                 await self.voice_pipeline.process_voice_message(
                     user_id=user_id,
                     username=username,
@@ -326,11 +308,10 @@ class AudioStreamProcessor:
                     transcription=transcription,
                     timestamp=timestamp
                 )
-                logger.debug(f"✅ Voice pipeline processing complete for {username}")
                 
                 self.stats['transcriptions_completed'] += 1
             else:
-                logger.debug(f"⭐ Empty transcription from {username} (took {duration:.2f}s)")
+                logger.debug(f"⭐ Empty transcription from {username}")
         
         except Exception as e:
             logger.error(f"❌ Error transcribing audio: {e}")

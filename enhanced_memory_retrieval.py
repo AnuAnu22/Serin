@@ -11,7 +11,7 @@ from typing import List, Dict, Optional, Tuple
 from collections import defaultdict, Counter
 from logger_config import logger
 import sqlite3
-import chromadb
+
 from dataclasses import dataclass
 
 @dataclass

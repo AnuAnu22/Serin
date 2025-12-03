@@ -145,23 +145,95 @@ class ResponseController:
             self._start_conversation(channel_id, user_id)
             return True, "bot_name_in_message"
         
-        # PRIORITY 4: Stay engaged in active conversations
+        # PRIORITY 4: Stay engaged in active conversations (95% response rate)
         if self._is_in_active_conversation(channel_id, user_id):
             self._update_conversation(channel_id, user_id)
-            return True, "active_conversation"
+            
+            # Very high chance to respond when in conversation
+            if random.random() < 0.95:
+                return True, "active_conversation"
+            else:
+                # 5% chance to naturally end conversation
+                return False, "conversation_natural_end"
         
-        # Check message length - Ignore very short messages (handled by ThinkingManager now)
-        # content_len = len(message_content.strip())
-        # if content_len < 5: ...
+        # Check message length
+        content_len = len(message_content.strip())
+        
+        # Ignore very short messages sometimes (but less aggressively)
+        if content_len < 5:
+            if random.random() < 0.3:  # Reduced from 0.5
+                return False, "too_short"
+        
+        # Single-word messages - be more lenient
+        words = message_content.split()
+        if len(words) == 1:
+            if random.random() < 0.4:  # Reduced from 0.7
+                return False, "single_word"
+        
+        # Check if it's a private conversation between others
+        if len(recent_messages) >= 3:
+            last_three_users = [m.get('user_id') for m in recent_messages[-3:]]
+            unique_users = set(last_three_users)
+            
+            # If last 3 messages are from same 2 people (and we're not one of them)
+            if len(unique_users) == 2 and user_id in unique_users:
+                # Check if bot was in the conversation
+                bot_in_conv = any(m.get('user_name', '').lower() == 'serin' for m in recent_messages[-5:])
+                
+                if not bot_in_conv:
+                    # 50% chance to stay out (reduced from 70%)
+                    if random.random() < 0.5:
+                        return False, "private_conversation"
+        
+        # Check response frequency - but be more lenient
+        if channel_id in self.last_response_time:
+            time_since_last = (datetime.now() - self.last_response_time[channel_id]).total_seconds()
+            
+            # If responded less than 5 seconds ago, be selective
+            if time_since_last < 5:  # Reduced from 10
+                if random.random() < 0.3:  # Reduced from 0.5
+                    return False, "too_frequent"
         
         # Check if message is a question (ALWAYS respond)
         if '?' in message_content:
             self._start_conversation(channel_id, user_id)
             return True, "question_asked"
         
-        # For everything else, let the ThinkingManager decide
-        # We return True here to pass the gate, and ThinkingManager will set reply_needed=False if needed
-        return True, "passed_to_thinking_manager"
+        # Check if message is addressing the channel generally
+        greetings = ['hey everyone', 'hi all', 'sup guys', 'anyone', 'hey guys', 'yo', 'sup']
+        if any(greeting in message_content.lower() for greeting in greetings):
+            # 90% chance to respond to general messages
+            if random.random() < 0.9:
+                self._start_conversation(channel_id, user_id)
+                return True, "general_address"
+            return False, "general_skip"
+        
+        # Check if user is trying to engage (multiple messages in a row)
+        if len(recent_messages) >= 3:
+            last_three_users = [m.get('user_id') for m in recent_messages[-3:]]
+            # If same user sent last 2-3 messages, they're trying to talk
+            if last_three_users[-1] == last_three_users[-2] == user_id:
+                # 90% chance to respond if someone is clearly trying to engage
+                if random.random() < 0.9:
+                    self._start_conversation(channel_id, user_id)
+                    return True, "user_engaging"
+        
+        # Random response rate based on conversation energy
+        mood = self.conversation_mood.get(channel_id, 'neutral')
+        
+        if mood == 'energetic':
+            respond_chance = 0.85  # Increased from 0.9
+        elif mood == 'chill':
+            respond_chance = 0.75  # Increased from 0.7
+        else:  # neutral
+            respond_chance = 0.80  # Same as before
+        
+        if random.random() < respond_chance:
+            # Start conversation on response
+            self._start_conversation(channel_id, user_id)
+            return True, f"random_{mood}"
+        
+        return False, "selective_skip"
     
     def calculate_typing_delay(
         self,
@@ -307,7 +379,7 @@ class ResponseController:
                 async with channel.typing():
                     await asyncio.sleep(delay)
                 
-                last_sent_msg = await channel.send(msg)
+                await channel.send(msg)
                 
                 if i < len(messages) - 1:
                     await asyncio.sleep(random.uniform(0.5, 1.5))

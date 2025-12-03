@@ -125,13 +125,26 @@ class WhisperTranscriber:
             audio_float = audio_16k.astype(np.float32) / 32768.0
             
             # Transcribe in background thread
-            logger.debug("🎤 Transcribing audio (running in thread)...")
+            logger.debug("🎤 Transcribing audio...")
             
-            transcription = await asyncio.to_thread(
-                self._transcribe_sync,
+            segments, info = await asyncio.to_thread(
+                self.model.transcribe,
                 audio_float,
-                language
+                language=language,
+                beam_size=5,
+                vad_filter=True,  # Voice activity detection
+                vad_parameters=dict(
+                    threshold=0.5,
+                    min_silence_duration_ms=500
+                )
             )
+            
+            # Combine all segments
+            transcription = ""
+            for segment in segments:
+                transcription += segment.text + " "
+            
+            transcription = transcription.strip()
             
             self.stats['total_transcriptions'] += 1
             
@@ -141,41 +154,6 @@ class WhisperTranscriber:
             else:
                 logger.debug("⏭️ Empty transcription")
                 return None
-        
-        except Exception as e:
-            logger.error(f"❌ Error transcribing audio: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-            self.stats['errors'] += 1
-            return None
-
-    def _transcribe_sync(self, audio_float: np.ndarray, language: str) -> str:
-        """
-        Synchronous transcription wrapper to run in thread.
-        Iterating over segments is blocking, so it must be done here.
-        """
-        try:
-            segments, info = self.model.transcribe(
-                audio_float,
-                language=language,
-                beam_size=5,
-                vad_filter=True,
-                vad_parameters=dict(
-                    threshold=0.5,
-                    min_silence_duration_ms=500
-                )
-            )
-            
-            # Combine all segments (this triggers the actual model inference)
-            transcription = ""
-            for segment in segments:
-                transcription += segment.text + " "
-            
-            return transcription.strip()
-            
-        except Exception as e:
-            logger.error(f"❌ Error in _transcribe_sync: {e}")
-            raise
         
         except Exception as e:
             logger.error(f"❌ Error transcribing audio: {e}")

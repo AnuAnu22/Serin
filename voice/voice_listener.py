@@ -45,7 +45,7 @@ class VoiceListener:
             'errors': 0
         }
         
-        logger.info("✅ Voice listener initialized (py-cord compatible)")
+        logger.info("✅ Voice listener initialized (discord.py compatible)")
     
     async def join_channel(self, guild_id: int, channel_id: int) -> bool:
         """
@@ -59,16 +59,6 @@ class VoiceListener:
             Success status
         """
         try:
-            # Ensure Opus is loaded (required for voice)
-            if not discord.opus.is_loaded():
-                logger.info("⚠️ Opus not loaded. Attempting to load default...")
-                try:
-                    discord.opus.load_opus("libopus.so.0")
-                    logger.info("✅ Opus loaded successfully")
-                except Exception as e:
-                    logger.error(f"❌ Failed to load Opus: {e}")
-                    # Continue anyway, it might be loaded but not reported or system managed
-            
             guild = self.client.get_guild(guild_id)
             if not guild:
                 logger.error(f"❌ Guild {guild_id} not found")
@@ -86,19 +76,13 @@ class VoiceListener:
                 logger.info(f"🎤 Moved to {channel.name} in {guild.name}")
             else:
                 # Join new channel
-                # self_deaf=True is best practice for bots (saves bandwidth, prevents echo)
-                # timeout=20.0 gives more time for the handshake
-                voice_client = await channel.connect(self_deaf=True, timeout=20.0)
+                voice_client = await channel.connect()
                 self.voice_connections[guild_id] = voice_client
                 
                 # Start listening
-                if await self._start_listening(voice_client, guild_id, channel_id):
-                    logger.info(f"🎤 Joined {channel.name} in {guild.name}")
-                else:
-                    logger.error(f"❌ Failed to start listening in {channel.name}. Disconnecting.")
-                    await voice_client.disconnect()
-                    del self.voice_connections[guild_id]
-                    return False
+                await self._start_listening(voice_client, guild_id, channel_id)
+                
+                logger.info(f"🎤 Joined {channel.name} in {guild.name}")
             
             self.stats['connections'] += 1
             self.stats['active_channels'].add(str(channel_id))
@@ -150,7 +134,7 @@ class VoiceListener:
     
 
     async def _start_listening(self, voice_client: discord.VoiceClient, guild_id: int, channel_id: int):
-        """Start listening using pycord's start_recording"""
+        """Start listening using discord.py 2.x AudioSink"""
         try:
             # Create custom sink
             sink = AudioSink(
@@ -160,38 +144,14 @@ class VoiceListener:
                 stats=self.stats
             )
             
-            logger.info(f"🔍 Debug: Checking connection state before start_recording...")
-            logger.info(f"   - Is connected: {voice_client.is_connected()}")
-            logger.info(f"   - Channel: {voice_client.channel}")
-            logger.info(f"   - Session ID: {voice_client.session_id}")
-            logger.info(f"   - Endpoint: {voice_client.endpoint}")
-            
-            # Wait for connection if needed (sometimes there's a race condition)
-            # Pycord sometimes reports is_connected() as False initially even if it is connecting
-            if not voice_client.is_connected():
-                logger.warning("⚠️ Voice client reports not connected. Waiting for handshake...")
-                for i in range(20):  # Wait up to 10 seconds
-                    await asyncio.sleep(0.5)
-                    if voice_client.is_connected():
-                        logger.info(f"✅ Connected after wait. Latency: {voice_client.latency}s")
-                        break
-                    logger.debug(f"   ⏳ Waiting... (Connected: {voice_client.is_connected()}, Latency: {voice_client.latency})")
-                else:
-                    logger.error("❌ Failed to connect after waiting 10s. Attempting to proceed anyway (risky)...")
-            else:
-                logger.info("✅ Voice client is connected.")
-            
-            # pycord: Use start_recording(sink, callback)
-            # The callback is called when recording stops
-            voice_client.start_recording(sink, self._recording_callback)
+            # discord.py 2.x: Use listen() not start_recording()
+            voice_client.listen(sink)
             logger.info(f"🎧 Started listening in channel {channel_id}")
-            return True
         
         except Exception as e:
             logger.error(f"Error starting listener: {e}")
             import traceback
             logger.error(traceback.format_exc())
-            return False
     
     async def _stop_listening(self, guild_id: int):
         """
@@ -204,7 +164,6 @@ class VoiceListener:
             if guild_id in self.voice_connections:
                 voice_client = self.voice_connections[guild_id]
                 if voice_client.is_connected():
-                    # pycord: stop_recording stops the sink and triggers callback
                     voice_client.stop_recording()
                     logger.info(f"🎧 Stopped listening in guild {guild_id}")
         except Exception as e:
@@ -213,7 +172,6 @@ class VoiceListener:
     def _recording_callback(self, sink, user, audio):
         """Callback when recording finishes for a user"""
         logger.debug(f"📼 Recording callback triggered for user {user}")
-        logger.warning(f"⚠️ Recording STOPPED for user {user} (This usually means the bot stopped recording)")
     
     def _recording_error_callback(self, sink, error):
         """Callback when recording error occurs"""
@@ -250,10 +208,6 @@ class VoiceListener:
             'audio_chunks_processed': self.stats['total_audio_chunks'],
             'errors': self.stats['errors']
         }
-    
-    def is_connected(self) -> bool:
-        """Check if connected to any voice channel"""
-        return len(self.voice_connections) > 0
 
 
 class AudioSink(discord.sinks.Sink):

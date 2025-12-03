@@ -140,7 +140,7 @@ class VoiceMemoryPipeline:
                     else:
                         logger.warning("⚠️ MessageManager does not support voice input")
             
-            logger.info(f"✅ Voice message processed and stored for {username}")
+            logger.debug(f"✅ Voice message processed and stored")
         
         except Exception as e:
             logger.error(f"❌ Error processing voice message: {e}")

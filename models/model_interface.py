@@ -56,30 +56,6 @@ class ModelInterface(ABC):
             RuntimeError: If generation fails
         """
         pass
-
-    @abstractmethod
-    async def chat_completion_stream(
-        self,
-        messages: List[Dict[str, str]],
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        stop: Optional[List[str]] = None,
-        **kwargs
-    ):
-        """
-        Generate chat completion response as an async generator.
-        
-        Args:
-            messages: List of message dicts with 'role' and 'content'
-            temperature: Override default temperature
-            max_tokens: Maximum tokens to generate
-            stop: Stop sequences
-            **kwargs: Additional model-specific parameters
-        
-        Yields:
-            Text chunks as they are generated
-        """
-        pass
     
     @abstractmethod
     async def send_input(

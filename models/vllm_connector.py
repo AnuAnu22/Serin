@@ -168,52 +168,6 @@ class VLLMConnector(ModelInterface):
             lambda: self.blocking_chat_completion(messages, temperature, max_tokens, stop, **kwargs)
         )
 
-    async def chat_completion_stream(
-        self,
-        messages: List[Dict[str, str]],
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        stop: Optional[List[str]] = None,
-        **kwargs
-    ):
-        if self.client is None or self.adapter is None:
-            raise RuntimeError("Client not initialized. Call load_model() first.")
-
-        formatted_messages = self.adapter.format_messages(messages)
-        model_stop_tokens = self.adapter.get_stop_tokens()
-        if stop:
-            model_stop_tokens.extend(stop)
-
-        params = {
-            "model": self.model_name,
-            "messages": formatted_messages,
-            "max_tokens": max_tokens or self.max_tokens,
-            "temperature": temperature if temperature is not None else self.temperature,
-            "top_p": self.top_p,
-            "stream": True
-        }
-
-        if model_stop_tokens:
-            params["stop"] = model_stop_tokens
-
-        params.update(kwargs)
-
-        try:
-            from openai import AsyncOpenAI
-            async_client = AsyncOpenAI(base_url=self.base_url, api_key=self.api_key)
-            
-            stream = await async_client.chat.completions.create(**params)
-            
-            async for chunk in stream:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
-            
-            await async_client.close()
-
-        except Exception as e:
-            logger.error(f"❌ Error during streaming chat completion: {e}")
-            raise
-
     def blocking_send_input(
         self,
         prompt: str,

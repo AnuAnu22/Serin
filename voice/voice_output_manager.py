@@ -143,12 +143,6 @@ class VoiceOutputManager:
     async def _play_audio(self, vc: discord.VoiceClient, audio_data: bytes):
         """Play audio data on VoiceClient"""
         try:
-            logger.debug(f"🔊 Starting playback on {vc.channel} ({len(audio_data)} bytes)")
-            
-            if not vc.is_connected():
-                logger.error("❌ Voice client disconnected before playback")
-                return
-
             # Create AudioSource
             # XTTS outputs 24kHz usually, Discord needs 48kHz stereo
             # discord.FFmpegPCMAudio handles this, but for raw bytes we need PCMVolumeTransformer
@@ -159,8 +153,6 @@ class VoiceOutputManager:
                 f.write(audio_data)
                 temp_filename = f.name
             
-            logger.debug(f"📁 Saved temp audio to {temp_filename}")
-            
             source = discord.FFmpegPCMAudio(temp_filename)
             
             # Wrap in transformer for volume control
@@ -168,22 +160,16 @@ class VoiceOutputManager:
             
             # Play
             vc.play(source, after=lambda e: self._cleanup_temp(temp_filename, e))
-            logger.info("▶️ Playback started")
             
             # Wait for playback to finish
             while vc.is_playing():
                 await asyncio.sleep(0.1)
                 if self.interrupt_event.is_set():
-                    logger.info("🛑 Playback interrupted")
                     vc.stop()
                     break
             
-            logger.debug("✅ Playback finished")
-            
         except Exception as e:
             logger.error(f"❌ Error playing audio: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
     
     def _cleanup_temp(self, filename, error):
         """Cleanup temp file after playback"""
