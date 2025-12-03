@@ -1,0 +1,10 @@
+{
+  "backup_type": "startup",
+  "timestamp": "20251102_001522",
+  "created_at": "2025-11-02T00:15:22.286908",
+  "bot_version": "unknown",
+  "databases_backed_up": [
+    "SQLite"
+  ],
+  "errors": []
+}

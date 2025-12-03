@@ -1,0 +1,11 @@
+{
+  "backup_type": "pre_recovery",
+  "timestamp": "20251102_001518",
+  "created_at": "2025-11-02T00:15:18.457234",
+  "bot_version": "unknown",
+  "databases_backed_up": [
+    "SQLite",
+    "ChromaDB"
+  ],
+  "errors": []
+}

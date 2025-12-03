@@ -1,0 +1,84 @@
+{
+  "qdrant": {
+    "host": "localhost",
+    "port": 6333,
+    "https": false,
+    "api_key": null,
+    "timeout": 30,
+    "connection_retries": 3,
+    "connection_timeout": 10
+  },
+  "collection": {
+    "name": "memories",
+    "vector_size": 384,
+    "distance_metric": "Cosine",
+    "hnsw_config": {
+      "m": 16,
+      "ef_construct": 512,
+      "ef_search": 100
+    },
+    "quantization": {
+      "enabled": true,
+      "type": "INT8",
+      "quantile": 0.995
+    },
+    "optimizers": {
+      "default_segment_number": 4,
+      "indexing_threshold": 20000,
+      "flush_interval_sec": 10,
+      "max_optimization_threads": 4
+    },
+    "wal_config": {
+      "wal_capacity_mb": 32,
+      "wal_segments_ahead": 0
+    },
+    "on_disk": true
+  },
+  "embedding": {
+    "model": "all-MiniLM-L6-v2",
+    "device": "cpu",
+    "batch_size": 32,
+    "max_length": 512
+  },
+  "bm25": {
+    "enabled": true,
+    "k1": 1.2,
+    "b": 0.75,
+    "delta": 0.5
+  },
+  "memory_retention": {
+    "default_retention_days": 90,
+    "high_importance_retention_days": 365,
+    "low_importance_threshold": 0.3,
+    "prune_batch_size": 1000
+  },
+  "background_jobs": {
+    "enabled": true,
+    "max_concurrent_jobs": 5,
+    "job_timeout": 300,
+    "retry_attempts": 3,
+    "retry_delay": 60
+  },
+  "search": {
+    "default_limit": 10,
+    "max_limit": 100,
+    "hybrid_search": true,
+    "bm25_weight": 0.5,
+    "vector_weight": 0.5,
+    "reranking": true,
+    "reranking_top_k": 30
+  },
+  "monitoring": {
+    "enabled": true,
+    "metrics_interval": 60,
+    "health_check_interval": 30,
+    "log_level": "INFO"
+  },
+  "backup": {
+    "enabled": true,
+    "interval_hours": 24,
+    "retention_days": 7,
+    "compression": true,
+    "backup_path": "./bot_data/backups"
+  }
+}
