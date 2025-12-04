@@ -102,6 +102,9 @@ class EnhancedMessageManagerV3:
             'voice_responses': 0
         }
         
+        # Cache for visual contexts between processing and flushing
+        self.pending_visual_contexts = {}
+        
         # Log memory system type
         memory_type = "Qdrant" if hasattr(self.memory, 'qdrant_client') else "ChromaDB"
         logger.info(f"✅ Enhanced MessageManager initialized with {memory_type} memory system")
@@ -304,6 +307,9 @@ class EnhancedMessageManagerV3:
                         
                         # Add visual indicator to content for LLM
                         cleaned_content += f" [User posted an image]{visual_context}"
+                        
+                        # Store visual context for batch processing
+                        self.pending_visual_contexts[message.id] = visual_context
             
             # Update user profile
             self.memory.upsert_user(user_id, user_name, user_name)
@@ -406,9 +412,11 @@ class EnhancedMessageManagerV3:
                     has_image = any(a.content_type and a.content_type.startswith('image/') for a in msg.attachments)
                     if has_image:
                         content += " [User posted an image]"
-                        # Add visual context if this is the current message we just analyzed
-                        if msg.id == message.id:
-                            content += visual_context
+                        # Add visual context if available in pending cache
+                        if msg.id in self.pending_visual_contexts:
+                            content += self.pending_visual_contexts[msg.id]
+                            # Clean up
+                            del self.pending_visual_contexts[msg.id]
 
                 user_messages.append({
                     'user_id': str(msg.author.id),
