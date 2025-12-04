@@ -439,6 +439,26 @@ class EnhancedMessageManagerV3:
                 channel_id=str(channel.id)
             )
             
+            # CRITICAL FIX: Filter polluted memories (from previous bad summaries)
+            garbage_patterns = [
+                "We are given", "We must write", "CRITICAL RULES", "CRITICAL:",
+                "one sentence", "Summary:", "Task:", "INSTRUCTIONS",
+                "### FINAL", "[the ", "template", "example",
+                "Output Format", "JSON", "search_needed", "query:",
+                "username followed by", "third person"
+            ]
+            
+            if 'relevant_memories' in context:
+                clean_memories = []
+                for mem in context['relevant_memories']:
+                    content = mem.get('content', '')
+                    is_garbage = any(pattern.lower() in content.lower() for pattern in garbage_patterns)
+                    if is_garbage:
+                        logger.warning(f"🧹 Filtered polluted memory: {content[:50]}...")
+                        continue
+                    clean_memories.append(mem)
+                context['relevant_memories'] = clean_memories
+            
             # Track context improvements
             self.stats['context_improvements'] += 1
             logger.info("📈 Using ConversationContextBuilder for context")

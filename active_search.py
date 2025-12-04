@@ -31,9 +31,13 @@ class ActiveSearch:
             response = await self.llm.send_input(
                 prompt=prompt,
                 temperature=0.1,
-                max_tokens=150,
+                max_tokens=300,  # Increased for thinking models
                 stop=["}"] # Stop at end of JSON
             )
+            
+            # For thinking models, extract content after </think> tag
+            if '</think>' in response:
+                response = response.split('</think>')[-1].strip()
             
             # Parse JSON output
             decision = self._parse_decision(response)
@@ -109,7 +113,15 @@ RESPONSE:
     def _parse_decision(self, response: str) -> Dict:
         """Parse the LLM response into a dict"""
         try:
-            # Clean up response to ensure valid JSON
+            # Try to find JSON object using regex
+            # Look for the last JSON object in the text (in case there are examples in the thinking)
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            
+            if json_match:
+                json_str = json_match.group(0)
+                return json.loads(json_str)
+            
+            # Fallback: Try to parse the whole thing if regex failed (unlikely but safe)
             cleaned = response.strip()
             if not cleaned.endswith('}'):
                 cleaned += '}'
@@ -117,8 +129,9 @@ RESPONSE:
                 cleaned = '{' + cleaned
                 
             return json.loads(cleaned)
-        except json.JSONDecodeError:
-            logger.warning(f"⚠️ Failed to parse thinking response: {response}")
+            
+        except (json.JSONDecodeError, AttributeError):
+            logger.warning(f"⚠️ Failed to parse thinking response: {response[:200]}...")
             # Fallback: simple text search if it looks like a query
             if len(response) < 50 and " " in response:
                  return {"search_needed": True, "query": response, "reason": "parsing_fallback"}

@@ -79,11 +79,34 @@ async def get_response_natural(
                 "content": f"{msg['user_name']}: {msg['content']}"
             })
         
-        # Generate using connector (OpenAI-compatible API)
-        raw_text = await llama.chat_completion(messages)
+        # Check if this is a thinking model
+        model_info = llama.get_model_info()
+        model_name = model_info.get('model_name', '').lower()
+        is_thinking_model = 'thinking' in model_name or 'think' in model_name
+        
+        # For thinking models: more tokens, no special instructions (they confuse the model)
+        # The model naturally uses <think>...</think> tags
+        if is_thinking_model:
+            max_tokens = 1500  # Allow room for thinking
+        else:
+            max_tokens = 300  # Normal token limit for instruct models
+        
+        raw_text = await llama.chat_completion(messages, max_tokens=max_tokens)
+        
+        # Extract response based on model type
+        if is_thinking_model:
+            # Look for content after </think> tag - this is the actual response
+            if '</think>' in raw_text:
+                response_text = raw_text.split('</think>')[-1].strip()
+            else:
+                # Fallback: apply thinking filter
+                response_text = filter_thinking(raw_text)
+        else:
+            # Normal instruct model - just filter thinking tags if any
+            response_text = filter_thinking(raw_text)
         
         # Clean response
-        cleaned = clean_response(raw_text)
+        cleaned = clean_response(response_text)
         
         if not is_instruction:
             cleaned = apply_natural_variations(cleaned, tone_modifier)

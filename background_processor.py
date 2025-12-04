@@ -292,8 +292,7 @@ class BackgroundProcessor:
         """
         Create ONE natural memory from RAW conversation batch.
         
-        FIXED: Now properly formats with usernames
-        FIXED: Uses RAW message content, not vector results
+        FIXED: Now uses JSON prompt to handle thinking models
         """
         try:
             # Build conversation context from RAW messages
@@ -305,15 +304,30 @@ class BackgroundProcessor:
             
             logger.debug(f"📝 Creating summary from conversation:\n{conversation_text[:200]}...")
             
-            # Build summarization prompt
-            prompt = self._build_summary_prompt(conversation_text, messages)
+            # Check if this is a thinking model
+            model_info = self.extractor_llm.get_model_info()
+            model_name = model_info.get('model_name', '').lower()
+            is_thinking_model = 'thinking' in model_name or 'think' in model_name
             
-            # Query 1B LLM for summary
-            summary = await self.extractor_llm.chat_completion(
+            # Build a simple, natural prompt - no meta-instructions that could leak
+            usernames = list(set(msg['username'] for msg in messages))
+            prompt = f"""Summarize this conversation in ONE sentence, mentioning who said what:
+
+{conversation_text}
+
+Summary:"""
+            
+            # Query LLM for summary
+            if is_thinking_model:
+                max_tokens = 800  # Allow room for thinking
+            else:
+                max_tokens = 150  # Normal token limit for instruct models
+            
+            response = await self.extractor_llm.chat_completion(
                 messages=[
                     {
                         "role": "system",
-                        "content": "You create brief, natural summaries of conversations. Include WHO said WHAT. Write like you're remembering what happened, not like a transcript."
+                        "content": "You write brief summaries. Always write in third person."
                     },
                     {
                         "role": "user",
@@ -321,28 +335,45 @@ class BackgroundProcessor:
                     }
                 ],
                 temperature=0.3,
-                max_tokens=150
+                max_tokens=max_tokens
             )
             
-            # Clean summary
-            summary = filter_thinking(summary.strip())
+            # Extract summary based on model type
+            summary = ""
+            if is_thinking_model:
+                # Look for content after </think> tag
+                if '</think>' in response:
+                    summary = response.split('</think>')[-1].strip()
+                else:
+                    # Fallback: apply thinking filter
+                    summary = filter_thinking(response.strip())
+            else:
+                # Normal instruct model - just filter thinking tags if any
+                summary = filter_thinking(response.strip())
             
             # CRITICAL FIX: Remove username prefix if present
             for msg in messages:
                 username = msg['username']
                 if summary.startswith(f"{username}: "):
                     summary = summary[len(username) + 2:].strip()
-                    logger.debug(f"🔧 Removed username prefix from summary")
                     break
             
+            # Validation: Check for garbage patterns that indicate the model failed
+            garbage_patterns = [
+                "We are given", "We must write", "CRITICAL", "RULES",
+                "one sentence", "Summary:", "Task:", "INSTRUCTIONS",
+                "### FINAL", "[the ", "template", "example"
+            ]
+            is_garbage = any(pattern.lower() in summary.lower() for pattern in garbage_patterns)
+            
             # Ensure summary is valid
-            if summary and len(summary) > 15:
+            if summary and len(summary) > 15 and len(summary) < 300 and not is_garbage:
                 # Store as natural memory
                 await self._store_summary(summary, messages)
                 self.stats['summaries_created'] += 1
                 logger.info(f"💾 Created summary: {summary[:80]}...")
             else:
-                logger.debug(f"⚠️ Summary too short after cleaning, skipping")
+                logger.warning(f"⚠️ Summary rejected (garbage or invalid): '{summary[:50]}...'")
 
             log_summary(messages, summary)
             
@@ -352,38 +383,6 @@ class BackgroundProcessor:
             logger.error(traceback.format_exc())
             self.stats['errors'] += 1
     
-    def _build_summary_prompt(self, conversation: str, messages: List[Dict]) -> str:
-        """
-        Build prompt for natural summarization.
-        
-        FIXED: Clearer instructions about WHO said WHAT
-        """
-        usernames = list(set(msg['username'] for msg in messages))
-        users_str = ", ".join(usernames)
-        
-        return f"""Conversation:
-{conversation}
-
-Write ONE sentence summarizing what happened. Include WHO said WHAT.
-
-CRITICAL RULES:
-- DO NOT start with "{users_str}:" or any username followed by a colon
-- Include WHO is talking about WHAT (e.g., "Alice mentioned X", "Bob asked about Y")
-- Write in third person, like you're remembering it later
-- Be specific about who said what
-
-Examples of GOOD summaries:
-- "Alice mentioned she's getting an orange tabby cat and wants to name it Whiskers"
-- "Bob asked Mike about weekend plans and Mike suggested going hiking"
-- "Sarah said she's learning Python and asked for good tutorial resources"
-
-Examples of BAD summaries (DO NOT DO THIS):
-- "Alice: getting a cat" ❌ (has username prefix)
-- "was talking about cats" ❌ (no attribution - WHO was talking?)
-- "discussed weekend plans" ❌ (no attribution - WHO discussed?)
-- "mentioned programming" ❌ (WHO mentioned?)
-
-Summary:"""
     
     async def _store_summary(self, summary: str, messages: List[Dict]):
         """
