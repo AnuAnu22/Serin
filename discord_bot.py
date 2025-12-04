@@ -46,6 +46,7 @@ from mention_translator import MentionTranslator
 # TIER 3: Background Processing
 from passive_monitor import PassiveMonitor
 from background_processor import BackgroundProcessor
+from database_protector import get_database_protector
 
 # TIER 4: Message Crawler
 from message_crawler import MessageCrawler
@@ -217,9 +218,6 @@ async def on_ready():
     """Called when bot successfully connects to Discord"""
     global manager, background_processor, passive_monitor, message_crawler
     global whisper_transcriber, audio_processor, voice_listener, voice_pipeline, tts_engine
-    global ENABLE_VOICE
-    global ENABLE_TTS
-    global USE_QDRANT
     
     try:
         stats['start_time'] = asyncio.get_event_loop().time()
@@ -245,7 +243,8 @@ async def on_ready():
             logger.info(f"📡 Server: {guild.name} (ID: {guild.id})")
             cached = mention_translator.cache_guild_members(guild)
             logger.info(f"   👥 Cached {cached} members")
-            allowed_channels = [ch for ch in guild.text_channels if ch.id in ALLOWED_CHANNEL_IDS]
+            # Filter channels based on allowed list
+            allowed_channels = [ch for ch in guild.text_channels if ch.id in config.ALLOWED_CHANNEL_IDS]
             total_channels += len(guild.text_channels)
             total_voice_channels += len(guild.voice_channels)
             logger.info(f"   ✅ Response channels: {len(allowed_channels)}")
@@ -271,8 +270,8 @@ async def on_ready():
             from qdrant_memory_system import QdrantMemorySystem
             memory_system = QdrantMemorySystem(
                 data_dir="./bot_data",
-                qdrant_host=QDRANT_HOST,
-                qdrant_port=QDRANT_PORT
+                qdrant_host=config.QDRANT_HOST,
+                qdrant_port=config.QDRANT_PORT
             )
             logger.info("✅ Qdrant Memory System initialized!")
             
@@ -300,7 +299,7 @@ async def on_ready():
         passive_monitor = PassiveMonitor(
             manager.memory,
             background_processor,
-            ALLOWED_CHANNEL_IDS,
+            config.ALLOWED_CHANNEL_IDS,
             mention_translator
         )
         logger.info("✅ Passive monitor ready!")
@@ -326,7 +325,7 @@ async def on_ready():
             logger.error(f"❌ Failed to start sync monitor: {e}")
         
         # TIER 6: Initialize voice components
-        if ENABLE_VOICE:
+        if config.ENABLE_VOICE:
             logger.info("=" * 60)
             logger.info("🎤 INITIALIZING VOICE INPUT (TIER 6)")
             logger.info("=" * 60)
@@ -357,6 +356,7 @@ async def on_ready():
             logger.info("🎤 Voice input system fully initialized!")
         
         # TIER 7: Initialize TTS (if enabled)
+        voice_output_manager = None
         if config.ENABLE_TTS:
             logger.info("=" * 60)
             logger.info("🔊 INITIALIZING TTS OUTPUT (TIER 7)")
@@ -413,12 +413,22 @@ async def on_ready():
         
         # Initialize passive monitor
         logger.info("👁️ Initializing passive monitor...")
-        passive_monitor = PassiveMonitor(memory_system)
+        passive_monitor = PassiveMonitor(
+            memory_system,
+            background_processor,
+            config.ALLOWED_CHANNEL_IDS,
+            mention_translator
+        )
         logger.info("✅ Passive monitor ready!")
         
         # Initialize message crawler
         logger.info("🕷️ Initializing message crawler...")
-        message_crawler = MessageCrawler(client, memory_system)
+        message_crawler = MessageCrawler(
+            client,
+            memory_system,
+            background_processor,
+            mention_translator
+        )
         await message_crawler.start()
         logger.info("✅ Message crawler started!")
         
@@ -486,15 +496,15 @@ async def on_message(message):
         if not isinstance(message.channel, discord.TextChannel):
             return
         
-        # Filter 3: Ignore empty messages
+        # Filter 3: Ignore empty messages (unless they have attachments)
         content = message.content.strip()
-        if not content:
+        if not content and not message.attachments:
             return
         
         # Check if in allowed channel
         is_allowed_channel = message.channel.id in config.ALLOWED_CHANNEL_IDS
         
-        if TRACE_MESSAGES:
+        if config.TRACE_MESSAGES:
             channel_type = "ACTIVE" if is_allowed_channel else "PASSIVE"
             logger.debug(
                 f"📨 [{channel_type}] Message #{stats['messages_received']}: "
@@ -723,16 +733,16 @@ async def main():
         logger.info("🛡️ WITH DATABASE PROTECTION")
         logger.info("=" * 60)
         
-        if DEBUG_MODE:
+        if config.DEBUG_MODE:
             logger.info("🛠️ Debug mode enabled - verbose logging active")
         
         logger.info(f"🔧 Configuration:")
-        logger.info(f"   📺 Trace messages: {TRACE_MESSAGES}")
-        logger.info(f"   📋 Response channels: {len(ALLOWED_CHANNEL_IDS)}")
+        logger.info(f"   📺 Trace messages: {config.TRACE_MESSAGES}")
+        logger.info(f"   📋 Response channels: {len(config.ALLOWED_CHANNEL_IDS)}")
         logger.info(f"   👁️ Monitoring: ALL channels (passive learning)")
-        logger.info(f"   🧹 Maintenance interval: {MAINTENANCE_INTERVAL_HOURS}h")
+        logger.info(f"   🧹 Maintenance interval: {config.MAINTENANCE_INTERVAL_HOURS}h")
         logger.info(f"   🌍 Cross-server memory: ENABLED")
-        logger.info(f"   🎤 Voice tracking: ENABLED")
+        logger.info(f"   🎤 Voice tracking: {config.ENABLE_VOICE}")
         logger.info(f"   🔧 Multi-model: ENABLED (via factory)")
         logger.info(f"   ⏰ Temporal awareness: ENABLED")
         logger.info(f"   📝 Correction learning: ENABLED")
@@ -789,7 +799,7 @@ async def main():
                     
                     # Start Discord client with retry
                     logger.info(f"🔌 Connecting to Discord (Attempt {retry_count + 1}/{MAX_RETRIES})...")
-                    await client.start(cast(str, TOKEN))
+                    await client.start(cast(str, config.DISCORD_TOKEN))
                     break  # If successful, break the retry loop
                     
             except (aiohttp.ClientError, discord.ConnectionClosed, discord.GatewayNotFound) as e:

@@ -72,6 +72,7 @@ class EnhancedMessageManagerV3:
         # We need a model connector for this
         try:
             model_connector = get_model_connector()
+            model_connector.load_model()
             self.active_search = ActiveSearch(model_connector)
             logger.info("   ✓ Active Search (Thinking) enabled")
         except Exception as e:
@@ -264,9 +265,56 @@ class EnhancedMessageManagerV3:
                     self.last_bot_response = None
                     return
             
+            # TIER 6: Visual Memory Processing (MOVED UP)
+            visual_context = ""
+            if message.attachments and self.visual_memory:
+                for attachment in message.attachments:
+                    if attachment.content_type and attachment.content_type.startswith('image/'):
+                        logger.info(f"👁️ Processing image from {user_name}...")
+                        
+                        # 1. Recall (Do I know this?)
+                        matches = self.visual_memory.recall_image(attachment.url)
+                        
+                        if matches:
+                            top_match = matches[0]
+                            visual_context += f"\n[Visual Memory: I recognize this image! It looks like what {top_match['username']} posted on {top_match['timestamp'][:10]}. Context: '{top_match['context']}']"
+                            logger.info(f"💡 Visual recognition: {visual_context}")
+                        
+                        # 1.5 Analyze (What is this?)
+                        description = self.visual_memory.analyze_image(attachment.url)
+                        if description:
+                            visual_context += f"\n[Visual Analysis: The image shows {description}]"
+                            logger.info(f"👁️ Visual analysis: {description}")
+
+                        
+                        
+                        # 2. Store (Remember this)
+                        # We use the message content AND description as context
+                        storage_context = cleaned_content
+                        if description:
+                            storage_context += f" (Image: {description})"
+                            
+                        self.visual_memory.store_image_memory(
+                            image_url=attachment.url,
+                            user_id=user_id,
+                            username=user_name,
+                            channel_id=channel_id,
+                            context_text=storage_context
+                        )
+                        
+                        # Add visual indicator to content for LLM
+                        cleaned_content += f" [User posted an image]{visual_context}"
+            
             # Update user profile
             self.memory.upsert_user(user_id, user_name, user_name)
             self.memory.update_user_activity(user_id, len(cleaned_content))
+            
+            # Calculate emotional tone BEFORE using it
+            sentiment = self.analyzer.polarity_scores(cleaned_content)
+            emotional_tone = self._get_emotional_tone(sentiment['compound'])
+            
+            # Get participants BEFORE using it
+            participants = list(set([str(m.author.id) for m in self.current_batch] + [user_id]))
             
             # Store message as memory (using enhanced method if available)
             if hasattr(self.memory, 'add_memory_enhanced'):
@@ -286,41 +334,6 @@ class EnhancedMessageManagerV3:
             # Analyze and update personality
             self._analyze_personality(user_id, cleaned_content)
 
-            # TIER 6: Visual Memory Processing
-            visual_context = ""
-            if message.attachments and self.visual_memory:
-                for attachment in message.attachments:
-                    if attachment.content_type and attachment.content_type.startswith('image/'):
-                        logger.info(f"👁️ Processing image from {user_name}...")
-                        
-                        # 1. Recall (Do I know this?)
-                        matches = self.visual_memory.recall_image(attachment.url)
-                        
-                        if matches:
-                            top_match = matches[0]
-                            visual_context += f"\n[Visual Memory: I recognize this image! It looks like what {top_match['username']} posted on {top_match['timestamp'][:10]}. Context: '{top_match['context']}']"
-                            logger.info(f"💡 Visual recognition: {visual_context}")
-                        
-                        # 2. Store (Remember this)
-                        # We use the message content as the context for the image
-                        self.visual_memory.store_image_memory(
-                            image_url=attachment.url,
-                            user_id=user_id,
-                            username=user_name,
-                            channel_id=channel_id,
-                            context_text=cleaned_content
-                        )
-                        
-                        # Add visual indicator to content for LLM
-                        cleaned_content += f" [User posted an image]{visual_context}"
-
-            # Store message as memory
-            sentiment = self.analyzer.polarity_scores(cleaned_content)
-            emotional_tone = self._get_emotional_tone(sentiment['compound'])
-            
-            # Get all participants in current batch
-            participants = list(set([str(m.author.id) for m in self.current_batch] + [user_id]))
-            
             # Store recent message in SQLite for context window
             try:
                 self.memory.store_recent_message(
@@ -387,10 +400,17 @@ class EnhancedMessageManagerV3:
             # Prepare user messages
             user_messages = []
             for msg in batch:
+                # Check for images in batch processing too
+                content = self.mention_translator.clean_for_bot(msg.content, msg)
+                if msg.attachments:
+                    has_image = any(a.content_type and a.content_type.startswith('image/') for a in msg.attachments)
+                    if has_image:
+                        content += " [User posted an image]"
+
                 user_messages.append({
                     'user_id': str(msg.author.id),
                     'user_name': msg.author.display_name,
-                    'content': self.mention_translator.clean_for_bot(msg.content, msg),
+                    'content': content,
                     'timestamp': msg.created_at.isoformat()
                 })
             
@@ -607,28 +627,53 @@ class EnhancedMessageManagerV3:
             active_search_results = []
             if self.active_search:
                 logger.info("🤔 Entering Thinking Loop...")
-                needs_search, query, reason = await self.active_search.analyze_need_to_search(
-                    user_message=user_messages[-1]['content'],
-                    recent_context=formatted_context
-                )
                 
-                if needs_search and query:
-                    logger.info(f"🧠 Thought: I need to search for '{query}' ({reason})")
-                    # Execute Search
-                    active_search_results = self.memory.search_memories(
-                        query=query,
-                        user_id=primary_user_id,
-                        n_results=3
+                # Max loops: 2 (as requested for balance of depth vs speed)
+                max_loops = 2
+                loop_count = 0
+                accumulated_results_str = ""
+                
+                while loop_count < max_loops:
+                    # Decide if search is needed (or MORE search is needed)
+                    needs_search, query, reason = await self.active_search.analyze_need_to_search(
+                        user_message=user_messages[-1]['content'],
+                        recent_context=formatted_context,
+                        previous_results=accumulated_results_str if loop_count > 0 else None
                     )
-                    logger.info(f"📚 Found {len(active_search_results)} results from active search")
                     
-                    # Add to context
-                    if active_search_results:
-                        formatted_context += "\n\n--- ACTIVE RECALL (I decided to remember this) ---\n"
-                        for mem in active_search_results:
-                            formatted_context += f"- {mem['content']} (from {mem['timestamp'][:10]})\n"
-                else:
-                    logger.info(f"⚡ Fast path: No search needed ({reason})")
+                    if needs_search and query:
+                        logger.info(f"🧠 Thought (Iter {loop_count+1}): I need to search for '{query}' ({reason})")
+                        
+                        # Execute Search
+                        new_results = self.memory.search_memories(
+                            query=query,
+                            user_id=primary_user_id,
+                            n_results=3
+                        )
+                        logger.info(f"📚 Found {len(new_results)} results")
+                        
+                        if new_results:
+                            # Add to accumulated results for the NEXT thinking step
+                            accumulated_results_str += f"\nResults for '{query}':\n"
+                            for mem in new_results:
+                                accumulated_results_str += f"- {mem['content']} (from {mem['timestamp'][:10]})\n"
+                            
+                            # Add to final context immediately
+                            formatted_context += f"\n\n--- ACTIVE RECALL (Iteration {loop_count+1}) ---\n"
+                            formatted_context += f"Query: {query}\n"
+                            for mem in new_results:
+                                formatted_context += f"- {mem['content']} (from {mem['timestamp'][:10]})\n"
+                            
+                            active_search_results.extend(new_results)
+                        else:
+                            logger.info("   (No results found)")
+                            accumulated_results_str += f"\nResults for '{query}': None found.\n"
+                            # If we found nothing, the LLM might want to try a different query next time
+                            
+                        loop_count += 1
+                    else:
+                        logger.info(f"⚡ Thinking complete: No further search needed ({reason})")
+                        break
 
             self.update_state(
                 status='GENERATING',

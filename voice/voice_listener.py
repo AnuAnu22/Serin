@@ -209,6 +209,26 @@ class VoiceListener:
             'errors': self.stats['errors']
         }
 
+    def is_connected(self) -> bool:
+        """
+        Check if connected to any voice channel.
+        Also cleans up stale connections.
+        """
+        active_connections = 0
+        stale_guilds = []
+        
+        for guild_id, vc in self.voice_connections.items():
+            if vc.is_connected():
+                active_connections += 1
+            else:
+                stale_guilds.append(guild_id)
+        
+        # Cleanup stale
+        for guild_id in stale_guilds:
+            del self.voice_connections[guild_id]
+            
+        return active_connections > 0
+
 
 class AudioSink(discord.sinks.Sink):
     """discord.py 2.x compatible audio sink"""

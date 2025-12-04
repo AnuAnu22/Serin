@@ -144,8 +144,14 @@ class MemorySyncMonitor:
             cursor.execute("SELECT COUNT(*) FROM users")
             sqlite_users = cursor.fetchone()[0]
             
-            # Get ChromaDB stats
-            chroma_count = self.memory.memories.count()
+            # Get ChromaDB/Qdrant stats
+            if hasattr(self.memory, 'memories'):
+                chroma_count = self.memory.memories.count()
+            elif hasattr(self.memory, 'get_stats'):
+                stats = self.memory.get_stats()
+                chroma_count = stats.get('total_memories', 0)
+            else:
+                chroma_count = 0
             
             # Log the comparison
             if hasattr(self, 'last_db_snapshot'):

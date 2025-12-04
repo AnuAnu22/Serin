@@ -104,13 +104,19 @@ class DatabaseProtector:
                 results['errors'].append(f"ChromaDB validation failed: {chroma_results['error']}")
             
             # Determine overall status - be more lenient for empty databases
+            # Check if all errors are just "does not exist", "missing files", or "Missing required tables"
+            all_missing = all(
+                'does not exist' in err or 'missing files' in err or 'Missing required tables' in err
+                for err in results['errors']
+            )
+            
             if not results['errors']:
                 results['overall_status'] = 'valid'
                 logger.info("✅ Database validation PASSED")
-            elif len(results['errors']) == 1 and 'does not exist' in results['errors'][0]:
-                # Allow empty databases to start fresh
+            elif all_missing:
+                # Allow empty databases to start fresh (even if multiple are missing)
                 results['overall_status'] = 'valid'
-                logger.info("✅ Database validation PASSED (empty databases will be created)")
+                logger.info("✅ Database validation PASSED (fresh start - databases will be created)")
             elif len(results['errors']) == 1:
                 results['overall_status'] = 'recoverable'
                 logger.warning("⚠️ Database validation found recoverable issues")

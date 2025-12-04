@@ -144,3 +144,16 @@ cython_debug/
 # Project specific
 logs/
 test_output_*.txt
+test_output.txt
+scratchpad.md
+runbot_debug.txt
+debug_log*.txt
+startup_log*.txt
+*.db
+*.db-wal
+*.db-shm
+bot_data/
+.bot_data/
+
+debug*.txt
+startup_log*.txt

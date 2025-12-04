@@ -4,6 +4,8 @@ Implements hybrid search with BM25 + Vector + Reranking
 """
 import os
 import json
+import shutil
+import time
 import sqlite3
 import hashlib
 import uuid
@@ -19,7 +21,7 @@ from debug_logger import log_memory
 try:
     from qdrant_client import QdrantClient
     from qdrant_client.http import models
-    from qdrant_client.http.models import Distance, VectorParams, HnswConfig, OptimizersConfig, WalConfig, QuantizationConfig, ScalarQuantizationConfig, ScalarQuantization
+    from qdrant_client.http.models import Distance, VectorParams, HnswConfig, OptimizersConfig, WalConfig, QuantizationConfig, ScalarQuantizationConfig, ScalarQuantization, ScalarType
     QDRANT_AVAILABLE = True
 except ImportError:
     QDRANT_AVAILABLE = False
@@ -50,14 +52,23 @@ class QdrantMemorySystem:
         self.data_dir = data_dir
         os.makedirs(data_dir, exist_ok=True)
         
-        # Initialize Qdrant client
+        # Initialize Qdrant client with retry
         if QDRANT_AVAILABLE:
-            try:
-                self.qdrant_client = QdrantClient(host=qdrant_host, port=qdrant_port)
-                logger.info(f"✅ Qdrant client connected to {qdrant_host}:{qdrant_port}")
-            except Exception as e:
-                logger.error(f"❌ Failed to connect to Qdrant: {e}")
-                self.qdrant_client = None
+            for attempt in range(3):
+                try:
+                    self.qdrant_client = QdrantClient(host=qdrant_host, port=qdrant_port, timeout=5.0)
+                    # Test connection
+                    self.qdrant_client.get_collections()
+                    logger.info(f"✅ Qdrant client connected to {qdrant_host}:{qdrant_port}")
+                    break
+                except Exception as e:
+                    if attempt < 2:
+                        logger.warning(f"⚠️ Qdrant connection failed (attempt {attempt+1}/3): {e}. Retrying...")
+                        import time
+                        time.sleep(2)
+                    else:
+                        logger.error(f"❌ Failed to connect to Qdrant after 3 attempts: {e}")
+                        self.qdrant_client = None
         else:
             self.qdrant_client = None
         
@@ -86,12 +97,9 @@ class QdrantMemorySystem:
             self.bm25_index = None
         
         # Initialize SQLite for structured data
+        # Initialize SQLite for structured data with self-healing
         self.db_path = os.path.join(data_dir, "bot_data.db")
-        self.conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=30.0)
-        self.conn.row_factory = sqlite3.Row
-        self.conn.execute("PRAGMA journal_mode=WAL")
-        self.conn.execute("PRAGMA synchronous=NORMAL")
-        self._init_sqlite_schema()
+        self._init_sqlite_robust()
         
         # Setup collection if needed
         if self.qdrant_client:
@@ -101,6 +109,52 @@ class QdrantMemorySystem:
         self.background_jobs = []
         
         logger.info("✅ Qdrant Memory System ready")
+    
+    def _init_sqlite_robust(self):
+        """Initialize SQLite with corruption handling"""
+        try:
+            self._connect_and_init_schema()
+        except sqlite3.DatabaseError as e:
+            logger.error(f"❌ SQLite corruption detected: {e}")
+            self._handle_corruption()
+            # Try again with fresh DB
+            self._connect_and_init_schema()
+
+    def _connect_and_init_schema(self):
+        """Connect to DB and initialize schema"""
+        self.conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=30.0)
+        self.conn.row_factory = sqlite3.Row
+        
+        # Test connection with a simple query
+        try:
+            self.conn.execute("SELECT 1")
+        except sqlite3.DatabaseError:
+            self.conn.close()
+            raise
+            
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("PRAGMA synchronous=NORMAL")
+        self._init_sqlite_schema()
+
+    def _handle_corruption(self):
+        """Handle corrupted database by backing up and deleting"""
+        if os.path.exists(self.db_path):
+            timestamp = int(time.time())
+            backup_path = f"{self.db_path}.corrupt.{timestamp}"
+            logger.warning(f"⚠️ Moving corrupt database to {backup_path}")
+            try:
+                if self.conn:
+                    try:
+                        self.conn.close()
+                    except:
+                        pass
+                shutil.move(self.db_path, backup_path)
+                # Also move WAL/SHM files if they exist
+                for ext in ['-wal', '-shm']:
+                    if os.path.exists(self.db_path + ext):
+                        shutil.move(self.db_path + ext, backup_path + ext)
+            except Exception as e:
+                logger.error(f"❌ Error moving corrupt DB: {e}")
     
     def _init_sqlite_schema(self):
         """Initialize SQLite tables for structured data"""
@@ -136,14 +190,17 @@ class QdrantMemorySystem:
             )
         """)
         
-        # Activity logs
+        # Activity logs (legacy schema, for log_activity method)
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS activity_logs (
+            CREATE TABLE IF NOT EXISTS activity_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id TEXT NOT NULL,
-                action TEXT NOT NULL,
-                details TEXT,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                channel_id TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                message_length INTEGER,
+                sentiment_score REAL,
+                hour_of_day INTEGER,
+                day_of_week INTEGER
             )
         """)
         
@@ -199,13 +256,34 @@ class QdrantMemorySystem:
                 UNIQUE(date)
             )
         """)
+
+        # NEW TABLE: Recent messages cache (Ported from legacy system)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS recent_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                message_id TEXT UNIQUE,
+                user_id TEXT NOT NULL,
+                username TEXT NOT NULL,
+                channel_id TEXT NOT NULL,
+                content TEXT NOT NULL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Create index for fast retrieval
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_recent_channel_time 
+            ON recent_messages(channel_id, timestamp DESC)
+        """)
         
         self.conn.commit()
         logger.debug("✅ SQLite schema initialized")
     
     def _setup_collection(self):
         """Setup Qdrant collection with optimized configuration"""
+        print("DEBUG: Entering _setup_collection")
         if not self.qdrant_client:
+            print("DEBUG: No qdrant_client")
             return
         
         try:
@@ -213,46 +291,25 @@ class QdrantMemorySystem:
             try:
                 self.qdrant_client.get_collection("memories")
                 logger.info("✅ Existing memories collection found")
+                print("DEBUG: Collection already exists")
                 return
-            except:
+            except Exception as e:
+                print(f"DEBUG: Collection does not exist ({e}), creating...")
                 pass
             
             # Create collection with optimized settings
-            hnsw_config = HnswConfig(
-                m=16,  # Graph connectivity
-                ef_construct=512,  # Index construction quality
-                ef_search=100  # Query time accuracy
-            )
-            
-            quantization_config = QuantizationConfig(
-                scalar=ScalarQuantizationConfig(
-                    type=ScalarQuantizationType.INT8,
-                    quantile=0.995
-                )
-            )
-            
+            print("DEBUG: Calling create_collection with defaults...")
             self.qdrant_client.create_collection(
                 collection_name="memories",
                 vectors_config=VectorParams(
                     size=self.embedding_dim,
                     distance=Distance.COSINE,
                     on_disk=True
-                ),
-                hnsw_config=hnsw_config,
-                quantization_config=quantization_config,
-                optimizers_config=OptimizersConfig(
-                    default_segment_number=4,
-                    indexing_threshold=20000,
-                    flush_interval_sec=10,
-                    max_optimization_threads=4
-                ),
-                wal_config=WalConfig(
-                    wal_capacity_mb=32,
-                    wal_segments_ahead=0
                 )
             )
             
             # Record collection metadata
+            print("DEBUG: Recording metadata...")
             cursor = self.conn.cursor()
             cursor.execute("""
                 INSERT OR REPLACE INTO qdrant_collections 
@@ -262,19 +319,24 @@ class QdrantMemorySystem:
             self.conn.commit()
             
             logger.info("✅ Qdrant collection 'memories' created with optimized settings")
+            print("DEBUG: Collection created successfully")
             
         except Exception as e:
             logger.error(f"❌ Failed to setup Qdrant collection: {e}")
+            print(f"CRITICAL ERROR: Failed to setup Qdrant collection: {e}")
+            import traceback
+            traceback.print_exc()
     
     def generate_memory_id(self, source_message_id: str, chunk_index: int = 0) -> str:
         """Generate deterministic ID for idempotent ingestion"""
         if source_message_id:
-            # Use SHA256 hash for deterministic IDs
-            hash_obj = hashlib.sha256(f"{source_message_id}:{chunk_index}".encode())
-            return f"mem_{hash_obj.hexdigest()[:16]}"
+            # Use UUID5 for deterministic IDs based on message ID and chunk
+            # Create a namespace for Serin if not exists, or use DNS namespace
+            namespace = uuid.uuid5(uuid.NAMESPACE_DNS, "serin.ai")
+            return str(uuid.uuid5(namespace, f"{source_message_id}:{chunk_index}"))
         else:
-            # Fallback to UUID for non-message memories
-            return f"mem_{uuid.uuid4().hex[:16]}"
+            # Random UUID for non-message memories
+            return str(uuid.uuid4())
     
     def _chunk_content(self, content: str, min_tokens: int = 200, max_tokens: int = 600) -> List[str]:
         """Split content into appropriate chunks"""
@@ -343,13 +405,73 @@ class QdrantMemorySystem:
             if cursor.fetchone():
                 return True
         
-        # Simple content-based deduplication (can be enhanced)
+        # Check Qdrant for duplicate content
+        if self.qdrant_client:
+            try:
+                # Check for source_message_id in Qdrant if provided
+                if source_message_id:
+                    results = self.qdrant_client.scroll(
+                        collection_name="memories",
+                        scroll_filter=models.Filter(
+                            must=[models.FieldCondition(key="source_message_id", match=models.MatchValue(value=source_message_id))]
+                        ),
+                        limit=1
+                    )
+                    if results[0]:
+                        return True
+
+                # Check for exact content match for this user (to prevent repeating same thought)
+                # This is "fuzzy" deduplication - if the bot already "remembers" this exact text from this user
+                existing_id = self._get_existing_memory_id(content, user_id)
+                if existing_id:
+                    return True
+                    
+            except Exception as e:
+                logger.warning(f"⚠️ Error checking duplicates in Qdrant: {e}")
+        
         return False
     
-    def _get_existing_memory_id(self, content: str, user_id: str) -> str:
+    def _get_existing_memory_id(self, content: str, user_id: str) -> Optional[str]:
         """Get existing memory ID for duplicate content"""
-        # This would need to be implemented based on your deduplication strategy
-        return None
+        if not self.qdrant_client:
+            return None
+            
+        try:
+            # Search for exact content match for this user
+            # We use the vector search with a filter, but we'll verify the text payload
+            # Since we want exact match, we can just query for the user's memories 
+            # and filter in python if the volume is low, or use a scroll with filter
+            
+            # Better approach: Use scroll with filter for exact text match if possible
+            # Qdrant filtering on text is possible if keyword indexed, but here we rely on payload
+            
+            # Let's try to find by source_message_id first if we had it, but this method signature 
+            # only gives us content and user_id.
+            
+            # We will use a scroll query to find memories with this text and user_id
+            # Note: This assumes 'text' field is filterable or we scan recent memories
+            
+            # Create a filter for user and text
+            should_conditions = [
+                models.FieldCondition(key="person_id", match=models.MatchValue(value=user_id)),
+                models.FieldCondition(key="text", match=models.MatchValue(value=content))
+            ]
+            
+            results = self.qdrant_client.scroll(
+                collection_name="memories",
+                scroll_filter=models.Filter(must=should_conditions),
+                limit=1,
+                with_payload=False
+            )
+            
+            if results[0]:
+                return results[0][0].id
+                
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Error checking existing memory ID: {e}")
+            return None
     
     def _queue_background_jobs(self, memory_ids: List[str], kwargs: Dict):
         """Queue background processing jobs"""
@@ -471,12 +593,13 @@ class QdrantMemorySystem:
                     query_embedding = self.embedding_model.encode([f"search_query: {query}"])[0].tolist()
                     
                     # Search Qdrant
-                    results = self.qdrant_client.search(
+                    results = self.qdrant_client.query_points(
                         collection_name="memories",
-                        query_vector=query_embedding,
+                        query=query_embedding,
                         query_filter=qdrant_filter,
-                        limit=50
-                    )
+                        limit=50,
+                        with_payload=True
+                    ).points
                     
                     vector_candidates = [{'id': r.id, 'score': r.score, 'payload': r.payload} for r in results]
                 except Exception as e:
@@ -559,6 +682,9 @@ class QdrantMemorySystem:
                 if candidate_id in merged:
                     # Update existing candidate with vector score
                     merged[candidate_id]['vector_score'] = candidate.get('score', 0)
+                    # Update payload if vector candidate has it (likely more complete)
+                    if candidate.get('payload'):
+                        merged[candidate_id]['payload'] = candidate.get('payload')
                 else:
                     # Add new candidate
                     merged[candidate_id] = {
@@ -788,6 +914,104 @@ class QdrantMemorySystem:
             return profile
         return None
     
+    def update_user_traits(self, user_id: str, traits: List[str] = None, interests: List[str] = None):
+        """Update user personality traits and interests"""
+        cursor = self.conn.cursor()
+        try:
+            # Get existing
+            cursor.execute("SELECT personality_traits, interests FROM users WHERE user_id = ?", (user_id,))
+            result = cursor.fetchone()
+            
+            if result:
+                existing_traits = set(json.loads(result['personality_traits'] or '[]'))
+                existing_interests = set(json.loads(result['interests'] or '[]'))
+                
+                if traits:
+                    existing_traits.update(traits)
+                if interests:
+                    existing_interests.update(interests)
+                
+                cursor.execute("""
+                    UPDATE users SET
+                        personality_traits = ?,
+                        interests = ?
+                    WHERE user_id = ?
+                """, (
+                    json.dumps(list(existing_traits)),
+                    json.dumps(list(existing_interests)),
+                    user_id
+                ))
+                self.conn.commit()
+        except Exception as e:
+            logger.error(f"❌ Error updating traits: {e}")
+    
+    def log_activity(self, user_id: str, channel_id: str, message_length: int, sentiment: float):
+        """Log user activity for pattern analysis"""
+        cursor = self.conn.cursor()
+        try:
+            now = datetime.now()
+            cursor.execute("""
+                INSERT INTO activity_log 
+                (user_id, channel_id, message_length, sentiment_score, hour_of_day, day_of_week)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (user_id, channel_id, message_length, sentiment, now.hour, now.weekday()))
+            self.conn.commit()
+        except Exception as e:
+            logger.error(f"❌ Error logging activity: {e}")
+    
+    def update_relationship(self, user_a_id: str, user_b_id: str, interaction_type: str = 'message'):
+        """Update relationship between two users"""
+        # Ensure ordering
+        if user_a_id > user_b_id:
+            user_a_id, user_b_id = user_b_id, user_a_id
+        
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO relationships (user_a_id, user_b_id, interaction_count, last_interaction)
+                VALUES (?, ?, 1, CURRENT_TIMESTAMP)
+                ON CONFLICT(user_a_id, user_b_id) DO UPDATE SET
+                    interaction_count = interaction_count + 1,
+                    last_interaction = CURRENT_TIMESTAMP
+            """, (user_a_id, user_b_id))
+            
+            if interaction_type == 'mention':
+                cursor.execute("""
+                    UPDATE relationships SET direct_mentions = direct_mentions + 1
+                    WHERE user_a_id = ? AND user_b_id = ?
+                """, (user_a_id, user_b_id))
+            
+            # Calculate relationship strength
+            cursor.execute("""
+                UPDATE relationships SET
+                    relationship_strength = MIN(1.0, 
+                        (interaction_count * 1.0 / 100.0) * 0.7 +
+                        (direct_mentions * 1.0 / 20.0) * 0.3
+                    )
+                WHERE user_a_id = ? AND user_b_id = ?
+            """, (user_a_id, user_b_id))
+            
+            self.conn.commit()
+        except Exception as e:
+            logger.error(f"❌ Error updating relationship: {e}")
+    
+    def get_user_relationships(self, user_id: str, min_strength: float = 0.1) -> List[Dict]:
+        """Get all relationships for a user"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT r.*, 
+                   CASE WHEN r.user_a_id = ? THEN ub.username ELSE ua.username END as other_username,
+                   CASE WHEN r.user_a_id = ? THEN r.user_b_id ELSE r.user_a_id END as other_user_id
+            FROM relationships r
+            LEFT JOIN users ua ON r.user_a_id = ua.user_id
+            LEFT JOIN users ub ON r.user_b_id = ub.user_id
+            WHERE (r.user_a_id = ? OR r.user_b_id = ?)
+              AND r.relationship_strength >= ?
+            ORDER BY r.relationship_strength DESC
+        """, (user_id, user_id, user_id, user_id, min_strength))
+        
+        return [dict(row) for row in cursor.fetchall()]
+    
     # ========================================================================
     # Stats & Maintenance
     # ========================================================================
@@ -809,19 +1033,153 @@ class QdrantMemorySystem:
                 try:
                     memory_count = self.qdrant_client.count("memories").count
                 except:
-                    memory_count = 0
+                    pass
             
             return {
                 'total_users': total_users,
                 'total_memories': memory_count,
-                'strong_relationships': strong_relationships,
-                'qdrant_connected': self.qdrant_client is not None,
-                'embedding_available': self.embedding_model is not None,
-                'bm25_available': self.bm25_index is not None
+                'strong_relationships': strong_relationships
             }
         except Exception as e:
             logger.error(f"❌ Error getting stats: {e}")
             return {}
+
+    # ========================================================================
+    # Recent Messages Cache (Ported from legacy system)
+    # ========================================================================
+
+    def store_recent_message(
+        self,
+        user_id: str,
+        username: str,
+        channel_id: str,
+        content: str,
+        message_id: str,
+        timestamp: datetime = None
+    ):
+        """Store recent message in SQLite"""
+        cursor = self.conn.cursor()
+        try:
+            ts = timestamp or datetime.now()
+            
+            cursor.execute("""
+                INSERT INTO recent_messages (message_id, user_id, username, channel_id, content, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(message_id) DO NOTHING
+            """, (message_id, user_id, username, channel_id, content, ts))
+            
+            # Keep only last 20,000 messages per channel
+            cursor.execute("""
+                DELETE FROM recent_messages
+                WHERE channel_id = ?
+                AND id NOT IN (
+                    SELECT id FROM recent_messages
+                    WHERE channel_id = ?
+                    ORDER BY timestamp DESC
+                    LIMIT 20000
+                )
+            """, (channel_id, channel_id))
+            
+            self.conn.commit()
+        except Exception as e:
+            logger.error(f"❌ Error storing recent message: {e}")
+
+    def get_latest_message(self, channel_id: str) -> Optional[Dict]:
+        """Get most recent message from a channel"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT message_id, user_id, username, content, timestamp
+            FROM recent_messages
+            WHERE channel_id = ?
+            ORDER BY timestamp DESC
+            LIMIT 1
+        """, (channel_id,))
+        
+        result = cursor.fetchone()
+        return dict(result) if result else None
+
+    def get_message_count(self, channel_id: str) -> int:
+        """Get total message count for a channel"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT COUNT(*) as count
+            FROM recent_messages
+            WHERE channel_id = ?
+        """, (channel_id,))
+        
+        return cursor.fetchone()['count']
+
+    def get_message_at_position(self, channel_id: str, position: int) -> Optional[Dict]:
+        """Get message at specific position (0 = oldest)"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT message_id, user_id, username, content, timestamp
+            FROM recent_messages
+            WHERE channel_id = ?
+            ORDER BY timestamp ASC
+            LIMIT 1 OFFSET ?
+        """, (channel_id, position))
+        
+        result = cursor.fetchone()
+        return dict(result) if result else None
+
+    def get_messages_around_timestamp(
+        self,
+        channel_id: str,
+        timestamp,
+        radius: int = 2
+    ) -> List[Dict]:
+        """Get messages around a timestamp (±radius)"""
+        # Handle both datetime objects and ISO format strings
+        def safe_datetime_convert(ts):
+            """Safely convert timestamp to datetime, handling both string and datetime inputs"""
+            if isinstance(ts, str):
+                try:
+                    return datetime.fromisoformat(ts.replace('Z', '+00:00'))
+                except:
+                    return datetime.now()
+            return ts
+        
+        ts = safe_datetime_convert(timestamp)
+        cursor = self.conn.cursor()
+        
+        # Get messages before
+        cursor.execute("""
+            SELECT message_id, user_id, username, content, timestamp
+            FROM recent_messages
+            WHERE channel_id = ? AND timestamp < ?
+            ORDER BY timestamp DESC
+            LIMIT ?
+        """, (channel_id, ts, radius))
+        
+        before = [dict(row) for row in cursor.fetchall()]
+        before.reverse()
+        
+        # Get messages after
+        cursor.execute("""
+            SELECT message_id, user_id, username, content, timestamp
+            FROM recent_messages
+            WHERE channel_id = ? AND timestamp > ?
+            ORDER BY timestamp ASC
+            LIMIT ?
+        """, (channel_id, ts, radius))
+        
+        after = [dict(row) for row in cursor.fetchall()]
+        
+        return before + after
+
+    def get_message_by_id(self, message_id: str) -> Optional[Dict]:
+        """Get a specific message by its ID"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT message_id, user_id, username, content, timestamp
+            FROM recent_messages
+            WHERE message_id = ?
+        """, (message_id,))
+        
+        result = cursor.fetchone()
+        return dict(result) if result else None
+
     
     def cleanup_old_memories(self, days_old: int = 90, min_importance: float = 0.3):
         """Remove old, unimportant memories"""
@@ -910,6 +1268,15 @@ class SQLiteBM25Index:
         
         self.conn.commit()
     
+    def _sanitize_query(self, query: str) -> str:
+        """Sanitize query for FTS5"""
+        # Replace special characters with spaces
+        # FTS5 special chars: " * ^ ( ) - + : . ? '
+        sanitized = query
+        for char in '"*^()-+:?.,\'':
+            sanitized = sanitized.replace(char, ' ')
+        return sanitized.strip()
+    
     def search(self, query: str, user_id: str = None, channel_id: str = None, limit: int = 20) -> List[Dict]:
         """Search documents using BM25"""
         cursor = self.conn.cursor()
@@ -929,6 +1296,11 @@ class SQLiteBM25Index:
         where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
         
         # Search using FTS
+        # Search using FTS
+        sanitized_query = self._sanitize_query(query)
+        if not sanitized_query:
+            return []
+            
         cursor.execute(f"""
             SELECT id, text, person_id, channel_id,
                    bm25(documents_fts) as score
@@ -936,7 +1308,7 @@ class SQLiteBM25Index:
             WHERE documents_fts MATCH ? AND {where_clause}
             ORDER BY score
             LIMIT ?
-        """, (query, *params, limit))
+        """, (sanitized_query, *params, limit))
         
         results = []
         for row in cursor.fetchall():
