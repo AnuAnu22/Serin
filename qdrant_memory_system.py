@@ -1271,9 +1271,11 @@ class SQLiteBM25Index:
     def _sanitize_query(self, query: str) -> str:
         """Sanitize query for FTS5"""
         # Replace special characters with spaces
-        # FTS5 special chars: " * ^ ( ) - + : . ? ' [ ] { }
+        # FTS5 special chars: " * ^ ( ) - + : . ? ' [ ] { } \
         sanitized = query
-        for char in '\"*^()-+:?.,\\'[]{}':
+        # Use a list of characters to avoid string escaping issues
+        special_chars = ['"', '*', '^', '(', ')', '-', '+', ':', '?', '.', ',', "'", '[', ']', '{', '}', '\\']
+        for char in special_chars:
             sanitized = sanitized.replace(char, ' ')
         return sanitized.strip()
     
