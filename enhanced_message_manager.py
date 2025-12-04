@@ -406,6 +406,9 @@ class EnhancedMessageManagerV3:
                     has_image = any(a.content_type and a.content_type.startswith('image/') for a in msg.attachments)
                     if has_image:
                         content += " [User posted an image]"
+                        # Add visual context if this is the current message we just analyzed
+                        if msg.id == message.id:
+                            content += visual_context
 
                 user_messages.append({
                     'user_id': str(msg.author.id),
