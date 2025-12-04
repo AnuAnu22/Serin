@@ -78,18 +78,11 @@ class VLLMConnector(ModelInterface):
             if self.model_name:
                 # Check if configured model exists
                 if self.model_name not in available_models:
-                    # Check for placeholder patterns
-                    if self.model_name.startswith('__') and self.model_name.endswith('__'):
-                        logger.warning(f"⚠️ Placeholder model '{self.model_name}' detected. Auto-selecting from available models.")
-                        self.model_name = available_models[0]
-                        logger.info(f"🔍 Auto-selected model: {self.model_name}")
-                    else:
-                        # Provide helpful error with available models
-                        raise ValueError(
-                            f"❌ Configured model '{self.model_name}' not found on vLLM server.\n"
-                            f"Available models: {', '.join(available_models)}\n"
-                            f"Update LLM_MODEL in .env file or remove the setting for auto-selection."
-                        )
+                    # Auto-select available model instead of erroring
+                    logger.warning(f"⚠️ Configured model '{self.model_name}' not found on vLLM server.")
+                    logger.info(f"📋 Available models: {', '.join(available_models)}")
+                    self.model_name = available_models[0]
+                    logger.info(f"🔍 Auto-selected model: {self.model_name}")
                 else:
                     logger.info(f"✅ Using configured model: {self.model_name}")
             else:
@@ -101,9 +94,6 @@ class VLLMConnector(ModelInterface):
             if len(available_models) > 1:
                 logger.info(f"📚 Available models: {', '.join(available_models)}")
 
-        except ValueError:
-            # Re-raise ValueError (our custom error)
-            raise
         except Exception as e:
             logger.error(f"❌ Failed to detect/select model: {e}")
             raise RuntimeError(f"Could not communicate with vLLM server at {self.base_url}. Is it running and accessible?")
