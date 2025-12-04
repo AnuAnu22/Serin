@@ -130,8 +130,9 @@ class VisualMemorySystem:
             if not embedding:
                 return False
             
-            # Create unique ID based on timestamp
-            point_id = str(datetime.now().timestamp())
+            # Create unique ID based on timestamp (must be integer for Qdrant)
+            import uuid
+            point_id = str(uuid.uuid4())
             
             payload = {
                 "type": "image",
@@ -169,15 +170,16 @@ class VisualMemorySystem:
             if not embedding:
                 return []
             
-            results = self.client.search(
+            # Use query_points instead of deprecated search
+            results = self.client.query_points(
                 collection_name=self.collection_name,
-                query_vector=embedding,
+                query=embedding,
                 limit=3,
                 score_threshold=threshold
             )
             
             matches = []
-            for hit in results:
+            for hit in results.points:
                 matches.append({
                     "score": hit.score,
                     "username": hit.payload.get("username"),
