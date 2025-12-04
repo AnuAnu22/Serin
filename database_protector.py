@@ -841,15 +841,28 @@ class DatabaseProtector:
         """Set up graceful shutdown handlers"""
         import signal
         import atexit
+        import os
+        
+        self._shutdown_in_progress = False
         
         def shutdown_handler(signum, frame):
+            # Prevent re-entry
+            if self._shutdown_in_progress:
+                # Force exit on second Ctrl+C
+                logger.info("🛑 Force exit requested")
+                os._exit(1)
+                return
+            
+            self._shutdown_in_progress = True
             logger.info("🛑 Graceful shutdown initiated...")
             self.graceful_shutdown()
-            exit(0)
+            # Use os._exit to terminate immediately without triggering more handlers
+            os._exit(0)
         
         def cleanup_on_exit():
-            logger.info("🧹 Performing cleanup on exit...")
-            self.graceful_shutdown()
+            if not self._shutdown_in_progress:
+                logger.info("🧹 Performing cleanup on exit...")
+                self.graceful_shutdown()
         
         # Register signal handlers
         signal.signal(signal.SIGINT, shutdown_handler)
