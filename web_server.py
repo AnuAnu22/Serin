@@ -875,18 +875,43 @@ def init_bot_state(
 
 
 async def start_server(host: str = "127.0.0.1", port: int = 8080):
-    """Start web server"""
-    config = uvicorn.Config(
-        app,
-        host=host,
-        port=port,
-        log_level="info",
-        access_log=False
-    )
-    server = uvicorn.Server(config)
+    """Start web server with port retry logic"""
+    max_retries = 5
+    current_port = port
     
-    logger.info(f"🌐 Control panel starting at http://{host}:{port}")
-    await server.serve()
+    for i in range(max_retries):
+        try:
+            config = uvicorn.Config(
+                app,
+                host=host,
+                port=current_port,
+                log_level="info",
+                access_log=False
+            )
+            server = uvicorn.Server(config)
+            
+            logger.info(f"🌐 Control panel starting at http://{host}:{current_port}")
+            await server.serve()
+            break  # If successful (or clean exit), stop retrying
+            
+        except OSError as e:
+            if e.errno == 98:  # Address already in use
+                logger.warning(f"⚠️ Port {current_port} is busy, trying {current_port + 1}...")
+                current_port += 1
+            else:
+                raise e
+        except SystemExit:
+             # Uvicorn raises SystemExit on startup failure
+             logger.warning(f"⚠️ Port {current_port} failed to bind, trying {current_port + 1}...")
+             current_port += 1
+        except Exception as e:
+            # Catch generic startup errors that might be port related
+            if "address already in use" in str(e).lower() or "[errno 98]" in str(e).lower():
+                logger.warning(f"⚠️ Port {current_port} is busy (error: {e}), trying {current_port + 1}...")
+                current_port += 1
+            else:
+                logger.error(f"❌ Failed to start web server: {e}")
+                raise e
 
 
 # ============================================================================

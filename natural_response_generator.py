@@ -74,9 +74,25 @@ async def get_response_natural(
         
         # Current conversation
         for msg in current_messages[-8:]:
+            content_str = f"{msg['user_name']}: {msg['content']}"
+            
+            if 'image_url' in msg:
+                # VLM format for OpenAI API
+                message_content = [
+                    {"type": "text", "text": content_str},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": msg['image_url']
+                        }
+                    }
+                ]
+            else:
+                message_content = content_str
+                
             messages.append({
                 "role": "user",
-                "content": f"{msg['user_name']}: {msg['content']}"
+                "content": message_content
             })
         
         # Check if this is a thinking model

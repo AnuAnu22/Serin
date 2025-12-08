@@ -48,7 +48,12 @@ class EnhancedMessageManagerV3:
         if memory_system:
             self.memory = memory_system
         else:
-            raise ValueError("Memory system must be provided")
+            # Default to Qdrant
+            self.memory = QdrantMemorySystem()
+            
+        # Initialize LLM connector for image analysis
+        self.llm = get_model_connector()
+
         
         # Initialize context systems
         self.enhanced_context = EnhancedMemoryContext(self.memory)
@@ -283,19 +288,37 @@ class EnhancedMessageManagerV3:
                             visual_context += f"\n[Visual Memory: I recognize this image! It looks like what {top_match['username']} posted on {top_match['timestamp'][:10]}. Context: '{top_match['context']}']"
                             logger.info(f"💡 Visual recognition: {visual_context}")
                         
-                        # 1.5 Analyze (What is this?)
-                        description = self.visual_memory.analyze_image(attachment.url)
-                        if description:
-                            visual_context += f"\n[Visual Analysis: The image shows {description}]"
-                            logger.info(f"👁️ Visual analysis: {description}")
-
+                        # Store image URL for VLM (Qwen-VL)
+                        # We no longer analyze locally with BLIP
+                        self.pending_visual_contexts[message.id] = attachment.url
                         
+                        # Add visual indicator to content for LLM
+                        cleaned_content += " [User posted an image]"
+                        
+                        # Generate description for memory storage using VLM
+                        # This ensures "past memory" has understanding
+                        storage_description = ""
+                        try:
+                            # Initialize if needed
+                            if not self.llm.client:
+                                self.llm.load_model()
+                                
+                            # Ask VLM to describe
+                            desc_prompt = [
+                                {"role": "user", "content": [
+                                    {"type": "text", "text": "Describe this image in detail for archival purposes. Include any text you can read."},
+                                    {"type": "image_url", "image_url": {"url": attachment.url}}
+                                ]}
+                            ]
+                            storage_description = await self.llm.chat_completion(desc_prompt, max_tokens=300)
+                            logger.info(f"📝 Generated archival description: {storage_description[:100]}...")
+                        except Exception as e:
+                            logger.error(f"⚠️ Failed to generate archival description: {e}")
+                            storage_description = "Image (description unavailable)"
                         
                         # 2. Store (Remember this)
-                        # We use the message content AND description as context
-                        storage_context = cleaned_content
-                        if description:
-                            storage_context += f" (Image: {description})"
+                        # We use the message content AND VLM description as context
+                        storage_context = f"{cleaned_content}\n[Image Content: {storage_description}]"
                             
                         self.visual_memory.store_image_memory(
                             image_url=attachment.url,
@@ -304,12 +327,6 @@ class EnhancedMessageManagerV3:
                             channel_id=channel_id,
                             context_text=storage_context
                         )
-                        
-                        # Add visual indicator to content for LLM
-                        cleaned_content += f" [User posted an image]{visual_context}"
-                        
-                        # Store visual context for batch processing
-                        self.pending_visual_contexts[message.id] = visual_context
             
             # Update user profile
             self.memory.upsert_user(user_id, user_name, user_name)
@@ -412,18 +429,21 @@ class EnhancedMessageManagerV3:
                     has_image = any(a.content_type and a.content_type.startswith('image/') for a in msg.attachments)
                     if has_image:
                         content += " [User posted an image]"
-                        # Add visual context if available in pending cache
-                        if msg.id in self.pending_visual_contexts:
-                            content += self.pending_visual_contexts[msg.id]
-                            # Clean up
-                            del self.pending_visual_contexts[msg.id]
 
-                user_messages.append({
+                message_payload = {
                     'user_id': str(msg.author.id),
                     'user_name': msg.author.display_name,
                     'content': content,
                     'timestamp': msg.created_at.isoformat()
-                })
+                }
+                
+                # Check for pending image URL
+                if msg.id in self.pending_visual_contexts:
+                    # It's an image URL now, not a description
+                    message_payload['image_url'] = self.pending_visual_contexts[msg.id]
+                    del self.pending_visual_contexts[msg.id]
+
+                user_messages.append(message_payload)
             
             # ENHANCED CONTEXT BUILDING - Using proper ConversationContextBuilder
             logger.debug("🧪 Building enhanced context...")

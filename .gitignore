@@ -157,3 +157,11 @@ bot_data/
 
 debug*.txt
 startup_log*.txt
+test/check_model_nature.py
+test/debug_prompt_fix.py
+test/debug_qwen_generation.py
+test/reproduce_thinking_issues.py
+test/test_filter_and_tokens.py
+test/test_force_tags.py
+test/test_separator_prompt.py
+test/test_think_tag_extraction.py

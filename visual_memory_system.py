@@ -30,17 +30,9 @@ class VisualMemorySystem:
             logger.error(f"❌ Failed to load CLIP model: {e}")
             self.model = None
 
-        # Load BLIP model for image captioning
-        logger.info("👁️ Initializing Visual Cortex (BLIP model)...")
-        try:
-            from transformers import BlipProcessor, BlipForConditionalGeneration
-            self.processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
-            self.caption_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
-            logger.info("✅ Visual Cortex (BLIP) online")
-        except Exception as e:
-            logger.error(f"❌ Failed to load BLIP model: {e}")
-            self.processor = None
-            self.caption_model = None
+        # BLIP model removed in favor of VLM (Qwen-VL)
+        self.processor = None
+        self.caption_model = None
 
         # Ensure collection exists
         self._ensure_collection()
@@ -95,26 +87,11 @@ class VisualMemorySystem:
             return None
 
     def analyze_image(self, image_url: str) -> Optional[str]:
-        """Generate a text description of the image using BLIP"""
-        if not self.processor or not self.caption_model:
-            return None
-            
-        try:
-            image = self._download_image(image_url)
-            if not image:
-                return None
-                
-            # Conditional image captioning
-            # We don't use "a photography of" prefix to get more direct description
-            inputs = self.processor(image, return_tensors="pt")
-            
-            out = self.caption_model.generate(**inputs, max_new_tokens=50)
-            description = self.processor.decode(out[0], skip_special_tokens=True)
-            
-            return description
-        except Exception as e:
-            logger.error(f"❌ Error analyzing image: {e}")
-            return None
+        """
+        Deprecated: Image analysis is now handled by the VLM directly.
+        Returns None to signal that no local caption is available.
+        """
+        return None
 
     def store_image_memory(
         self,
