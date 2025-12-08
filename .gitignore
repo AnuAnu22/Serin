@@ -165,3 +165,8 @@ test/test_filter_and_tokens.py
 test/test_force_tags.py
 test/test_separator_prompt.py
 test/test_think_tag_extraction.py
+test/test.py
+test/test_control_panel.py
+test/test_memory_dedup.py
+test/test_vllm.py
+test/test_fixes.py
