@@ -451,6 +451,12 @@ async def on_ready():
             voice_manager=voice_manager
         )
         
+        # TIER 6: Inject Broadcaster into ResponseController (for Decision Feed)
+        if message_manager and hasattr(message_manager, 'response_controller'):
+            from web_server import broadcast_event
+            message_manager.response_controller.set_broadcaster(broadcast_event)
+            logger.info("📡 Decision broadcaster connected to ResponseController")
+        
         # Start server
         try:
             asyncio.create_task(start_server(port=config.CONTROL_PANEL_PORT))

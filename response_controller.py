@@ -32,7 +32,14 @@ class ResponseController:
         
         # Creator ID (Rin) - should ALWAYS be responsive to creator
         self.creator_id = None  # Will be set when bot sees Rin
+        
+        # Event broadcaster (for WebSocket)
+        self.broadcaster = None
 
+    def set_broadcaster(self, broadcast_func):
+        """Set broadcaster function for real-time decisions"""
+        self.broadcaster = broadcast_func
+        
     def set_creator_id(self, user_id: str):
         """Set creator ID for priority responses"""
         self.creator_id = user_id
@@ -133,16 +140,19 @@ class ResponseController:
         # PRIORITY 1: ALWAYS respond to creator
         if is_creator:
             self._start_conversation(channel_id, user_id)
+            self._broadcast_decision("ACCEPTED", "creator_message", channel_id)
             return True, "creator_message"
         
         # PRIORITY 2: ALWAYS respond if mentioned via Discord @mention
         if bot_mentioned:
             self._start_conversation(channel_id, user_id)
+            self._broadcast_decision("ACCEPTED", "bot_mentioned_discord", channel_id)
             return True, "bot_mentioned_discord"
         
         # PRIORITY 3: ALWAYS respond if bot name appears in message
         if self._message_mentions_bot(message_content):
             self._start_conversation(channel_id, user_id)
+            self._broadcast_decision("ACCEPTED", "bot_name_in_message", channel_id)
             return True, "bot_name_in_message"
         
         # PRIORITY 4: Stay engaged in active conversations (95% response rate)
@@ -151,9 +161,11 @@ class ResponseController:
             
             # Very high chance to respond when in conversation
             if random.random() < 0.95:
+                self._broadcast_decision("ACCEPTED", "active_conversation", channel_id)
                 return True, "active_conversation"
             else:
                 # 5% chance to naturally end conversation
+                self._broadcast_decision("SKIPPED", "conversation_natural_end", channel_id)
                 return False, "conversation_natural_end"
         
         # Check message length
@@ -162,12 +174,14 @@ class ResponseController:
         # Ignore very short messages sometimes (but less aggressively)
         if content_len < 5:
             if random.random() < 0.3:  # Reduced from 0.5
+                self._broadcast_decision("SKIPPED", "too_short", channel_id)
                 return False, "too_short"
         
         # Single-word messages - be more lenient
         words = message_content.split()
         if len(words) == 1:
             if random.random() < 0.4:  # Reduced from 0.7
+                self._broadcast_decision("SKIPPED", "single_word", channel_id)
                 return False, "single_word"
         
         # Check if it's a private conversation between others
@@ -183,6 +197,7 @@ class ResponseController:
                 if not bot_in_conv:
                     # 50% chance to stay out (reduced from 70%)
                     if random.random() < 0.5:
+                        self._broadcast_decision("SKIPPED", "private_conversation", channel_id)
                         return False, "private_conversation"
         
         # Check response frequency - but be more lenient
@@ -192,11 +207,13 @@ class ResponseController:
             # If responded less than 5 seconds ago, be selective
             if time_since_last < 5:  # Reduced from 10
                 if random.random() < 0.3:  # Reduced from 0.5
+                    self._broadcast_decision("SKIPPED", "too_frequent", channel_id)
                     return False, "too_frequent"
         
         # Check if message is a question (ALWAYS respond)
         if '?' in message_content:
             self._start_conversation(channel_id, user_id)
+            self._broadcast_decision("ACCEPTED", "question_asked", channel_id)
             return True, "question_asked"
         
         # Check if message is addressing the channel generally
@@ -205,7 +222,9 @@ class ResponseController:
             # 90% chance to respond to general messages
             if random.random() < 0.9:
                 self._start_conversation(channel_id, user_id)
+                self._broadcast_decision("ACCEPTED", "general_address", channel_id)
                 return True, "general_address"
+            self._broadcast_decision("SKIPPED", "general_skip", channel_id)
             return False, "general_skip"
         
         # Check if user is trying to engage (multiple messages in a row)
@@ -216,6 +235,7 @@ class ResponseController:
                 # 90% chance to respond if someone is clearly trying to engage
                 if random.random() < 0.9:
                     self._start_conversation(channel_id, user_id)
+                    self._broadcast_decision("ACCEPTED", "user_engaging", channel_id)
                     return True, "user_engaging"
         
         # Random response rate based on conversation energy
@@ -231,9 +251,26 @@ class ResponseController:
         if random.random() < respond_chance:
             # Start conversation on response
             self._start_conversation(channel_id, user_id)
+            self._broadcast_decision("ACCEPTED", f"random_{mood}", channel_id)
             return True, f"random_{mood}"
         
+        self._broadcast_decision("SKIPPED", "selective_skip", channel_id)
         return False, "selective_skip"
+
+    def _broadcast_decision(self, status: str, reason: str, channel_id: str):
+        """Broadcast decision to websocket"""
+        if self.broadcaster:
+            try:
+                data = {
+                    "type": "decision",
+                    "status": status,
+                    "reason": reason,
+                    "time": datetime.now().strftime("%H:%M:%S")
+                }
+                # Create task to avoid awaiting (fire and forget)
+                asyncio.create_task(self.broadcaster('decision', data))
+            except Exception as e:
+                logger.error(f"Failed to broadcast decision: {e}")
     
     def calculate_typing_delay(
         self,

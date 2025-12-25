@@ -130,44 +130,53 @@ async def websocket_endpoint(websocket: WebSocket):
     logger.info(f"🌐 WebSocket connected (total: {len(active_websockets)})")
     
     try:
+    try:
         # Send initial stats immediately
         try:
-            stats = get_current_stats()
+            # Send initial packet
+            client = bot_state['discord_client']
+            latency = int(client.latency * 1000) if client else 0
+            
             await websocket.send_json({
-                'type': 'stats_update',
-                'data': stats
+                "type": "heartbeat",
+                "latency": latency,
+                "gpu": 0  # Placeholder for now
             })
         except Exception as e:
             logger.error(f"Error sending initial stats: {e}")
-            raise  # Exit if we can't even send initial data
-        
+            raise
+
         while True:
-            # Wait for messages from client (keep-alive)
+            # Wait for messages or timeout
             try:
-                # Wait with timeout to detect disconnection
-                await asyncio.wait_for(websocket.receive_text(), timeout=2.0)
+                # 1 second heartbeat interval
+                await asyncio.wait_for(websocket.receive_text(), timeout=1.0)
             except asyncio.TimeoutError:
-                # No message received, send stats update
                 pass
-            except Exception as e:
-                # Connection closed
-                logger.debug(f"WebSocket receive error: {e}")
+            except Exception:
                 break
             
-            # Only send if connection is still open
+            if not websocket.client_state.value == 1:
+                break
+                
+            # Send Heartbeat
             try:
-                # Check state before sending
-                if not websocket.client_state.value == 1:  # CONNECTED
-                    break
-                    
-                stats = get_current_stats()
+                client = bot_state['discord_client']
+                latency = int(client.latency * 1000) if client else 0
+                # TODO: Get real GPU usage
+                
                 await websocket.send_json({
-                    'type': 'stats_update',
-                    'data': stats
+                    "type": "heartbeat",
+                    "latency": latency,
+                    "gpu": 0
                 })
+                
+                # Also send audio level if available (simulated for now)
+                # In real imp, this would come from VoiceReceiver
+                
             except Exception as e:
-                logger.debug(f"Error sending stats: {e}")
-                break  # Exit on any send error
+                logger.debug(f"Error sending heartbeat: {e}")
+                break
     
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
@@ -194,7 +203,7 @@ async def broadcast_log(log_entry: Dict):
                 
             await ws.send_json({
                 'type': 'log',
-                'data': log_entry
+                'msg': log_entry.get('message', str(log_entry))
             })
         except Exception:
             to_remove.append(ws)
@@ -216,10 +225,14 @@ async def broadcast_event(event_type: str, data: Dict):
                 to_remove.append(ws)
                 continue
                 
-            await ws.send_json({
-                'type': event_type,
-                'data': data
-            })
+            # Pass through decision events directly
+            if event_type == 'decision':
+                 await ws.send_json(data)
+            else:
+                await ws.send_json({
+                    'type': event_type,
+                    'data': data
+                })
         except Exception:
             to_remove.append(ws)
     
@@ -698,6 +711,59 @@ async def abort_generation():
         
         manager.abort_current_generation()
         return {'success': True}
+        return {'success': False, 'error': str(e)}
+
+@app.post("/api/emergency-stop")
+async def emergency_stop():
+    """Emergency stop alias"""
+    return await abort_generation()
+
+class MoodRequest(BaseModel):
+    mood: str
+
+@app.post("/api/mood/set")
+async def set_mood(request: MoodRequest):
+    """Set bot mood"""
+    try:
+        manager = bot_state['message_manager']
+        if not manager:
+            return {'success': False, 'error': 'Manager not initialized'}
+        
+        # Access personality state directly
+        if hasattr(manager, 'personality'):
+            if request.mood == 'high_energy':
+                manager.personality.energy_level = 1.0
+                manager.personality.engagement = 1.0
+            elif request.mood == 'neutral':
+                manager.personality.energy_level = 0.5
+                manager.personality.sass_level = 0.5
+            elif request.mood == 'sass':
+                manager.personality.sass_level = 1.0
+            
+            return {'success': True, 'mood': request.mood}
+            
+        return {'success': False, 'error': 'Personality module not found'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+class ContextSeverRequest(BaseModel):
+    channel_id: str
+
+@app.post("/api/context/sever")
+async def sever_context(request: ContextSeverRequest):
+    """Sever proactive context for a channel"""
+    try:
+        manager = bot_state['message_manager']
+        if not manager or not hasattr(manager, 'response_controller'):
+             return {'success': False, 'error': 'Manager not initialized'}
+             
+        rc = manager.response_controller
+        if request.channel_id in rc.active_conversations:
+            del rc.active_conversations[request.channel_id]
+            logger.info(f"✂️ Severed context for {request.channel_id}")
+            return {'success': True}
+            
+        return {'success': False, 'error': 'Context not found'}
     except Exception as e:
         return {'success': False, 'error': str(e)}
 
