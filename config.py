@@ -34,6 +34,17 @@ class BotConfig:
         self.ENABLE_VOICE: bool = os.getenv('ENABLE_VOICE', 'true').lower() == 'true'
         self.ENABLE_TTS: bool = os.getenv('ENABLE_TTS', 'true').lower() == 'true'
         
+        # --- Voice Receiver Mode ---
+        # "rust" (default): Rust songbird Driver — DAVE-compatible, no gateway conflict
+        # "pycord": discord.py AudioSink — simpler but lacks DAVE support
+        self.VOICE_RECEIVER_MODE: str = os.getenv('VOICE_RECEIVER_MODE', 'rust').lower()
+        
+        # --- Rust Binary Path ---
+        self.RUST_VOICE_RECEIVER_PATH: str = os.getenv(
+            'RUST_VOICE_RECEIVER_PATH',
+            os.path.join(os.path.dirname(__file__), 'voice', 'rust_receiver', 'target', 'release', 'voice_receiver')
+        )
+        
         # --- Qdrant Settings ---
         self.QDRANT_HOST: str = os.getenv('QDRANT_HOST', 'localhost')
         self.QDRANT_PORT: int = int(os.getenv('QDRANT_PORT', '6333'))
@@ -68,6 +79,7 @@ class BotConfig:
             'MAINTENANCE_INTERVAL_HOURS': self.MAINTENANCE_INTERVAL_HOURS,
             'ENABLE_VOICE': self.ENABLE_VOICE,
             'ENABLE_TTS': self.ENABLE_TTS,
+            'VOICE_RECEIVER_MODE': self.VOICE_RECEIVER_MODE,
             'LLM_MODEL': self.LLM_MODEL,
             'ALLOWED_CHANNEL_IDS': list(self.ALLOWED_CHANNEL_IDS),
             'PERSONALITY': self.PERSONALITY
@@ -75,19 +87,24 @@ class BotConfig:
 
     def update_from_dict(self, data: Dict[str, Any]) -> None:
         """Update config from dictionary"""
-        if 'DEBUG_MODE' in data:
-            self.DEBUG_MODE = bool(data['DEBUG_MODE'])
-        if 'TRACE_MESSAGES' in data:
-            self.TRACE_MESSAGES = bool(data['TRACE_MESSAGES'])
-        if 'MAINTENANCE_INTERVAL_HOURS' in data:
-            self.MAINTENANCE_INTERVAL_HOURS = int(data['MAINTENANCE_INTERVAL_HOURS'])
-        if 'ENABLE_VOICE' in data:
-            self.ENABLE_VOICE = bool(data['ENABLE_VOICE'])
-        if 'ENABLE_TTS' in data:
-            self.ENABLE_TTS = bool(data['ENABLE_TTS'])
+        simple_keys = ['DEBUG_MODE', 'TRACE_MESSAGES', 'MAINTENANCE_INTERVAL_HOURS',
+                       'ENABLE_VOICE', 'ENABLE_TTS', 'LLM_MODEL', 'VOICE_RECEIVER_MODE']
+        for key in simple_keys:
+            if key in data:
+                if isinstance(getattr(self, key, None), bool):
+                    setattr(self, key, bool(data[key]))
+                elif isinstance(getattr(self, key, None), int):
+                    setattr(self, key, int(data[key]))
+                else:
+                    setattr(self, key, str(data[key]))
+
+        if 'ALLOWED_CHANNEL_IDS' in data:
+            if isinstance(data['ALLOWED_CHANNEL_IDS'], list):
+                self.ALLOWED_CHANNEL_IDS = {int(x) for x in data['ALLOWED_CHANNEL_IDS'] if str(x).strip()}
+
         if 'PERSONALITY' in data:
             self.PERSONALITY.update(data['PERSONALITY'])
-            
+
         logger.info("⚙️ BotConfig updated")
 
 # Global instance

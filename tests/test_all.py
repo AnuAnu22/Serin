@@ -553,7 +553,7 @@ async def test_correction():
 # ============================================================
 @test("Voice tracker records voice activity")
 async def test_voice_tracker():
-    from voice_tracker import VoiceTracker
+    from voice.voice_tracker import VoiceTracker
     
     class MockMemory:
         def upsert_user(self, uid, name, display): pass

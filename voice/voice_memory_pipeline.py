@@ -52,6 +52,7 @@ class VoiceMemoryPipeline:
         guild_id: str,
         channel_id: str,
         transcription: str,
+        wav_b64: Optional[str] = None,
         timestamp: Optional[datetime] = None
     ) -> None:
         """
@@ -62,7 +63,8 @@ class VoiceMemoryPipeline:
             username: Username
             guild_id: Guild ID
             channel_id: Voice channel ID
-            transcription: Transcribed text
+            transcription: Transcribed text (or placeholder)
+            wav_b64: Optional WAV base64 for direct audio input to the model
             timestamp: Message timestamp
         """
         try:
@@ -81,8 +83,8 @@ class VoiceMemoryPipeline:
                 username=username,
                 channel_id=channel_id,
                 participants=[user_id],
-                emotional_tone='neutral',  # Could add sentiment analysis
-                importance=0.7,  # Voice messages slightly more important
+                emotional_tone='neutral',
+                importance=0.7,
                 message_id=None
             )
             
@@ -116,29 +118,17 @@ class VoiceMemoryPipeline:
             self.stats['queued_for_processing'] += 1
             self.stats['total_voice_messages'] += 1
             
-            # Check if we should generate a voice response (TIER 7 integration)
-            if self.message_manager:
-                should_respond = await self._should_respond_to_voice(
+            # Generate voice response
+            if self.message_manager and hasattr(self.message_manager, 'process_voice_input'):
+                logger.info(f"🎤 Triggering voice response for {username}")
+                await self.message_manager.process_voice_input(
                     user_id=user_id,
                     username=username,
                     channel_id=channel_id,
-                    transcription=transcription
+                    transcription=transcription,
+                    wav_b64=wav_b64
                 )
-                
-                if should_respond:
-                    logger.info(f"🎤 Triggering voice response for {username}")
-                    
-                    # Call EnhancedMessageManager to process voice input
-                    if hasattr(self.message_manager, 'process_voice_input'):
-                        await self.message_manager.process_voice_input(
-                            user_id=user_id,
-                            username=username,
-                            channel_id=channel_id,
-                            transcription=transcription
-                        )
-                        self.stats['responses_triggered'] += 1
-                    else:
-                        logger.warning("⚠️ MessageManager does not support voice input")
+                self.stats['responses_triggered'] += 1
             
             logger.debug(f"✅ Voice message processed and stored")
         
@@ -155,31 +145,9 @@ class VoiceMemoryPipeline:
     ) -> bool:
         """
         Decide if bot should respond to voice message.
-        
-        Args:
-            user_id: User ID
-            username: Username
-            channel_id: Channel ID
-            transcription: Message content
-        
-        Returns:
-            True if should respond
+        Voice is conversational — always respond.
         """
-        # Check if bot is mentioned
-        if any(word in transcription.lower() for word in ['serin', 'bot', 'hey']):
-            return True
-        
-        # Check if question
-        if '?' in transcription:
-            return True
-        
-        # Check if direct address (starts with name patterns)
-        if any(transcription.lower().startswith(p) for p in ['can you', 'could you', 'would you', 'what', 'how', 'why']):
-            return True
-        
-        # Otherwise, probabilistic response (30% chance)
-        import random
-        return random.random() < 0.3
+        return True
     
     def get_recent_context(self, channel_id: str, limit: int = 5) -> List[Dict[str, Any]]:
         """

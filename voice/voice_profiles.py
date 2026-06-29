@@ -229,3 +229,40 @@ class VoiceProfileManager:
             'active_profile': self.active_profile,
             'available_profiles': self.list_profiles()
         }
+
+
+# Global singleton
+_profile_manager: Optional[VoiceProfileManager] = None
+
+
+def get_profile_manager() -> VoiceProfileManager:
+    """Get or create the global profile manager singleton"""
+    global _profile_manager
+    if _profile_manager is None:
+        _profile_manager = VoiceProfileManager()
+    return _profile_manager
+
+
+def get_voice_profiles() -> list:
+    """Get all voice profiles (module-level convenience)"""
+    return list(get_profile_manager().profiles.values())
+
+
+def get_active_profile_name() -> str:
+    """Get active profile name (module-level convenience)"""
+    return get_profile_manager().active_profile
+
+
+def create_profile(name: str, speed: float = 1.0, temperature: float = 0.7, description: str = "") -> Optional[VoiceProfile]:
+    """Create a new voice profile (module-level convenience)"""
+    return get_profile_manager().create_custom_profile(name, speed, temperature, description)
+
+
+def set_active_profile(name: str) -> bool:
+    """Set active profile (module-level convenience)"""
+    return get_profile_manager().set_active(name)
+
+
+def delete_profile(name: str) -> bool:
+    """Delete a profile (module-level convenience)"""
+    return get_profile_manager().remove_profile(name)

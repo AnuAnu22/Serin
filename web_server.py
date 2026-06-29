@@ -57,6 +57,7 @@ bot_state = {
     'voice_listener': None,  # TIER 6
     'tts_engine': None,       # TIER 7
     'voice_manager': None,    # TIER 8
+    'voice_behavior_manager': None,  # TIER 9
     'bot_stats': {}
 }
 
@@ -132,11 +133,17 @@ async def websocket_endpoint(websocket: WebSocket):
         try:
             client = bot_state['discord_client']
             latency = int(client.latency * 1000) if client else 0
+            manager = bot_state['message_manager']
+            brain_state = 'ONLINE'
+            if manager and hasattr(manager, 'current_state'):
+                brain_state = manager.current_state.get('status', 'ONLINE')
+            gpu = get_gpu_vram_usage()
 
             await websocket.send_json({
                 "type": "heartbeat",
                 "latency": latency,
-                "gpu": 0
+                "gpu": gpu,
+                "brain_state": brain_state
             })
         except Exception as e:
             logger.error(f"Error sending initial stats: {e}")
@@ -158,11 +165,17 @@ async def websocket_endpoint(websocket: WebSocket):
             try:
                 client = bot_state['discord_client']
                 latency = int(client.latency * 1000) if client else 0
+                manager = bot_state['message_manager']
+                brain_state = 'ONLINE'
+                if manager and hasattr(manager, 'current_state'):
+                    brain_state = manager.current_state.get('status', 'ONLINE')
+                gpu = get_gpu_vram_usage()
 
                 await websocket.send_json({
                     "type": "heartbeat",
                     "latency": latency,
-                    "gpu": 0
+                    "gpu": gpu,
+                    "brain_state": brain_state
                 })
 
             except Exception as e:
@@ -180,6 +193,23 @@ async def websocket_endpoint(websocket: WebSocket):
         except Exception:
             pass
         logger.info(f"WebSocket disconnected (remaining: {len(active_websockets)})")
+
+def get_gpu_vram_usage() -> float:
+    """Get GPU VRAM usage in GB via nvidia-smi"""
+    try:
+        import subprocess
+        result = subprocess.run(
+            ['nvidia-smi', '--query-gpu=memory.used', '--format=csv,noheader,nounits'],
+            capture_output=True, text=True, timeout=2
+        )
+        if result.returncode == 0:
+            lines = [l.strip() for l in result.stdout.strip().split('\n') if l.strip()]
+            if lines:
+                total_mb = sum(int(l) for l in lines if l.isdigit())
+                return round(total_mb / 1024, 1)
+        return 0.0
+    except Exception:
+        return 0.0
 
 async def broadcast_log(log_entry: Dict[str, Any]) -> None:
     """Broadcast log entry to all connected WebSockets"""
@@ -914,6 +944,328 @@ async def _run_manual_sync(crawler):
     except Exception as e:
         logger.error(f"Error in manual sync: {e}")
 
+
+# ============================================================================
+# TTS CONTROL
+# ============================================================================
+
+@app.get("/api/tts/voices")
+async def list_tts_voices():
+    """List available TTS voice files"""
+    try:
+        # Try voice_manager first (TTSVoiceManager)
+        manager = bot_state['voice_manager']
+        if manager and hasattr(manager, 'list_voices') and callable(manager.list_voices):
+            voices = manager.list_voices()
+            if voices:
+                return {'voices': voices}
+        # Try edge-tts built-in list
+        try:
+            import edge_tts
+            edge_voices = await edge_tts.list_voices()
+            return {'voices': [{'name': v['Name'], 'file': v['ShortName'], 'size': 0} for v in edge_voices[:50]]}
+        except Exception:
+            pass
+        return {'voices': []}
+    except Exception as e:
+        return {'error': str(e)}
+
+@app.get("/api/tts/current")
+async def get_current_tts():
+    """Get current TTS engine status"""
+    try:
+        tts = bot_state['tts_engine']
+        if not tts:
+            return {'error': 'TTS not initialized'}
+        status = {
+            'device': 'cuda' if hasattr(tts, 'device') and tts.device else 'cpu',
+            'cuda_enabled': hasattr(tts, 'device') and tts.device and 'cuda' in str(tts.device),
+            'voice_cloning_active': getattr(tts, 'voice_cloning_active', False),
+            'total_generations': getattr(tts, 'total_generations', 0),
+            'active_profile': getattr(tts, 'active_profile', 'default'),
+            'available_profiles': getattr(tts, 'available_profiles', ['default']),
+        }
+        return make_json_safe(status)
+    except Exception as e:
+        return {'error': str(e)}
+
+@app.post("/api/tts/voice/load")
+async def load_tts_voice(data: Dict[str, Any]):
+    """Load a TTS voice file"""
+    try:
+        tts = bot_state['tts_engine']
+        if not tts:
+            return {'success': False, 'error': 'TTS not initialized'}
+        voice_name = data.get('voice_name', '')
+        if hasattr(tts, 'load_voice'):
+            success = await tts.load_voice(voice_name)
+            return {'success': success, 'voice': voice_name}
+        return {'success': False, 'error': 'load_voice not available'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+@app.post("/api/tts/voice/clear")
+async def clear_tts_voice():
+    """Clear custom TTS voice, revert to default"""
+    try:
+        tts = bot_state['tts_engine']
+        if not tts:
+            return {'success': False, 'error': 'TTS not initialized'}
+        if hasattr(tts, 'clear_voice'):
+            await tts.clear_voice()
+            return {'success': True}
+        return {'success': False, 'error': 'clear_voice not available'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+@app.post("/api/tts/settings/update")
+async def update_tts_settings(data: Dict[str, Any]):
+    """Update TTS settings (profile, speed, etc.)"""
+    try:
+        tts = bot_state['tts_engine']
+        if not tts:
+            return {'success': False, 'error': 'TTS not initialized'}
+        profile = data.get('profile')
+        if profile and hasattr(tts, 'set_active_profile'):
+            tts.set_active_profile(profile)
+        return {'success': True}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+# ============================================================================
+# AUDIO PROCESSING SETTINGS
+# ============================================================================
+
+@app.get("/api/audio/settings")
+async def get_audio_settings():
+    """Get audio processing settings"""
+    try:
+        listener = bot_state['voice_listener']
+        if not listener:
+            return {'vad_threshold': -40, 'silence_threshold': 3.0, 'transcription_enabled': True}
+        ap = getattr(listener, 'audio_processor', None)
+        return {
+            'vad_threshold': getattr(ap, 'VAD_THRESHOLD', -40) if ap else -40,
+            'silence_threshold': getattr(ap, 'silence_threshold', 3.0) if ap else 3.0,
+            'transcription_enabled': listener.transcription_enabled if hasattr(listener, 'transcription_enabled') else True,
+        }
+    except Exception as e:
+        return {'error': str(e)}
+
+@app.post("/api/audio/settings/update")
+async def update_audio_settings(data: Dict[str, Any]):
+    """Update audio processing settings"""
+    try:
+        listener = bot_state['voice_listener']
+        if not listener:
+            return {'success': False, 'error': 'Voice listener not initialized'}
+        ap = getattr(listener, 'audio_processor', None)
+        if 'vad_threshold' in data and ap:
+            ap.VAD_THRESHOLD = int(data['vad_threshold'])
+        if 'silence_threshold' in data and ap:
+            ap.silence_threshold = float(data['silence_threshold'])
+        if 'transcription_enabled' in data:
+            listener.transcription_enabled = bool(data['transcription_enabled'])
+        logger.info("🎙️ Audio settings updated from web panel")
+        return {'success': True}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+@app.get("/api/audio/stats")
+async def get_audio_stats():
+    """Get audio processing statistics"""
+    try:
+        listener = bot_state['voice_listener']
+        if not listener:
+            return {'chunks_received': 0, 'chunks_processed': 0, 'queue_size': 0, 'transcriptions_completed': 0, 'vad_detections': 0}
+        ap = getattr(listener, 'audio_processor', None)
+        if ap and hasattr(ap, 'get_stats'):
+            return ap.get_stats()
+        return {
+            'chunks_received': listener.stats.get('total_audio_chunks', 0),
+            'chunks_processed': listener.stats.get('total_audio_chunks', 0),
+            'queue_size': 0,
+            'transcriptions_completed': 0,
+            'vad_detections': 0,
+        }
+    except Exception as e:
+        return {'error': str(e)}
+
+@app.get("/api/audio/speakers")
+async def get_active_speakers():
+    """Get currently active/streaming speakers"""
+    try:
+        listener = bot_state['voice_listener']
+        if not listener:
+            return {'speakers': []}
+        ap = getattr(listener, 'audio_processor', None)
+        if ap and hasattr(ap, 'get_active_speakers'):
+            speakers = await ap.get_active_speakers()
+            return {'speakers': speakers}
+        return {'speakers': []}
+    except Exception as e:
+        return {'error': str(e)}
+
+# ============================================================================
+# VOICE PROFILES
+# ============================================================================
+
+@app.get("/api/voice-profiles/list")
+async def list_voice_profiles():
+    """List all voice profiles"""
+    try:
+        from voice_profiles import get_voice_profiles, get_active_profile_name
+        profiles = get_voice_profiles()
+        active = get_active_profile_name()
+        return {
+            'profiles': [
+                {
+                    'name': p.name,
+                    'speed': getattr(p, 'speed', 1.0),
+                    'temperature': getattr(p, 'temperature', 0.7),
+                    'description': getattr(p, 'description', ''),
+                }
+                for p in profiles
+            ],
+            'active': active,
+        }
+    except Exception as e:
+        return {'error': str(e), 'profiles': [], 'active': 'default'}
+
+@app.post("/api/voice-profiles/create")
+async def create_voice_profile(data: Dict[str, Any]):
+    """Create a new voice profile"""
+    try:
+        from voice_profiles import create_profile
+        name = data.get('name')
+        if not name:
+            return {'success': False, 'error': 'Profile name required'}
+        profile = create_profile(
+            name=name,
+            speed=data.get('speed', 1.0),
+            temperature=data.get('temperature', 0.7),
+            description=data.get('description', ''),
+        )
+        if profile:
+            logger.info("📋 Voice profile created: %s", name)
+            return {'success': True}
+        return {'success': False, 'error': 'Failed to create profile'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+@app.post("/api/voice-profiles/set-active")
+async def set_active_voice_profile(profile_name: str = 'default'):
+    """Set active voice profile"""
+    try:
+        from voice_profiles import set_active_profile
+        success = set_active_profile(profile_name)
+        if success:
+            logger.info("🎙️ Active voice profile: %s", profile_name)
+            return {'success': True}
+        return {'success': False, 'error': 'Profile not found'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+@app.delete("/api/voice-profiles/{profile_name}")
+async def delete_voice_profile(profile_name: str):
+    """Delete a voice profile"""
+    try:
+        from voice_profiles import delete_profile
+        success = delete_profile(profile_name)
+        if success:
+            logger.info("🗑️ Deleted voice profile: %s", profile_name)
+            return {'success': True}
+        return {'success': False, 'error': 'Profile not found or protected'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+# ============================================================================
+# BACKGROUND QUEUE
+# ============================================================================
+
+@app.get("/api/background/queue")
+async def get_background_queue():
+    """Get background processor queue status"""
+    try:
+        bg = bot_state['background_processor']
+        if not bg:
+            return {'size': 0, 'is_running': False}
+        return {
+            'size': len(getattr(bg, 'processing_queue', []) or []),
+            'is_running': getattr(bg, 'is_running', False),
+        }
+    except Exception as e:
+        return {'error': str(e)}
+
+@app.post("/api/background/clear-queue")
+async def clear_background_queue():
+    """Clear all pending background tasks"""
+    try:
+        bg = bot_state['background_processor']
+        if not bg:
+            return {'success': False, 'error': 'Not initialized'}
+        q = getattr(bg, 'processing_queue', None)
+        cleared = 0
+        if q:
+            if isinstance(q, list):
+                cleared = len(q)
+                q.clear()
+            elif hasattr(q, 'qsize'):
+                cleared = q.qsize()
+                while not q.empty():
+                    try:
+                        q.get_nowait()
+                    except:
+                        break
+        logger.info("🗑️ Cleared %d background tasks", cleared)
+        return {'success': True, 'cleared': cleared}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+# ============================================================================
+# VOICE BEHAVIOR SETTINGS
+# ============================================================================
+
+@app.get("/api/voice/behavior/settings")
+async def get_voice_behavior_settings():
+    """Get voice auto-join/leave behavior settings"""
+    try:
+        vbm = bot_state['voice_behavior_manager']
+        if not vbm:
+            return {
+                'join_aggressiveness': 0.5,
+                'leave_after_silence_seconds': 180,
+                'max_session_minutes': 60,
+                'enabled': False,
+            }
+        settings = vbm.get_settings()
+        settings['enabled'] = True
+        return settings
+    except Exception as e:
+        return {'error': str(e)}
+
+@app.post("/api/voice/behavior/settings")
+async def update_voice_behavior_settings(data: Dict[str, Any]):
+    """Update voice auto-join/leave behavior settings"""
+    try:
+        vbm = bot_state['voice_behavior_manager']
+        if not vbm:
+            return {'success': False, 'error': 'Voice behavior manager not initialized'}
+        vbm.update_settings(data)
+        return {'success': True}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+@app.get("/api/voice/behavior/stats")
+async def get_voice_behavior_stats():
+    """Get voice behavior statistics"""
+    try:
+        vbm = bot_state['voice_behavior_manager']
+        if not vbm:
+            return {'auto_joins': 0, 'auto_leaves': 0, 'rejected_joins': 0}
+        return vbm.get_stats()
+    except Exception as e:
+        return {'error': str(e)}
 
 # ============================================================================
 # SERVER LIFECYCLE

@@ -1,287 +1,285 @@
 """
-Voice Listener - Discord Voice Channel Manager (discord.py compatible)
-Handles joining/leaving voice channels and capturing audio streams.
+Voice Listener — Discord Voice Channel Manager
 
-Features:
-- Join/leave VC programmatically
-- Capture per-user audio streams
-- Integration with audio processor
-- Real-time status tracking
-- discord.py 2.x compatible (no pycord dependency)
+Phase 1: VoiceProtocol capture. Uses py-cord's documented VoiceProtocol API
+to receive VOICE_SERVER_UPDATE + VOICE_STATE_UPDATE from the gateway.
+NO UDP, NO voice websocket, NO DAVE from py-cord. Rust owns all voice transport.
+
+Phase 2 (future): Rust gateway shard eliminates py-cord from voice entirely.
 """
 import asyncio
-import discord
-from typing import Any, Dict, List, Optional, Set, Union
-import sys
 import os
+import discord
+from typing import Any, Dict, Optional, Set
+import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from logger_config import logger
+
+# Import VoiceProtocol from _types to avoid requiring py-cord[voice] deps
+from discord.voice._types import VoiceProtocol
+
+
+class InfoCaptureProtocol(VoiceProtocol):
+    """
+    Captures voice ConnectionInfo from gateway events without establishing
+    any actual voice connection (no UDP, no voice websocket, no DAVE).
+
+    Used as:  protocol = await channel.connect(cls=InfoCaptureProtocol)
+
+    After connect() returns, call protocol.get_info() to retrieve the
+    endpoint, token, and session_id needed by Rust's songbird driver.
+    """
+
+    def __init__(self, client: discord.Client, channel: discord.VoiceChannel) -> None:
+        super().__init__(client, channel)
+        self.server_event = asyncio.Event()
+        self.state_event = asyncio.Event()
+        self.endpoint: str = ""
+        self.token: str = ""
+        self.session_id: str = ""
+        self._info_gathered = False
+
+    async def connect(self, *, timeout: float, reconnect: bool) -> None:
+        """Join voice channel and wait for gateway events (NO UDP/DAVE)."""
+        await self.channel.guild.change_voice_state(channel=self.channel)
+
+        try:
+            await asyncio.wait_for(
+                asyncio.gather(self.server_event.wait(), self.state_event.wait()),
+                timeout=timeout or 15.0,
+            )
+        except asyncio.TimeoutError:
+            await self.channel.guild.change_voice_state(channel=None)
+            raise
+
+        self._info_gathered = True
+
+    async def on_voice_server_update(self, data) -> None:
+        """Called by py-cord state machine when VOICE_SERVER_UPDATE arrives.
+        data is RawVoiceServerUpdateEvent with .endpoint, .token, .guild_id attrs.
+        """
+        self.endpoint = data.endpoint or ""
+        self.token = data.token
+        self.server_event.set()
+
+    async def on_voice_state_update(self, data) -> None:
+        """Called by py-cord state machine when VOICE_STATE_UPDATE arrives.
+        Called only for the bot's own voice state (py-cord filters in parse_voice_state_update).
+        data is RawVoiceStateUpdateEvent with .session_id attr.
+        """
+        self.session_id = data.session_id
+        self.state_event.set()
+
+    async def disconnect(self, *, force: bool = False) -> None:
+        """Leave voice channel and clean up."""
+        if self._info_gathered or force:
+            try:
+                await self.channel.guild.change_voice_state(channel=None)
+            except Exception:
+                pass
+        super().cleanup()
+        self._info_gathered = False
+
+    def get_info(self) -> Dict[str, Any]:
+        """Return ConnectionInfo dict for Rust songbird driver."""
+        return {
+            "endpoint": self.endpoint,
+            "token": self.token,
+            "session_id": self.session_id,
+            "guild_id": self.channel.guild.id,
+            "channel_id": self.channel.id,
+            "user_id": self.client.user.id,
+        }
 
 
 class VoiceListener:
     def __init__(self, client: discord.Client, audio_processor: Any) -> None:
-        """
-        Initialize voice listener.
-        
-        Args:
-            client: Discord client
-            audio_processor: AudioStreamProcessor instance
-        """
         self.client = client
         self.audio_processor = audio_processor
-        
-        # Track active voice connections
-        self.voice_connections: Dict[int, discord.VoiceClient] = {}  # guild_id -> VoiceClient
-        
-        # Settings
+
+        self.rust_bridge: Optional[Any] = None
+        self._protocol: Optional[InfoCaptureProtocol] = None
+        self._active_guild_id: Optional[int] = None
+
         self.transcription_enabled = True
         self.auto_join_on_mention = True
-        
-        # Dedup guard for concurrent joins
         self._join_in_progress: Set[int] = set()
 
-        # Stats
         self.stats = {
             'connections': 0,
             'total_audio_chunks': 0,
             'active_channels': set(),
-            'errors': 0
+            'errors': 0,
         }
-        
-        logger.info("✅ Voice listener initialized (discord.py compatible)")
-    
+
+        logger.info("Voice listener initialized (InfoCaptureProtocol + Rust)")
+
     async def join_channel(self, guild_id: int, channel_id: int) -> bool:
-        """
-        Join a voice channel.
-        
-        Args:
-            guild_id: Guild ID
-            channel_id: Voice channel ID
-        
-        Returns:
-            Success status
-        """
         if guild_id in self._join_in_progress:
-            logger.warning(f"⚠️ Join already in progress for guild {guild_id}, skipping")
+            logger.warning(f"Join already in progress for guild {guild_id}, skipping")
             return False
         self._join_in_progress.add(guild_id)
         try:
             guild = self.client.get_guild(guild_id)
             if not guild:
-                logger.error(f"❌ Guild {guild_id} not found")
+                logger.error(f"Guild {guild_id} not found")
                 return False
-            
+
             channel = guild.get_channel(channel_id)
             if not channel or not isinstance(channel, discord.VoiceChannel):
-                logger.error(f"❌ Voice channel {channel_id} not found")
+                logger.error(f"Voice channel {channel_id} not found")
                 return False
-            
-            # Check if already connected to this guild
-            if guild_id in self.voice_connections:
-                # Move to new channel
-                await self.voice_connections[guild_id].move_to(channel)
-                logger.info(f"🎤 Moved to {channel.name} in {guild.name}")
-            else:
-                # Check if discord.py already has a voice client for this guild
-                existing = discord.utils.get(self.client.voice_clients, guild=guild)
-                if existing is not None:
-                    voice_client = existing
-                    self.voice_connections[guild_id] = voice_client
-                    if voice_client.channel.id != channel_id:
-                        await voice_client.move_to(channel)
-                    await self._start_listening(voice_client, guild_id, channel_id)
-                    logger.info(f"🎤 Reused existing connection in {guild.name}")
-                else:
-                    # Join new channel
-                    voice_client = await channel.connect()
-                    self.voice_connections[guild_id] = voice_client
-                    
-                    # Start listening
-                    await self._start_listening(voice_client, guild_id, channel_id)
-                    
-                    logger.info(f"🎤 Joined {channel.name} in {guild.name}")
 
-            # Wait for voice client to be ready
-            for _ in range(10):
-                if voice_client.is_connected():
-                    break
-                await asyncio.sleep(0.5)
-            if not voice_client.is_connected():
-                logger.error(f"❌ Voice client failed to connect to {channel.name}")
+            # If already connected, move by disconnecting first
+            if self._protocol is not None:
+                await self._protocol.disconnect()
+                self._protocol = None
+
+            if self.rust_bridge and self.rust_bridge.is_running():
+                await self.rust_bridge.stop()
+                self.rust_bridge = None
+
+            # Connect via VoiceProtocol (captures ConnectionInfo, NO UDP/DAVE)
+            try:
+                protocol = await channel.connect(
+                    cls=InfoCaptureProtocol,
+                    reconnect=False,
+                    timeout=15.0,
+                )
+            except asyncio.TimeoutError:
+                logger.error("Timeout waiting for voice connection info from gateway")
                 return False
-            
+
+            info = protocol.get_info()
+            logger.info(
+                f"Got ConnectionInfo: endpoint={info['endpoint']}, "
+                f"token={info['token'][:8]}..., session_id={info['session_id'][:8]}..."
+            )
+
+            # Start Rust bridge with captured ConnectionInfo
+            from voice.rust_voice_bridge import RustVoiceBridge
+
+            self.rust_bridge = RustVoiceBridge(
+                audio_processor=self.audio_processor,
+                voice_listener=self,
+            )
+
+            success = await self.rust_bridge.start_with_info(
+                guild_id=guild_id,
+                channel_id=channel_id,
+                connection_info=info,
+            )
+
+            if not success:
+                logger.error("Failed to start Rust voice receiver")
+                await protocol.disconnect()
+                return False
+
+            self._protocol = protocol
+            self._active_guild_id = guild_id
             self.stats['connections'] += 1
             self.stats['active_channels'].add(str(channel_id))
-            
+            logger.info(f"Joined {channel.name} in {guild.name} (Rust owns voice)")
             return True
-        
+
         except Exception as e:
-            logger.exception(f"❌ Error joining voice channel: {e}")
+            logger.exception(f"Error joining voice channel: {e}")
             self.stats['errors'] += 1
             return False
         finally:
             self._join_in_progress.discard(guild_id)
-    
+
     async def leave_channel(self, guild_id: int) -> bool:
-        """
-        Leave voice channel in a guild.
-        
-        Args:
-            guild_id: Guild ID
-        
-        Returns:
-            Success status
-        """
         try:
-            if guild_id not in self.voice_connections:
-                logger.warning(f"⚠️ Not connected to voice in guild {guild_id}")
-                return False
-            
-            voice_client = self.voice_connections[guild_id]
-            
-            # Stop listening
-            await self._stop_listening(guild_id)
-            
-            # Disconnect
-            await voice_client.disconnect()
-            
-            # Remove from tracking
-            channel_id = str(voice_client.channel.id)
-            del self.voice_connections[guild_id]
-            self.stats['active_channels'].discard(channel_id)
+            if self.rust_bridge and self.rust_bridge.is_running():
+                await self.rust_bridge.stop()
+                self.rust_bridge = None
+
+            if self._protocol is not None:
+                await self._protocol.disconnect()
+                self._protocol = None
+
+            self._active_guild_id = None
             self._join_in_progress.discard(guild_id)
-            
-            logger.info(f"🎤 Left voice channel in guild {guild_id}")
+            logger.info(f"Left voice channel in guild {guild_id}")
             return True
-        
+
         except Exception as e:
-            logger.error(f"❌ Error leaving voice channel: {e}")
+            logger.error(f"Error leaving voice channel: {e}")
             self.stats['errors'] += 1
             return False
-    
 
-    async def _start_listening(self, voice_client: discord.VoiceClient, guild_id: int, channel_id: int) -> None:
-        try:
-            sink = AudioSink(
-                audio_processor=self.audio_processor,
-                guild_id=guild_id,
-                channel_id=channel_id,
-                stats=self.stats
-            )
-            for attempt in range(3):
-                if voice_client.is_connected():
-                    voice_client.start_recording(sink, self._recording_callback, sink)
-                    logger.info(f"🎧 Started listening in channel {channel_id}")
-                    return
-                else:
-                    logger.warning(f"⏳ Voice client not connected yet, waiting... (attempt {attempt+1}/3)")
-                    await asyncio.sleep(1)
-            logger.error(f"❌ Could not start recording after 3 attempts (voice client disconnected)")
-        except Exception as e:
-            logger.exception(f"Error starting listener: {e}")
-    
-    async def _stop_listening(self, guild_id: int) -> None:
-        """
-        Stop listening to audio.
-        
-        Args:
-            guild_id: Guild ID
-        """
-        try:
-            if guild_id in self.voice_connections:
-                voice_client = self.voice_connections[guild_id]
-                if voice_client.is_connected():
-                    voice_client.stop_recording()
-                    logger.info(f"🎧 Stopped listening in guild {guild_id}")
-        except Exception as e:
-            logger.error(f"❌ Error stopping recording: {e}")
-    
-    def _recording_callback(self, sink: Any, user: Any, audio: Any) -> None:
-        """Callback when recording finishes for a user"""
-        logger.debug(f"📼 Recording callback triggered for user {user}")
-    
-    def _recording_error_callback(self, sink: Any, error: Exception) -> None:
-        """Callback when recording error occurs"""
-        logger.error(f"❌ Recording error: {error}")
-        self.stats['errors'] += 1
-    
+    async def leave_all_channels(self) -> None:
+        if self._active_guild_id is not None:
+            await self.leave_channel(self._active_guild_id)
+
+    def is_in_voice(self, guild_id: int) -> bool:
+        return (
+            self.rust_bridge is not None
+            and self.rust_bridge.is_running()
+            and self._active_guild_id == guild_id
+        )
+
+    def is_connected(self) -> bool:
+        return self.rust_bridge is not None and self.rust_bridge.is_running()
+
     def get_status(self) -> Dict:
-        """Get current voice connection status"""
         connections = []
-        
-        for guild_id, voice_client in self.voice_connections.items():
-            if voice_client.is_connected():
+
+        if self._active_guild_id is not None and self.is_connected():
+            guild = self.client.get_guild(self._active_guild_id)
+            if guild:
+                member_names = []
+                try:
+                    for m in guild.me.voice.channel.members if guild.me.voice else []:
+                        member_names.append({
+                            'id': str(m.id),
+                            'name': m.name,
+                            'display_name': m.display_name,
+                            'is_bot': m.bot,
+                        })
+                except Exception:
+                    member_names = []
+
                 connections.append({
-                    'guild_id': str(guild_id),
-                    'guild_name': voice_client.guild.name,
-                    'channel_id': str(voice_client.channel.id),
-                    'channel_name': voice_client.channel.name,
-                    'members': len(voice_client.channel.members)
+                    'guild_id': str(self._active_guild_id),
+                    'guild_name': guild.name,
+                    'channel_id': self._channel_id() or 'unknown',
+                    'channel_name': str(guild.me.voice.channel.name) if guild.me.voice else 'unknown',
+                    'members': len(member_names),
+                    'member_names': member_names,
+                    'receiver_mode': 'rust',
+                    'rust_bridge_active': self.rust_bridge.is_running() if self.rust_bridge else False,
                 })
-        
+
         return {
             'connected': len(connections) > 0,
             'active_connections': connections,
             'total_connections': self.stats['connections'],
-            'transcription_enabled': self.transcription_enabled
+            'transcription_enabled': self.transcription_enabled,
+            'receiver_mode': 'rust',
         }
-    
+
     def get_stats(self) -> Dict:
-        """Get voice listener statistics"""
-        return {
-            'connected': len(self.voice_connections) > 0,
+        stats = {
+            'connected': self.is_connected(),
             'active_channels': len(self.stats['active_channels']),
             'total_connections': self.stats['connections'],
             'audio_chunks_processed': self.stats['total_audio_chunks'],
-            'errors': self.stats['errors']
+            'errors': self.stats['errors'],
+            'receiver_mode': 'rust',
         }
+        if self.rust_bridge:
+            try:
+                stats['rust_bridge'] = self.rust_bridge.get_stats()
+            except Exception:
+                pass
+        return stats
 
-    def is_connected(self) -> bool:
-        """
-        Check if connected to any voice channel.
-        Also cleans up stale connections.
-        """
-        active_connections = 0
-        stale_guilds = []
-        
-        for guild_id, vc in self.voice_connections.items():
-            if vc.is_connected():
-                active_connections += 1
-            else:
-                stale_guilds.append(guild_id)
-        
-        # Cleanup stale
-        for guild_id in stale_guilds:
-            del self.voice_connections[guild_id]
-            
-        return active_connections > 0
-
-
-class AudioSink(discord.sinks.Sink):
-    """discord.py 2.x compatible audio sink"""
-    
-    def __init__(self, audio_processor: Any, guild_id: int, channel_id: int, stats: Dict[str, Any]) -> None:
-        super().__init__()
-        self.audio_processor = audio_processor
-        self.guild_id = guild_id
-        self.channel_id = channel_id
-        self.stats = stats
-    
-    def write(self, data: bytes, user: discord.User):
-        """Called for each audio frame (discord.py 2.x)"""
-        try:
-            self.audio_processor.process_audio_chunk(
-                user_id=str(user.id),
-                username=user.name,
-                guild_id=str(self.guild_id),
-                channel_id=str(self.channel_id),
-                audio_data=data
-            )
-            self.stats['total_audio_chunks'] += 1
-        except Exception as e:
-            logger.error(f"Error in AudioSink.write: {e}")
-    
-    def cleanup(self) -> None:
-        """Called when recording stops"""
-        logger.debug(f"🎤 AudioSink cleanup")
-    
+    def _channel_id(self) -> Optional[str]:
+        if self._active_guild_id is None:
+            return None
+        guild = self.client.get_guild(self._active_guild_id)
+        if guild and guild.me.voice and guild.me.voice.channel:
+            return str(guild.me.voice.channel.id)
+        return None

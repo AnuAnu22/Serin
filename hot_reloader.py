@@ -11,6 +11,8 @@ WATCH_DIRS = [
 WATCH_FILES = [
     Path("/mnt/sdc/serin-core/src/lib.rs"),
 ]
+# Rust voice receiver source directory — changes here trigger cargo build
+RUST_RECEIVER_SRC = Path("/home/user3/Documents/SerinBot/Serin/voice/rust_receiver/src")
 SIGNAL_FILE = Path("/tmp/serin-restart.signal")
 BOT_DIR = Path("/home/user3/Documents/SerinBot/Serin")
 COOLDOWN_SECS = 1.0
@@ -47,6 +49,19 @@ def get_mtimes() -> dict[Path, float]:
                 mtimes[p] = p.stat().st_mtime
             except FileNotFoundError:
                 pass
+    # Track Rust voice receiver source files (.rs and Cargo.toml)
+    cargo_toml = RUST_RECEIVER_SRC.parent / "Cargo.toml"
+    if cargo_toml.exists():
+        try:
+            mtimes[cargo_toml] = cargo_toml.stat().st_mtime
+        except FileNotFoundError:
+            pass
+    if RUST_RECEIVER_SRC.is_dir():
+        for rs_file in RUST_RECEIVER_SRC.rglob("*.rs"):
+            try:
+                mtimes[rs_file] = rs_file.stat().st_mtime
+            except FileNotFoundError:
+                pass
     return mtimes
 
 
@@ -78,8 +93,9 @@ def start_bot() -> None:
     )
 
 
-def handle_rust_change() -> None:
-    log("Rust source changed, building maturin release...")
+def handle_maturin_change() -> None:
+    """Handle change in serin-core Rust lib (maturin build)."""
+    log("serin-core Rust source changed, building maturin release...")
     result = subprocess.run(
         ["maturin", "develop", "--release"],
         cwd="/mnt/sdc/serin-core",
@@ -94,6 +110,31 @@ def handle_rust_change() -> None:
         log(f"maturin build failed with exit code {result.returncode}")
     else:
         log("maturin build succeeded")
+    start_bot()
+
+
+def handle_voice_receiver_build() -> None:
+    """Handle change in voice receiver Rust source (cargo build)."""
+    log("Voice receiver Rust source changed, building cargo release...")
+    result = subprocess.run(
+        ["cargo", "build", "--release"],
+        cwd=str(RUST_RECEIVER_SRC.parent),
+        capture_output=True,
+        text=True,
+        timeout=300,  # 5 min timeout for Rust builds
+    )
+    if result.stdout:
+        for line in result.stdout.splitlines()[-5:]:
+            print(f"  [cargo] {line}")
+    if result.stderr:
+        # Only print errors/warnings, not full compilation output
+        for line in result.stderr.splitlines():
+            if line.startswith("error") or line.startswith("warning"):
+                print(f"  [cargo] {line}", file=sys.stderr)
+    if result.returncode != 0:
+        log(f"cargo build failed with exit code {result.returncode}")
+    else:
+        log("cargo build succeeded — voice_receiver binary updated")
     start_bot()
 
 
@@ -124,16 +165,36 @@ def watch_loop() -> None:
         current_mtimes = get_mtimes()
         rust_triggered = False
         py_triggered = False
+        voice_receiver_triggered = False
 
         for path, mtime in current_mtimes.items():
             old = prev_mtimes.get(path)
             if old is not None and mtime > old:
-                if path.suffix == ".rs":
-                    if not rust_triggered:
-                        rust_triggered = True
-                        handle_rust_change()
+                # Voice receiver Rust source (.rs or Cargo.toml under voice/rust_receiver/src/)
+                if path.suffix == ".rs" and RUST_RECEIVER_SRC in path.parents:
+                    if not voice_receiver_triggered:
+                        voice_receiver_triggered = True
+                        ts = time.strftime("%Y-%m-%d %H:%M:%S")
+                        log(f"{ts} - Voice receiver source changed: {path.name}")
+                        handle_voice_receiver_build()
                         prev_mtimes = get_mtimes()
                         break
+                elif path.name == "Cargo.toml" and path.parent == RUST_RECEIVER_SRC.parent:
+                    if not voice_receiver_triggered:
+                        voice_receiver_triggered = True
+                        ts = time.strftime("%Y-%m-%d %H:%M:%S")
+                        log(f"{ts} - Voice receiver Cargo.toml changed")
+                        handle_voice_receiver_build()
+                        prev_mtimes = get_mtimes()
+                        break
+                # serin-core Rust source (maturin)
+                elif path.suffix == ".rs":
+                    if not rust_triggered:
+                        rust_triggered = True
+                        handle_maturin_change()
+                        prev_mtimes = get_mtimes()
+                        break
+                # Python files
                 elif path.suffix == ".py":
                     if not py_triggered:
                         py_triggered = True
@@ -143,7 +204,7 @@ def watch_loop() -> None:
                         prev_mtimes = get_mtimes()
                         break
 
-        if not rust_triggered and not py_triggered:
+        if not rust_triggered and not py_triggered and not voice_receiver_triggered:
             prev_mtimes = current_mtimes
 
         if handle_signal_file():
@@ -167,6 +228,9 @@ def main() -> None:
     signal.signal(signal.SIGTERM, cleanup)
 
     log("Watching for changes...")
+    log(f"  Python: {WATCH_DIRS}")
+    log(f"  Voice receiver Rust: {RUST_RECEIVER_SRC}")
+    log(f"  serin-core Rust: /mnt/sdc/serin-core/src/lib.rs")
     start_bot()
     watch_loop()
 

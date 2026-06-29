@@ -54,6 +54,7 @@ from voice.audio_stream_processor import AudioStreamProcessor
 from voice.whisper_transcriber import WhisperTranscriber
 from voice.voice_memory_pipeline import VoiceMemoryPipeline
 from voice.voice_output_manager import VoiceOutputManager
+from voice.voice_behavior_manager import VoiceBehaviorManager
 from web_server import init_bot_state, start_server
 
 # TIER 7: TTS preparation
@@ -87,7 +88,7 @@ if not config.ALLOWED_CHANNEL_IDS:
 logger.info(f"Starting bot in {'DEBUG' if config.DEBUG_MODE else 'PRODUCTION'} mode")
 logger.info(f"Will RESPOND in {len(config.ALLOWED_CHANNEL_IDS)} channels")
 logger.info(f"Will MONITOR all channels (passive learning)")
-logger.info(f"Voice input: {'ENABLED' if config.ENABLE_VOICE else 'DISABLED'}")
+logger.info(f"Voice input: {'ENABLED' if config.ENABLE_VOICE else 'DISABLED'} ({config.VOICE_RECEIVER_MODE} mode)")
 logger.info(f"Voice output: {'ENABLED' if config.ENABLE_TTS else 'DISABLED'}")
 logger.info(f"Control panel: http://127.0.0.1:{config.CONTROL_PANEL_PORT}")
 
@@ -115,6 +116,7 @@ voice_pipeline = None
 tts_engine = None
 voice_output_manager = None
 voice_manager = None
+voice_behavior_manager = None
 
 # Database Protector
 db_protector = DatabaseProtector("./bot_data")
@@ -175,6 +177,7 @@ async def on_ready():
     """Called when bot successfully connects to Discord"""
     global message_manager, background_processor, passive_monitor, message_crawler
     global whisper_transcriber, audio_processor, voice_listener, voice_pipeline, tts_engine
+    global voice_behavior_manager
 
     try:
         stats['start_time'] = asyncio.get_running_loop().time()
@@ -300,7 +303,7 @@ async def on_ready():
 
             # Start processor
             await audio_processor.start()
-            logger.info("Voice input system fully initialized!")
+            logger.info(f"Voice input system fully initialized! (mode: {config.VOICE_RECEIVER_MODE})")
 
         # TIER 7: Initialize TTS (if enabled)
         voice_output_manager = None
@@ -344,6 +347,59 @@ async def on_ready():
         await message_manager.start()
         logger.info("MessageManager started successfully!")
 
+        # Initialize Voice Behavior Manager (auto join/leave based on mood)
+        if voice_listener and hasattr(message_manager, 'personality'):
+            try:
+                voice_behavior_manager = VoiceBehaviorManager(
+                    personality=message_manager.personality,
+                    voice_listener=voice_listener,
+                    voice_tracker=message_manager.voice_tracker if hasattr(message_manager, 'voice_tracker') else None,
+                )
+                await voice_behavior_manager.start()
+                logger.info("Voice behavior manager started!")
+            except Exception as e:
+                logger.error(f"Failed to start voice behavior manager: {e}")
+                voice_behavior_manager = None
+
+        # Wire voice action callback (structured output pipeline)
+        if voice_listener and message_manager and hasattr(message_manager, 'voice_action_callback'):
+            async def _handle_voice_action(decision: dict, user_id: str, guild_id: int) -> dict:
+                """Execute voice actions decided by the LLM pipeline."""
+                action = decision.get('action')
+                result = {'executed': False, 'message': ''}
+
+                if action == 'join' and voice_listener:
+                    tracker = message_manager.voice_tracker if hasattr(message_manager, 'voice_tracker') else None
+                    if tracker and tracker.is_in_voice(user_id):
+                        info = tracker.get_voice_info(user_id)
+                        if info:
+                            success = await voice_listener.join_channel(
+                                guild_id, int(info['channel_id'])
+                            )
+                            if success:
+                                if voice_behavior_manager:
+                                    voice_behavior_manager._vc_join_time[guild_id] = datetime.now()
+                                    voice_behavior_manager._voice_session_guilds.add(guild_id)
+                                    voice_behavior_manager.stats['auto_joins'] += 1
+                                    voice_behavior_manager._pending_joins.pop(guild_id, None)
+                                result = {'executed': True, 'message': 'joined'}
+                                logger.info("🎤 Voice pipeline: joined VC (LLM decided)")
+                    if not result['executed']:
+                        result = {'executed': False, 'message': 'user_not_in_vc'}
+                        logger.info("🎤 Voice pipeline: user not in VC, LLM will respond naturally")
+
+                elif action == 'leave' and voice_listener:
+                    await voice_listener.leave_channel(guild_id)
+                    if voice_behavior_manager:
+                        voice_behavior_manager.stats['auto_leaves'] += 1
+                    result = {'executed': True, 'message': 'left'}
+                    logger.info("🎤 Voice pipeline: left VC (LLM decided)")
+
+                return result
+
+            message_manager.voice_action_callback = _handle_voice_action
+            logger.info("Voice action callback wired to message manager")
+
         # Attach message manager to voice pipeline
         if voice_pipeline:
             voice_pipeline.message_manager = message_manager
@@ -366,6 +422,10 @@ async def on_ready():
             tts_engine=tts_engine,
             voice_manager=voice_manager if config.ENABLE_TTS else None
         )
+
+        # Add voice behavior manager to control panel state
+        from web_server import bot_state
+        bot_state['voice_behavior_manager'] = voice_behavior_manager
 
         # Inject Broadcaster into ResponseController (for Decision Feed)
         if message_manager and hasattr(message_manager, 'response_controller'):
@@ -573,14 +633,25 @@ async def on_message(message):
 
 @client.event
 async def on_voice_state_update(member, before, after):
-    """Handle voice state changes"""
-    global stats
+    """Handle voice state changes - track + auto-join decisions"""
+    global stats, voice_behavior_manager
 
     try:
         stats['voice_events'] += 1
 
         if message_manager and hasattr(message_manager, 'voice_tracker'):
             await message_manager.voice_tracker.on_voice_update(member, before, after)
+
+        # Trigger auto-join when user joins a voice channel
+        if after.channel and not before.channel:
+            if voice_behavior_manager and voice_listener:
+                await voice_behavior_manager.on_user_joined_vc(
+                    user_id=str(member.id),
+                    username=member.display_name,
+                    guild_id=after.channel.guild.id,
+                    channel_id=after.channel.id,
+                    channel_name=after.channel.name,
+                )
 
     except Exception as e:
         logger.exception(f"Error in voice state update: {e}")

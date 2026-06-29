@@ -29,6 +29,7 @@ from voice_tracker import VoiceTracker, get_voice_join_reaction, get_voice_durat
 from debug_logger import log_message, log_context, log_correction, log_response
 from visual_memory_system import VisualMemorySystem
 from active_search import ActiveSearch
+from voice_action_decider import VoiceActionDecider
 from models.model_factory import get_model_connector
 import random
 from mention_translator import MentionTranslator
@@ -143,6 +144,18 @@ class EnhancedMessageManagerV3:
 
         # Voice pipeline (set externally if available)
         self.voice_pipeline: Any = None
+
+        # TIER 7b: Voice Action Decider (structured output for join/leave decisions)
+        self.voice_action_decider: Optional[VoiceActionDecider] = None
+        self.voice_action_callback: Any = None  # Set by discord_bot.py
+        try:
+            va_connector = get_model_connector()
+            va_connector.load_model()
+            self.voice_action_decider = VoiceActionDecider(va_connector)
+            logger.info("   ✓ Voice Action Decider enabled")
+        except Exception as e:
+            self.voice_action_decider = None
+            logger.warning(f"⚠️ Voice Action Decider disabled: {e}")
         
         # Log memory system type
         memory_type = "Qdrant" if hasattr(self.memory, 'qdrant_client') else "ChromaDB"
@@ -169,7 +182,7 @@ class EnhancedMessageManagerV3:
         self.current_state['status'] = 'ABORTING'
 
 
-    async def process_voice_input(self, user_id: str, username: str, channel_id: str, transcription: str) -> None:
+    async def process_voice_input(self, user_id: str, username: str, channel_id: str, transcription: str, wav_b64: Optional[str] = None) -> None:
         """
         Process voice input and generate voice response.
         Uses sentence-level batching for low-latency voice response.
@@ -198,7 +211,7 @@ class EnhancedMessageManagerV3:
                 user_messages.append({
                     'user_id': user_id,
                     'user_name': username,
-                    'content': transcription,
+                    'content': transcription if not wav_b64 else "[voice input]",
                     'timestamp': datetime.now().isoformat()
                 })
             
@@ -217,31 +230,47 @@ class EnhancedMessageManagerV3:
             
             # Add specific voice instruction
             formatted_context += "\n\n[SYSTEM: You are speaking in a voice channel. Keep responses concise, conversational, and natural. Avoid long lists or code blocks. Use fillers like 'Hmm' or 'Let's see' if you need to think.]"
-            
-            # 2. Generate Response
-            # We use the same get_response_natural but we might want to stream it?
-            # For now, let's generate full response and split it.
-            # Ideally, we'd have a streaming LLM client here.
-            
-            response = await get_response_natural(
-                current_messages=user_messages,
-                context=formatted_context,
-                resolved_last_message=transcription,
-                tone_modifier=self.personality.get_tone_modifier(),
-                personality_state=self.personality.__dict__,
-                message_complexity="simple", # Assume simple for voice
-                is_instruction=False
-            )
+
+            if wav_b64:
+                # 2a. Direct audio + context in one shot (Gemma native multimodal)
+                voice_messages = [{
+                    'role': 'user',
+                    'content': [
+                        {'type': 'text', 'text': formatted_context},
+                        {'type': 'input_audio', 'input_audio': {'data': wav_b64, 'format': 'wav'}},
+                    ],
+                }]
+                from natural_response_generator import llama as llm_connector
+                if llm_connector is None:
+                    from natural_response_generator import initialize_llama
+                    await initialize_llama()
+                    from natural_response_generator import llama as llm_connector
+                response = await llm_connector.chat_completion(
+                    voice_messages,
+                    max_tokens=300,
+                    temperature=1.0,
+                    top_p=0.95,
+                    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+                )
+            else:
+                # 2b. Text-only fallback (Whisper)
+                response = await get_response_natural(
+                    current_messages=user_messages,
+                    context=formatted_context,
+                    resolved_last_message=transcription,
+                    tone_modifier=self.personality.get_tone_modifier(),
+                    personality_state=self.personality.__dict__,
+                    message_complexity="simple",
+                    is_instruction=False
+                )
             
             if response and response.strip():
                 logger.info(f"🗣️ Voice Response: '{response}'")
                 
                 # 3. Send to Voice Output Manager
                 if self.voice_output_manager:
-                    # Convert channel_id to int for voice client lookup
                     try:
-                        guild_id = int(context.get('guild_id', 0)) # Context builder might not have guild_id
-                        # Fallback: find guild from channel
+                        guild_id = int(context.get('guild_id', 0))
                         if guild_id == 0:
                             channel = self.client.get_channel(int(channel_id))
                             if channel:
@@ -794,6 +823,37 @@ class EnhancedMessageManagerV3:
                     else:
                         logger.info(f"⚡ Thinking complete: No further search needed ({reason})")
                         break
+
+            # TIER 7b: Voice Action Decision (structured output)
+            if self.voice_action_decider and self.voice_action_callback and not self.current_state['abort_flag']:
+                try:
+                    voice_decision = await self.voice_action_decider.decide(
+                        user_message=user_messages[-1]['content'],
+                        context=formatted_context,
+                        personality_state=self.personality.__dict__,
+                    )
+                    if voice_decision and voice_decision['action'] in ('join', 'leave'):
+                        result = await self.voice_action_callback(
+                            voice_decision,
+                            primary_user_id,
+                            channel.guild.id,
+                        )
+                        if result.get('executed'):
+                            formatted_context += (
+                                f"\n\n[System: Serin {voice_decision['action']}ed the voice channel "
+                                f"because: {voice_decision.get('reason', 'unknown')}]"
+                            )
+                        elif result.get('message') == 'user_not_in_vc':
+                            formatted_context += (
+                                "\n\n[System: Serin tried to join the user's voice channel "
+                                "but the user is not currently in one. Serin should respond naturally.]"
+                            )
+                except Exception as e:
+                    logger.error(f"❌ Voice action error: {e}")
+                    formatted_context += (
+                        "\n\n[System: Serin could not decide on a voice action due to an error."
+                        " No action was taken. Do not assume Serin joined or left any voice channel.]"
+                    )
 
             self.update_state(
                 status='GENERATING',

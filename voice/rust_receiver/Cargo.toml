@@ -1,0 +1,47 @@
+[package]
+name = "serin-voice-receiver"
+version = "3.0.0"
+edition = "2021"
+description = "Voice receiver for Serin bot — connects to Discord voice via songbird Driver (no gateway)"
+
+[[bin]]
+name = "voice_receiver"
+path = "src/main.rs"
+
+[[bin]]
+name = "minimal_test"
+path = "src/minimal_test.rs"
+
+[dependencies]
+# Songbird: voice driver + receive ONLY (no serenity — avoids dual-gateway conflict)
+# "gateway" feature here is just shared deps (dashmap, async-trait, etc) — NOT a gateway client
+# "rustls" for TLS, "tungstenite" for websocket (voice UDP control channel)
+songbird = { version = "0.6.0", default-features = false, features = ["driver", "receive", "rustls", "tungstenite", "gateway"] }
+symphonia = { version = "0.5", features = ["wav", "pcm"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dashmap = "6.1.0"  # Used directly in Receiver for SSRC→user mapping
+async-trait = "0.1"  # Required by songbird EventHandler trait
+flume = "0.11"  # Channel between voice event handler and main loop
+
+# PATCH: vendored songbird 0.6.0 with DAVE-offset bugfix
+# 
+# Upstream songbird 0.6.0 has a bug in StoredPacket where the DAVE
+# decryption-adjusted tail offset is computed but discarded — it uses
+# rtp_body_tail instead of adjusted_tail, causing every Opus decode
+# to fail with InvalidPacket under DAVE-encrypted audio.
+# 
+# Fix lives in: vendor/songbird/src/driver/tasks/udp_rx/mod.rs
+# Search for "adjusted_tail" to find it.
+# 
+# Remove this patch once songbird ships a fix upstream.
+[patch.crates-io]
+songbird = { path = "vendor/songbird" }
+
+[profile.release]
+opt-level = 2
+lto = true
+strip = true
