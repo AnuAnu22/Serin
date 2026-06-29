@@ -154,6 +154,10 @@ startup_log*.txt
 *.db-shm
 bot_data/
 .bot_data/
+qdrant_storage/
+tts/voices/*.wav
+tts/voices/*.mp3
+.pi/
 
 debug*.txt
 startup_log*.txt

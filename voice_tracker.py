@@ -5,7 +5,7 @@ Monitors who joins/leaves voice channels and session durations.
 UPDATED: Debug logging added
 """
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Any, Dict, List, Optional, Union
 from logger_config import logger
 from debug_logger import log_voice
 
@@ -16,7 +16,7 @@ class VoiceTracker:
     Stores voice sessions in memory system for context awareness.
     """
     
-    def __init__(self, memory_system):
+    def __init__(self, memory_system: Any) -> None:
         """
         Initialize voice tracker.
         
@@ -29,7 +29,7 @@ class VoiceTracker:
         
         logger.info("✅ Voice tracker initialized")
     
-    async def on_voice_update(self, member, before, after):
+    async def on_voice_update(self, member: Any, before: Any, after: Any) -> None:
         """
         Handle voice state changes.
         Called by Discord bot when voice state updates.
@@ -68,7 +68,7 @@ class VoiceTracker:
         except Exception as e:
             logger.error(f"❌ Error handling voice update: {e}")
     
-    async def _handle_join(self, member, channel):
+    async def _handle_join(self, member: Any, channel: Any) -> None:
         """User joined voice channel"""
         user_id = str(member.id)
         username = member.display_name
@@ -98,7 +98,7 @@ class VoiceTracker:
         log_voice("JOIN", username, channel_name)
         logger.info(f"🎤 {username} joined VC: {channel_name}")
     
-    async def _handle_leave(self, member, channel):
+    async def _handle_leave(self, member: Any, channel: Any) -> None:
         """User left voice channel"""
         user_id = str(member.id)
         username = member.display_name
@@ -140,7 +140,7 @@ class VoiceTracker:
         else:
             logger.warning(f"⚠️ {username} left VC but no session start time found")
     
-    async def _handle_switch(self, member, old_channel, new_channel):
+    async def _handle_switch(self, member: Any, old_channel: Any, new_channel: Any) -> None:
         """User switched voice channels"""
         user_id = str(member.id)
         username = member.display_name
@@ -177,7 +177,7 @@ class VoiceTracker:
         """
         return user_id in self.current_voice_states
     
-    def get_voice_info(self, user_id: str) -> Optional[Dict]:
+    def get_voice_info(self, user_id: str) -> Optional[Dict[str, Any]]:
         """
         Get current voice state for user.
         
@@ -208,7 +208,7 @@ class VoiceTracker:
         
         return state
     
-    def get_all_in_voice(self) -> Dict[str, Dict]:
+    def get_all_in_voice(self) -> Dict[str, Optional[Dict[str, Any]]]:
         """
         Get all users currently in voice.
         
@@ -236,7 +236,7 @@ class VoiceTracker:
         duration = datetime.now() - self.session_start_times[user_id]
         return int(duration.total_seconds() / 60)
     
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> Dict[str, Any]:
         """
         Get voice tracker statistics.
         

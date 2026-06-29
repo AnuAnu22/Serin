@@ -13,7 +13,7 @@ Features:
 import asyncio
 import json
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Any, Callable, Dict, List, Optional, Union
 import os
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -24,7 +24,7 @@ import uvicorn
 from logger_config import logger
 from enhanced_api_routes import register_enhanced_routes
 
-def make_json_safe(obj):
+def make_json_safe(obj: Any) -> Any:
     """
     Recursively convert non-JSON-serializable objects to safe types.
     Handles: set, datetime, custom objects
@@ -181,7 +181,7 @@ async def websocket_endpoint(websocket: WebSocket):
             pass
         logger.info(f"WebSocket disconnected (remaining: {len(active_websockets)})")
 
-async def broadcast_log(log_entry: Dict):
+async def broadcast_log(log_entry: Dict[str, Any]) -> None:
     """Broadcast log entry to all connected WebSockets"""
     to_remove = []
     
@@ -205,7 +205,7 @@ async def broadcast_log(log_entry: Dict):
             active_websockets.remove(ws)
 
 
-async def broadcast_event(event_type: str, data: Dict):
+async def broadcast_event(event_type: str, data: Dict[str, Any]) -> None:
     """Broadcast event to all connected WebSockets"""
     to_remove = []
     
@@ -332,7 +332,7 @@ async def get_system_health():
     
     return health
 
-def get_current_stats() -> Dict:
+def get_current_stats() -> Dict[str, Any]:
     """Helper to get current stats from all systems (JSON-safe)"""
     stats = {}
     
@@ -908,16 +908,16 @@ async def _run_manual_sync(crawler):
 # ============================================================================
 
 def init_bot_state(
-    discord_client,
-    message_manager,
-    background_processor,
-    passive_monitor,
-    message_crawler,
-    memory_system,
-    voice_listener=None,
-    tts_engine=None,
-    voice_manager=None
-):
+    discord_client: Any,
+    message_manager: Any,
+    background_processor: Any,
+    passive_monitor: Any,
+    message_crawler: Any,
+    memory_system: Any,
+    voice_listener: Optional[Any] = None,
+    tts_engine: Optional[Any] = None,
+    voice_manager: Optional[Any] = None
+) -> None:
     """Initialize bot state for control panel"""
     bot_state['discord_client'] = discord_client
     bot_state['message_manager'] = message_manager

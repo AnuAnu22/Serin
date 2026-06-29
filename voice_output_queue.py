@@ -11,7 +11,7 @@ Features:
 import asyncio
 import io
 from datetime import datetime
-from typing import Dict, Optional, Callable
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from collections import deque
 from logger_config import logger
 import discord
@@ -27,8 +27,8 @@ class VoiceOutputRequest:
         guild_id: str,
         profile: str = 'default',
         priority: int = 5,
-        user_id: str = None
-    ):
+        user_id: Optional[str] = None
+    ) -> None:
         self.text = text
         self.channel_id = channel_id
         self.guild_id = guild_id
@@ -38,7 +38,7 @@ class VoiceOutputRequest:
         self.timestamp = datetime.now()
         self.id = f"{guild_id}_{channel_id}_{int(self.timestamp.timestamp() * 1000)}"
     
-    def __lt__(self, other):
+    def __lt__(self, other: Any) -> bool:
         """For priority queue sorting"""
         return self.priority < other.priority
 
@@ -46,7 +46,7 @@ class VoiceOutputRequest:
 class VoiceOutputQueue:
     """Manage TTS output queue"""
     
-    def __init__(self, tts_engine, audio_processor, discord_client):
+    def __init__(self, tts_engine: Any, audio_processor: Any, discord_client: Any) -> None:
         """
         Initialize voice output queue.
         
@@ -79,7 +79,7 @@ class VoiceOutputQueue:
         
         logger.info("✅ Voice output queue initialized")
     
-    async def start(self):
+    async def start(self) -> None:
         """Start queue processing"""
         if self.is_running:
             logger.warning("⚠️ Voice output queue already running")
@@ -88,7 +88,7 @@ class VoiceOutputQueue:
         self.is_running = True
         logger.info("▶️ Voice output queue started")
     
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop queue processing"""
         self.is_running = False
         
@@ -109,8 +109,8 @@ class VoiceOutputQueue:
         channel_id: str,
         profile: str = 'default',
         priority: int = 5,
-        user_id: str = None
-    ):
+        user_id: Optional[str] = None
+    ) -> None:
         """
         Add TTS request to queue.
         
@@ -154,7 +154,7 @@ class VoiceOutputQueue:
             logger.error(f"❌ Error enqueueing TTS: {e}")
             self.stats['errors'] += 1
     
-    async def _process_queue(self, guild_id: str):
+    async def _process_queue(self, guild_id: str) -> None:
         """
         Process queue for a specific guild.
         
@@ -208,7 +208,7 @@ class VoiceOutputQueue:
         
         logger.info(f"🛑 TTS queue processor stopped for guild {guild_id}")
     
-    async def _play_tts(self, request: VoiceOutputRequest):
+    async def _play_tts(self, request: VoiceOutputRequest) -> None:
         """
         Synthesize and play TTS audio.
         
@@ -269,7 +269,7 @@ class VoiceOutputQueue:
             logger.exception(f"❌ Error playing TTS: {e}")
             self.stats['errors'] += 1
     
-    def cancel_current(self, guild_id: str):
+    def cancel_current(self, guild_id: str) -> None:
         """
         Cancel currently playing TTS in a guild.
         
@@ -286,7 +286,7 @@ class VoiceOutputQueue:
         except Exception as e:
             logger.error(f"❌ Error cancelling TTS: {e}")
     
-    def clear_queue(self, guild_id: str):
+    def clear_queue(self, guild_id: str) -> None:
         """
         Clear pending TTS queue for a guild.
         
@@ -311,7 +311,7 @@ class VoiceOutputQueue:
         """Check if currently playing in a guild"""
         return guild_id in self.currently_playing
     
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> Dict[str, Any]:
         """Get queue statistics"""
         total_queued = sum(q.qsize() for q in self.queues.values())
         

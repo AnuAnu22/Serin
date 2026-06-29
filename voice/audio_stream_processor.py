@@ -12,7 +12,7 @@ Features:
 import asyncio
 import numpy as np
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Any, Dict, List, Optional, Set, Union
 from collections import deque
 import sys
 import os
@@ -26,7 +26,7 @@ class AudioStreamProcessor:
     Buffers audio while user is speaking, chunks at natural pauses.
     """
     
-    def __init__(self, whisper_transcriber, voice_pipeline, silence_threshold: float = 3.0, voice_output_manager=None):
+    def __init__(self, whisper_transcriber: Any, voice_pipeline: Any, silence_threshold: float = 3.0, voice_output_manager: Optional[Any] = None) -> None:
         """
         Initialize audio stream processor.
         
@@ -76,7 +76,7 @@ class AudioStreamProcessor:
         logger.info(f"   🔊 VAD threshold: {self.VAD_THRESHOLD}")
         logger.info(f"   ⏱️ Silence threshold: {silence_threshold}s")
     
-    async def start(self):
+    async def start(self) -> None:
         """Start processing queue"""
         if self.is_running:
             logger.warning("⚠️ Audio processor already running")
@@ -86,7 +86,7 @@ class AudioStreamProcessor:
         self.processing_task = asyncio.create_task(self._process_queue())
         logger.info("▶️ Audio stream processor started")
     
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop processing queue"""
         self.is_running = False
         if self.processing_task:
@@ -100,7 +100,7 @@ class AudioStreamProcessor:
         guild_id: str,
         channel_id: str,
         audio_data: bytes
-    ):
+    ) -> None:
         """
         Process incoming audio chunk from a user.
         Called by AudioSink for each audio frame.
@@ -199,7 +199,7 @@ class AudioStreamProcessor:
         username: str,
         guild_id: str,
         channel_id: str
-    ):
+    ) -> None:
         """
         Queue audio buffer for transcription.
         
@@ -246,7 +246,7 @@ class AudioStreamProcessor:
             logger.error(f"❌ Error queueing transcription: {e}")
             self.stats['errors'] += 1
     
-    async def _process_queue(self):
+    async def _process_queue(self) -> None:
         """Background task to process transcription queue"""
         logger.info("🔄 Started transcription queue processor")
         
@@ -276,7 +276,7 @@ class AudioStreamProcessor:
         
         logger.info("🛑 Transcription queue processor stopped")
     
-    async def _transcribe_and_store(self, item: Dict):
+    async def _transcribe_and_store(self, item: Dict[str, Any]) -> None:
         """
         Transcribe audio and store in memory.
         
@@ -330,7 +330,7 @@ class AudioStreamProcessor:
         """
         return user_id in self.currently_speaking
     
-    def get_active_speakers(self) -> set:
+    def get_active_speakers(self) -> Set[str]:
         """Get set of currently speaking user IDs"""
         return self.currently_speaking.copy()
     
@@ -340,7 +340,7 @@ class AudioStreamProcessor:
             return len(self.user_buffers[user_id])
         return 0
     
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> Dict[str, Any]:
         """Get processor statistics"""
         return {
             'chunks_received': self.stats['chunks_received'],

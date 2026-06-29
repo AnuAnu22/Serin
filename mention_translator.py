@@ -3,13 +3,17 @@ Mention Translator - Converts Discord mentions bidirectionally
 INPUT:  <@1378682870876340395> → @Rin (for bot understanding)
 OUTPUT: @Rin → <@1378682870876340395> (for Discord mentions)
 """
+from __future__ import annotations
+
 import re
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 from logger_config import logger
+
+import discord
 
 
 class MentionTranslator:
-    def __init__(self, discord_client):
+    def __init__(self, discord_client: discord.Client) -> None:
         """
         Initialize mention translator with Discord client.
         
@@ -22,7 +26,7 @@ class MentionTranslator:
         
         logger.info("✅ MentionTranslator initialized")
     
-    def update_cache(self, user) -> None:
+    def update_cache(self, user: Any) -> None:
         """
         Update user cache from Discord user object.
         
@@ -46,7 +50,7 @@ class MentionTranslator:
         
         logger.debug(f"📝 Cached user: {user.name} ({user_id})")
     
-    def clean_for_bot(self, text: str, message) -> str:
+    def clean_for_bot(self, text: str, message: discord.Message) -> str:
         """
         Convert Discord mentions <@123> to readable @username for bot.
         This makes memories human-readable and LLM-understandable.
@@ -100,7 +104,7 @@ class MentionTranslator:
         
         return cleaned_text
     
-    def restore_for_discord(self, text: str, guild=None) -> str:
+    def restore_for_discord(self, text: str, guild: Optional[discord.Guild] = None) -> str:
         """
         Convert @username back to Discord mentions <@123> for sending.
         This allows bot to mention users properly.
@@ -193,7 +197,7 @@ class MentionTranslator:
         """
         return self.name_to_id_cache.get(username.lower())
     
-    def cache_guild_members(self, guild) -> int:
+    def cache_guild_members(self, guild: discord.Guild) -> int:
         """
         Preload guild members into cache (call on bot ready).
         
@@ -214,7 +218,7 @@ class MentionTranslator:
         
         return count
     
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> Dict[str, int]:
         """Get translator statistics"""
         return {
             'cached_users': len(self.user_cache),

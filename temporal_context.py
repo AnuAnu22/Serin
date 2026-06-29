@@ -14,7 +14,7 @@ class TemporalParser:
     WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
     
     @staticmethod
-    def parse_reference(text: str, reference_time: datetime = None) -> Optional[datetime]:
+    def parse_reference(text: str, reference_time: Optional[datetime] = None) -> Optional[datetime]:
         """
         Parse natural time reference from text.
         
@@ -102,7 +102,7 @@ class TemporalParser:
         return result.replace(hour=12, minute=0, second=0, microsecond=0)
     
     @staticmethod
-    def _parse_time_span(match, reference: datetime) -> datetime:
+    def _parse_time_span(match: re.Match, reference: datetime) -> datetime:
         """Parse 'X days/weeks/months ago'"""
         quantity_str = match.group(1)
         unit = match.group(2)
@@ -135,7 +135,7 @@ class TemporalFormatter:
     """Generate natural time references from timestamps"""
     
     @staticmethod
-    def format_natural(timestamp: datetime, reference_time: datetime = None) -> str:
+    def format_natural(timestamp: datetime, reference_time: Optional[datetime] = None) -> str:
         """
         Format timestamp as natural time reference.
         
@@ -196,7 +196,7 @@ class TemporalFormatter:
             return "A while back"
     
     @staticmethod
-    def format_relative_short(timestamp: datetime, reference_time: datetime = None) -> str:
+    def format_relative_short(timestamp: datetime, reference_time: Optional[datetime] = None) -> str:
         """
         Format timestamp as short relative reference.
         
@@ -237,15 +237,15 @@ class TemporalContext:
     Handles both parsing and formatting.
     """
     
-    def __init__(self):
-        self.parser = TemporalParser()
-        self.formatter = TemporalFormatter()
+    def __init__(self) -> None:
+        self.parser: TemporalParser = TemporalParser()
+        self.formatter: TemporalFormatter = TemporalFormatter()
     
-    def parse(self, text: str, reference_time: datetime = None) -> Optional[datetime]:
+    def parse(self, text: str, reference_time: Optional[datetime] = None) -> Optional[datetime]:
         """Parse natural time reference from text"""
         return self.parser.parse_reference(text, reference_time)
     
-    def format(self, timestamp: datetime, reference_time: datetime = None, short: bool = False) -> str:
+    def format(self, timestamp: datetime, reference_time: Optional[datetime] = None, short: bool = False) -> str:
         """Format timestamp as natural reference"""
         if short:
             return self.formatter.format_relative_short(timestamp, reference_time)
@@ -255,7 +255,7 @@ class TemporalContext:
     def extract_time_range(
         self,
         text: str,
-        reference_time: datetime = None
+        reference_time: Optional[datetime] = None
     ) -> Optional[Tuple[datetime, datetime]]:
         """
         Extract time range from text with time reference.
@@ -301,7 +301,7 @@ class TemporalContext:
         self,
         timestamp: datetime,
         threshold_hours: int = 24,
-        reference_time: datetime = None
+        reference_time: Optional[datetime] = None
     ) -> bool:
         """
         Check if timestamp is recent.

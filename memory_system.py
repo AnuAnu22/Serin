@@ -7,7 +7,7 @@ import os
 import json
 import sqlite3
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 from thinking_filter import filter_for_memory
 import chromadb
 from chromadb.utils import embedding_functions
@@ -16,7 +16,7 @@ from debug_logger import log_memory
 
 
 class UnifiedMemorySystem:
-    def __init__(self, data_dir: str = "./bot_data"):
+    def __init__(self, data_dir: str = "./bot_data") -> None:
         """Initialize ChromaDB for semantic memory + SQLite for structured data"""
         logger.info("🚀 Initializing Unified Memory System")
         
@@ -63,7 +63,7 @@ class UnifiedMemorySystem:
         
         logger.info("✅ Memory system ready")
     
-    def _init_sqlite_schema(self):
+    def _init_sqlite_schema(self) -> None:
         """Initialize SQLite tables for structured data"""
         cursor = self.conn.cursor()
         
@@ -118,7 +118,7 @@ class UnifiedMemorySystem:
         self._last_memory_check = datetime.now()
         self._memory_warnings = []
     
-    def _init_sqlite_schema(self):
+    def _init_sqlite_schema(self) -> None:
         """Initialize SQLite tables for structured data"""
         cursor = self.conn.cursor()
         
@@ -192,7 +192,7 @@ class UnifiedMemorySystem:
         self._last_memory_check = datetime.now()
         self._memory_warnings = []
         
-    def check_memory_pressure(self) -> Dict:
+    def check_memory_pressure(self) -> Dict[str, Any]:
         """Check for memory pressure and potential data loss indicators"""
         try:
             current_time = datetime.now()
@@ -281,7 +281,7 @@ class UnifiedMemorySystem:
         participants: List[str],
         emotional_tone: str = "neutral",
         importance: float = 0.5,
-        message_id: str = None
+        message_id: Optional[str] = None
     ) -> str:
         """
         Add a memory to the system. Everything goes here.
@@ -319,11 +319,11 @@ class UnifiedMemorySystem:
     def search_memories(
         self,
         query: str,
-        user_id: str = None,
-        channel_id: str = None,
+        user_id: Optional[str] = None,
+        channel_id: Optional[str] = None,
         n_results: int = 5,
         time_decay_days: int = 60
-    ) -> List[Dict]:
+    ) -> List[Dict[str, Any]]:
         """
         Search memories using semantic similarity.
         Returns memories with metadata, sorted by relevance + recency.
@@ -398,10 +398,10 @@ class UnifiedMemorySystem:
     
     def get_recent_conversation(
         self,
-        channel_id: str = None,
-        user_id: str = None,
+        channel_id: Optional[str] = None,
+        user_id: Optional[str] = None,
         limit: int = 20
-    ) -> List[Dict]:
+    ) -> List[Dict[str, Any]]:
         """Get recent conversation context (last N messages)"""
         try:
             # Get all memories, sort by timestamp
@@ -436,7 +436,7 @@ class UnifiedMemorySystem:
     # USER MANAGEMENT (SQLite)
     # ========================================================================
     
-    def upsert_user(self, user_id: str, username: str, display_name: str = None):
+    def upsert_user(self, user_id: str, username: str, display_name: Optional[str] = None) -> None:
         """Create or update user profile"""
         cursor = self.conn.cursor()
         try:
@@ -452,7 +452,7 @@ class UnifiedMemorySystem:
         except Exception as e:
             logger.error(f"❌ Error upserting user: {e}")
     
-    def update_user_activity(self, user_id: str, message_length: int):
+    def update_user_activity(self, user_id: str, message_length: int) -> None:
         """Update user activity metrics"""
         cursor = self.conn.cursor()
         try:
@@ -478,7 +478,7 @@ class UnifiedMemorySystem:
         except Exception as e:
             logger.error(f"❌ Error updating user activity: {e}")
     
-    def update_user_traits(self, user_id: str, traits: List[str] = None, interests: List[str] = None):
+    def update_user_traits(self, user_id: str, traits: Optional[List[str]] = None, interests: Optional[List[str]] = None) -> None:
         """Update user personality traits and interests"""
         cursor = self.conn.cursor()
         try:
@@ -509,7 +509,7 @@ class UnifiedMemorySystem:
         except Exception as e:
             logger.error(f"❌ Error updating traits: {e}")
     
-    def get_user_profile(self, user_id: str) -> Optional[Dict]:
+    def get_user_profile(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user profile"""
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
@@ -526,7 +526,7 @@ class UnifiedMemorySystem:
     # RELATIONSHIP MANAGEMENT (SQLite)
     # ========================================================================
     
-    def update_relationship(self, user_a_id: str, user_b_id: str, interaction_type: str = 'message'):
+    def update_relationship(self, user_a_id: str, user_b_id: str, interaction_type: str = 'message') -> None:
         """Update relationship between two users"""
         # Ensure ordering
         if user_a_id > user_b_id:
@@ -562,7 +562,7 @@ class UnifiedMemorySystem:
         except Exception as e:
             logger.error(f"❌ Error updating relationship: {e}")
     
-    def get_user_relationships(self, user_id: str, min_strength: float = 0.1) -> List[Dict]:
+    def get_user_relationships(self, user_id: str, min_strength: float = 0.1) -> List[Dict[str, Any]]:
         """Get all relationships for a user"""
         cursor = self.conn.cursor()
         cursor.execute("""
@@ -583,7 +583,7 @@ class UnifiedMemorySystem:
     # ACTIVITY TRACKING
     # ========================================================================
     
-    def log_activity(self, user_id: str, channel_id: str, message_length: int, sentiment: float):
+    def log_activity(self, user_id: str, channel_id: str, message_length: int, sentiment: float) -> None:
         """Log user activity for pattern analysis"""
         cursor = self.conn.cursor()
         try:
@@ -601,7 +601,7 @@ class UnifiedMemorySystem:
     # STATS & MAINTENANCE
     # ========================================================================
     
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> Dict[str, Any]:
         """Get memory system statistics"""
         cursor = self.conn.cursor()
         
@@ -623,7 +623,7 @@ class UnifiedMemorySystem:
             logger.error(f"❌ Error getting stats: {e}")
             return {}
     
-    def cleanup_old_memories(self, days_old: int = 90, min_importance: float = 0.3):
+    def cleanup_old_memories(self, days_old: int = 90, min_importance: float = 0.3) -> int:
         """Remove old, unimportant memories"""
         try:
             cutoff = (datetime.now() - timedelta(days=days_old)).isoformat()
@@ -662,8 +662,8 @@ class UnifiedMemorySystem:
         channel_id: str,
         content: str,
         message_id: str,
-        timestamp: datetime = None
-    ):
+        timestamp: Optional[datetime] = None
+    ) -> None:
         """Store recent message in SQLite (NOT ChromaDB)"""
         cursor = self.conn.cursor()
         try:
@@ -691,7 +691,7 @@ class UnifiedMemorySystem:
         except Exception as e:
             logger.error(f"❌ Error storing recent message: {e}")
 
-    def get_latest_message(self, channel_id: str) -> Optional[Dict]:
+    def get_latest_message(self, channel_id: str) -> Optional[Dict[str, Any]]:
         """Get most recent message from a channel"""
         cursor = self.conn.cursor()
         cursor.execute("""
@@ -716,7 +716,7 @@ class UnifiedMemorySystem:
         
         return cursor.fetchone()['count']
 
-    def get_message_at_position(self, channel_id: str, position: int) -> Optional[Dict]:
+    def get_message_at_position(self, channel_id: str, position: int) -> Optional[Dict[str, Any]]:
         """Get message at specific position (0 = oldest)"""
         cursor = self.conn.cursor()
         cursor.execute("""
@@ -733,9 +733,9 @@ class UnifiedMemorySystem:
     def get_messages_around_timestamp(
         self,
         channel_id: str,
-        timestamp,
+        timestamp: Any,
         radius: int = 2
-    ) -> List[Dict]:
+    ) -> List[Dict[str, Any]]:
         """Get messages around a timestamp (±radius)"""
         # Handle both datetime objects and ISO format strings
         def safe_datetime_convert(ts):
@@ -772,7 +772,7 @@ class UnifiedMemorySystem:
         
         return before + after
 
-    def get_message_by_id(self, message_id: str) -> Optional[Dict]:
+    def get_message_by_id(self, message_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific message by its ID"""
         cursor = self.conn.cursor()
         cursor.execute("""

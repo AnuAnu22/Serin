@@ -7,16 +7,27 @@ Features:
 2. Deep Validation (every 1 hour) - Check every 100th message for gaps
 3. Backfill - Fills missing messages with context-aware processing
 """
+from __future__ import annotations
+
 import asyncio
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Set
+from typing import List, Dict, Optional, Set, Tuple, Any, TYPE_CHECKING
 import discord
 from logger_config import logger
+
+if TYPE_CHECKING:
+    from mention_translator import MentionTranslator
 
 
 
 class MessageCrawler:
-    def __init__(self, client,memory_system, background_processor, mention_translator):
+    def __init__(
+        self,
+        client: discord.Client,
+        memory_system: Any,
+        background_processor: Any,
+        mention_translator: MentionTranslator,
+    ) -> None:
         """
         Initialize message crawler.
         
@@ -38,12 +49,12 @@ class MessageCrawler:
         self.validation_step = 100  # Check every 100th message
         
         # Tracking
-        self.is_running = False
-        self.quick_sync_task = None
-        self.deep_validation_task = None
+        self.is_running: bool = False
+        self.quick_sync_task: Optional[asyncio.Task[None]] = None
+        self.deep_validation_task: Optional[asyncio.Task[None]] = None
         
         # Stats
-        self.stats = {
+        self.stats: Dict[str, Any] = {
             'quick_syncs': 0,
             'deep_validations': 0,
             'messages_backfilled': 0,
@@ -57,7 +68,7 @@ class MessageCrawler:
         logger.info(f"   🔍 Deep validation: every {self.deep_validation_interval/60} minutes")
         logger.info(f"   📊 Max messages per channel: {self.max_messages_per_channel}")
     
-    async def start(self):
+    async def start(self) -> None:
         """Start crawler tasks"""
         if self.is_running:
             logger.warning("⚠️ Message crawler already running")
@@ -71,7 +82,7 @@ class MessageCrawler:
         
         logger.info("🚀 Message crawler started")
     
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop crawler tasks"""
         self.is_running = False
         
@@ -82,7 +93,7 @@ class MessageCrawler:
         
         logger.info("🛑 Message crawler stopped")
     
-    async def _quick_sync_loop(self):
+    async def _quick_sync_loop(self) -> None:
         """
         Quick sync loop - checks latest message every 15 minutes.
         If latest Discord message matches latest SQL message, sleep.
@@ -174,7 +185,7 @@ class MessageCrawler:
             logger.error(f"❌ Error in quick sync for #{channel.name}: {e}")
             return 0
     
-    async def _deep_validation_loop(self):
+    async def _deep_validation_loop(self) -> None:
         """
         Deep validation loop - checks every 100th message every hour.
         Processes channels sequentially with delays to avoid rate limits.
@@ -568,7 +579,7 @@ class MessageCrawler:
         except Exception as e:
             logger.error(f"❌ Error processing batch with context: {e}")
     
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> Dict[str, Any]:
         """Get crawler statistics"""
         return {
             'quick_syncs': self.stats['quick_syncs'],

@@ -2,13 +2,27 @@
 Passive Monitor - Listens to ALL channels across ALL servers
 Stores information without responding (unless in allowed channels)
 """
+from __future__ import annotations
+
+import discord
+
 from datetime import datetime
-from typing import Set
+from typing import Set, Dict, Any, TYPE_CHECKING
 from logger_config import logger
+
+if TYPE_CHECKING:
+    from background_processor import BackgroundProcessor
+    from mention_translator import MentionTranslator
 
 
 class PassiveMonitor:
-    def __init__(self, memory_system, background_processor, allowed_channel_ids: Set[int],mention_translator):
+    def __init__(
+        self,
+        memory_system: Any,
+        background_processor: BackgroundProcessor,
+        allowed_channel_ids: Set[int],
+        mention_translator: MentionTranslator,
+    ) -> None:
         """
         Initialize passive monitor.
         
@@ -22,7 +36,7 @@ class PassiveMonitor:
         self.allowed_channels = allowed_channel_ids
         self.mention_translator = mention_translator
         
-        self.stats = {
+        self.stats: Dict[str, Any] = {
             'passive_messages_seen': 0,
             'active_messages_seen': 0,
             'total_messages': 0,
@@ -32,7 +46,7 @@ class PassiveMonitor:
         
         logger.info("✅ Passive monitor initialized")
     
-    async def process_message(self, message, is_allowed_channel: bool):
+    async def process_message(self, message: discord.Message, is_allowed_channel: bool) -> None:
         """
         Process a message from ANY channel.
         
@@ -90,7 +104,7 @@ class PassiveMonitor:
         except Exception as e:
             logger.error(f"❌ Error in passive monitor: {e}")
     
-    def get_stats(self) -> dict:
+    def get_stats(self) -> Dict[str, Any]:
         """Get monitoring statistics"""
         return {
             'passive_messages': self.stats['passive_messages_seen'],

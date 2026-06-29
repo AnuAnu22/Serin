@@ -5,11 +5,13 @@ Uses the main model to create conversational summaries from RAW message batches.
 FIXED: Now uses RAW messages only, not vector memories
 FIXED: Proper username attribution in summaries
 """
+from __future__ import annotations
+
 import asyncio
 import time
 import threading
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from collections import deque
 from models.model_interface import ModelInterface
 from models.model_factory import get_model_connector
@@ -18,7 +20,7 @@ from logger_config import logger
 from debug_logger import log_summary
 
 class BackgroundProcessor:
-    def __init__(self, memory_system, max_queue_size: int = 1000):
+    def __init__(self, memory_system: Any, max_queue_size: int = 1000) -> None:
         """
         Initialize background processor for memory summarization.
         
@@ -27,9 +29,9 @@ class BackgroundProcessor:
             max_queue_size: Maximum messages to queue
         """
         self.memory = memory_system
-        self.processing_queue = deque(maxlen=max_queue_size)
-        self.is_running = False
-        self.task = None
+        self.processing_queue: deque[Dict[str, Any]] = deque(maxlen=max_queue_size)
+        self.is_running: bool = False
+        self.task: Optional[asyncio.Task[None]] = None
         self._queue_lock = threading.Lock()  # Add thread lock for race condition prevention
         
         # Separate LLM connector instance for background processing (same model, different settings)
@@ -45,11 +47,11 @@ class BackgroundProcessor:
         }
         
         # Timer for idle processing
-        self.last_message_time = None
+        self.last_message_time: Optional[datetime] = None
         
         logger.info("✅ Background processor initialized")
     
-    async def start(self):
+    async def start(self) -> None:
         """Start the background processing task"""
         if self.is_running:
             logger.warning("⚠️ Background processor already running")
@@ -79,7 +81,7 @@ class BackgroundProcessor:
         self.task = asyncio.create_task(self._processing_loop())
         logger.info("✅ Background processor started")
     
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop the background processing task"""
         self.is_running = False
         if self.task:
@@ -97,9 +99,9 @@ class BackgroundProcessor:
         username: str,
         channel_id: str,
         server_id: str,
-        timestamp: datetime = None,
-        **kwargs  # Accept any additional parameters for backward compatibility
-    ):
+        timestamp: Optional[datetime] = None,
+        **kwargs: Any  # Accept any additional parameters for backward compatibility
+    ) -> None:
         """
         Queue a RAW message for background processing.
         
@@ -156,7 +158,7 @@ class BackgroundProcessor:
             self.last_message_time = datetime.now()
             logger.debug(f"📥 Queued RAW message from {username}: '{content[:50]}...' (queue: {len(self.processing_queue)})")
     
-    async def _processing_loop(self):
+    async def _processing_loop(self) -> None:
         """
         Main processing loop.
         
@@ -288,7 +290,7 @@ class BackgroundProcessor:
         
         return groups
     
-    async def _create_conversation_summary(self, messages: List[Dict]):
+    async def _create_conversation_summary(self, messages: List[Dict[str, Any]]) -> None:
         """
         Create ONE natural memory from RAW conversation batch.
         
@@ -382,7 +384,7 @@ Summary:"""
             self.stats['errors'] += 1
     
     
-    async def _store_summary(self, summary: str, messages: List[Dict]):
+    async def _store_summary(self, summary: str, messages: List[Dict[str, Any]]) -> None:
         """
         Store summary as a natural memory.
         """
@@ -414,7 +416,7 @@ Summary:"""
         except Exception as e:
             logger.error(f"❌ Error storing summary: {e}")
     
-    def _calculate_importance(self, summary: str, messages: List[Dict]) -> float:
+    def _calculate_importance(self, summary: str, messages: List[Dict[str, Any]]) -> float:
         """Calculate natural importance (0.0 to 1.0)"""
         importance = 0.5  # Base
         
@@ -438,7 +440,7 @@ Summary:"""
         
         return min(1.0, importance)
     
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> Dict[str, Any]:
         """Get processing statistics"""
         return {
             **self.stats,

@@ -12,7 +12,7 @@ import asyncio
 import numpy as np
 import io
 import wave
-from typing import Optional
+from typing import Any, Dict, List, Optional, Tuple
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -28,7 +28,7 @@ except ImportError:
 
 
 class WhisperTranscriber:
-    def __init__(self, model_size: str = "base", device: str = "cuda", compute_type: str = "float16"):
+    def __init__(self, model_size: str = "base", device: str = "cuda", compute_type: str = "float16") -> None:
         """
         Initialize Whisper transcriber with CUDA support.
         
@@ -65,7 +65,7 @@ class WhisperTranscriber:
         logger.info(f"   💻 Device: {device.upper()}")
         logger.info(f"   ⚙️ Compute: {self.compute_type}")
     
-    async def load_model(self):
+    async def load_model(self) -> bool:
         """Load Whisper model"""
         if not WHISPER_AVAILABLE:
             logger.error("❌ Cannot load Whisper model - faster-whisper not installed")
@@ -187,7 +187,7 @@ class WhisperTranscriber:
             logger.error(f"❌ Error resampling audio: {e}")
             return audio
     
-    def get_stats(self) -> dict:
+    def get_stats(self) -> Dict[str, Any]:
         """Get transcriber statistics"""
         return {
             'total_transcriptions': self.stats['total_transcriptions'],
@@ -203,16 +203,16 @@ class WhisperTranscriberFallback:
     Uses OpenAI Whisper API (requires API key).
     """
     
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None) -> None:
         self.api_key = api_key
         logger.warning("⚠️ Using Whisper API fallback (requires API key)")
     
-    async def load_model(self):
+    async def load_model(self) -> bool:
         return bool(self.api_key)
     
     async def transcribe(self, audio_data: bytes, language: str = "en") -> Optional[str]:
         logger.error("❌ Whisper API fallback not implemented")
         return None
     
-    def get_stats(self) -> dict:
+    def get_stats(self) -> Dict[str, Any]:
         return {'error': 'Fallback transcriber not implemented'}

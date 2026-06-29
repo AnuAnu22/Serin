@@ -2,41 +2,43 @@
 Memory Synchronization Monitor and Diagnostics
 Detects and logs memory synchronization failures across the system.
 """
+from __future__ import annotations
+
 import asyncio
 import time
 import sqlite3
 import json
 import traceback
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple, Any
 from collections import defaultdict, deque
 import logging
 from logger_config import logger
 
 class MemorySyncMonitor:
-    def __init__(self, memory_system, background_processor, message_crawler):
+    def __init__(self, memory_system: Any, background_processor: Any, message_crawler: Any) -> None:
         self.memory = memory_system
         self.bg_processor = background_processor
         self.message_crawler = message_crawler
         
         # Monitoring state
-        self.is_monitoring = False
-        self.monitor_task = None
+        self.is_monitoring: bool = False
+        self.monitor_task: Optional[asyncio.Task[None]] = None
         
         # Failure detection
-        self.sync_failures = deque(maxlen=1000)
-        self.race_condition_signatures = []
-        self.missing_messages = defaultdict(list)
-        self.api_mismatches = []
-        self.memory_pressure_alerts = []
+        self.sync_failures: deque[Dict[str, Any]] = deque(maxlen=1000)
+        self.race_condition_signatures: List[str] = []
+        self.missing_messages: defaultdict[str, List[Any]] = defaultdict(list)
+        self.api_mismatches: List[str] = []
+        self.memory_pressure_alerts: List[str] = []
         
         # Performance metrics
-        self.snapshot_stats = {}
-        self.operation_times = defaultdict(list)
+        self.snapshot_stats: Dict[str, Any] = {}
+        self.operation_times: defaultdict[str, List[float]] = defaultdict(list)
         
         logger.info("🔍 Memory Sync Monitor initialized")
     
-    async def start_monitoring(self):
+    async def start_monitoring(self) -> None:
         """Start continuous synchronization monitoring"""
         if self.is_monitoring:
             logger.warning("⚠️ Monitor already running")
@@ -46,14 +48,14 @@ class MemorySyncMonitor:
         self.monitor_task = asyncio.create_task(self._monitoring_loop())
         logger.info("🔍 Memory synchronization monitoring started")
     
-    async def stop_monitoring(self):
+    async def stop_monitoring(self) -> None:
         """Stop monitoring"""
         self.is_monitoring = False
         if self.monitor_task:
             self.monitor_task.cancel()
         logger.info("🛑 Memory synchronization monitoring stopped")
     
-    async def _monitoring_loop(self):
+    async def _monitoring_loop(self) -> None:
         """Main monitoring loop"""
         while self.is_monitoring:
             try:
@@ -65,7 +67,7 @@ class MemorySyncMonitor:
                 logger.error(f"❌ Error in monitoring loop: {e}")
                 await asyncio.sleep(60)
     
-    async def _run_diagnostics(self):
+    async def _run_diagnostics(self) -> None:
         """Run comprehensive synchronization diagnostics"""
         diagnostics_start = time.time()
         
@@ -87,7 +89,7 @@ class MemorySyncMonitor:
         # 6. Performance analysis
         self._analyze_performance_metrics(time.time() - diagnostics_start)
     
-    async def _check_api_mismatches(self):
+    async def _check_api_mismatches(self) -> None:
         """Check for API interface mismatches"""
         api_errors = []
         
@@ -135,7 +137,7 @@ class MemorySyncMonitor:
             for error in api_errors:
                 logger.error(f"🔴 API MISMATCH: {error}")
     
-    async def _check_database_consistency(self):
+    async def _check_database_consistency(self) -> None:
         """Check consistency between ChromaDB and SQLite"""
         consistency_errors = []
         
@@ -178,7 +180,7 @@ class MemorySyncMonitor:
             for error in consistency_errors:
                 logger.warning(f"   {error}")
     
-    async def _detect_race_conditions(self):
+    async def _detect_race_conditions(self) -> None:
         """Detect potential race conditions"""
         race_signatures = []
         
@@ -212,7 +214,7 @@ class MemorySyncMonitor:
             self.race_condition_signatures.extend(race_signatures)
             logger.warning(f"🟡 Race condition signatures: {race_signatures}")
     
-    async def _check_memory_pressure(self):
+    async def _check_memory_pressure(self) -> None:
         """Check for memory pressure and potential data loss"""
         pressure_alerts = []
         
@@ -260,7 +262,7 @@ class MemorySyncMonitor:
             self.memory_pressure_alerts.extend(pressure_alerts)
             logger.warning(f"🟡 Memory pressure alerts: {pressure_alerts}")
     
-    async def _check_sync_gaps(self):
+    async def _check_sync_gaps(self) -> None:
         """Check for synchronization gaps between systems"""
         sync_errors = []
         
@@ -288,7 +290,7 @@ class MemorySyncMonitor:
         if sync_errors:
             logger.warning(f"🟡 Sync gaps detected: {sync_errors}")
     
-    def _analyze_performance_metrics(self, diagnostic_time):
+    def _analyze_performance_metrics(self, diagnostic_time: float) -> None:
         """Analyze performance and flag slow operations"""
         self.operation_times['diagnostics'].append(diagnostic_time)
         
@@ -304,7 +306,7 @@ class MemorySyncMonitor:
             if avg_time > 3.0:
                 logger.warning(f"🟡 Performance degradation: avg diagnostics time {avg_time:.2f}s")
     
-    def log_sync_failure(self, component: str, operation: str, error: str, context: dict = None):
+    def log_sync_failure(self, component: str, operation: str, error: str, context: Optional[Dict[str, Any]] = None) -> None:
         """Log a synchronization failure"""
         failure_record = {
             'timestamp': time.time(),
@@ -317,7 +319,7 @@ class MemorySyncMonitor:
         self.sync_failures.append(failure_record)
         logger.exception(f"🔴 SYNC FAILURE [{component}]: {operation} - {error}")
     
-    def get_diagnostic_report(self) -> Dict:
+    def get_diagnostic_report(self) -> Dict[str, Any]:
         """Get comprehensive diagnostic report"""
         report = {
             'timestamp': datetime.now().isoformat(),
@@ -339,7 +341,7 @@ class MemorySyncMonitor:
         
         return report
     
-    async def force_sync_check(self) -> Dict:
+    async def force_sync_check(self) -> Dict[str, Any]:
         """Force a comprehensive synchronization check"""
         logger.info("🔍 Running forced synchronization check...")
         

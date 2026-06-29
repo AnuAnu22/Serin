@@ -4,12 +4,12 @@ Decides when to search and what to search for.
 """
 import json
 import re
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 from logger_config import logger
 from models.model_interface import ModelInterface
 
 class ActiveSearch:
-    def __init__(self, model_connector: ModelInterface):
+    def __init__(self, model_connector: ModelInterface) -> None:
         self.llm = model_connector
 
     async def analyze_need_to_search(self, user_message: str, recent_context: str, previous_results: Optional[str] = None) -> Tuple[bool, Optional[str], Optional[str]]:

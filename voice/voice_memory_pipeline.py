@@ -10,7 +10,7 @@ Features:
 """
 import asyncio
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Any, Dict, List, Optional, Union
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -18,7 +18,7 @@ from logger_config import logger
 
 
 class VoiceMemoryPipeline:
-    def __init__(self, memory_system, background_processor, message_manager=None):
+    def __init__(self, memory_system: Any, background_processor: Any, message_manager: Optional[Any] = None) -> None:
         """
         Initialize voice memory pipeline.
         
@@ -52,8 +52,8 @@ class VoiceMemoryPipeline:
         guild_id: str,
         channel_id: str,
         transcription: str,
-        timestamp: datetime = None
-    ):
+        timestamp: Optional[datetime] = None
+    ) -> None:
         """
         Process a voice message transcription.
         
@@ -181,7 +181,7 @@ class VoiceMemoryPipeline:
         import random
         return random.random() < 0.3
     
-    def get_recent_context(self, channel_id: str, limit: int = 5) -> list:
+    def get_recent_context(self, channel_id: str, limit: int = 5) -> List[Dict[str, Any]]:
         """
         Get recent voice messages for context.
         
@@ -196,7 +196,7 @@ class VoiceMemoryPipeline:
             return self.recent_voice_messages[channel_id][-limit:]
         return []
     
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> Dict[str, Any]:
         """Get pipeline statistics"""
         return {
             'total_voice_messages': self.stats['total_voice_messages'],

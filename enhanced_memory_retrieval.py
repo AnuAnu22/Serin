@@ -7,7 +7,7 @@ import json
 import os
 import asyncio
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
 from collections import defaultdict, Counter
 from logger_config import logger
 import sqlite3
@@ -19,7 +19,7 @@ class HumanLikeMemoryQuery:
     """Enhanced query structure for human-like memory retrieval"""
     query: str
     user_id: str
-    conversation_context: List[Dict] = None
+    conversation_context: Optional[List[Dict]] = None
     emotional_state: str = "neutral"
     conversation_phase: str = "casual"  # casual, focused, emotional
     personality_mood: str = "friendly"
@@ -28,10 +28,10 @@ class HumanLikeMemoryQuery:
 class PersonalityConsistencyAnalyzer:
     """Analyzes and maintains personality consistency in memory retrieval"""
     
-    def __init__(self, memory_system):
-        self.memory = memory_system
-        self.personality_weights = {}
-        self.conversation_history = {}
+    def __init__(self, memory_system: Any) -> None:
+        self.memory: Any = memory_system
+        self.personality_weights: Dict[str, float] = {}
+        self.conversation_history: Dict[str, List[Dict]] = {}
         
     def analyze_user_personality(self, user_id: str) -> Dict:
         """Analyze user's personality traits and communication style"""
@@ -75,11 +75,11 @@ class PersonalityConsistencyAnalyzer:
 class HumanLikeMemoryRetriever:
     """Enhanced memory retrieval system designed for human-like behavior"""
     
-    def __init__(self, memory_system):
-        self.memory = memory_system
-        self.personality_analyzer = PersonalityConsistencyAnalyzer(memory_system)
-        self.retrieval_history = {}
-        self.human_behavior_weights = {
+    def __init__(self, memory_system: Any) -> None:
+        self.memory: Any = memory_system
+        self.personality_analyzer: PersonalityConsistencyAnalyzer = PersonalityConsistencyAnalyzer(memory_system)
+        self.retrieval_history: Dict[str, List[Dict]] = {}
+        self.human_behavior_weights: Dict[str, float] = {
             "relevance": 0.35,
             "recency": 0.25,
             "importance": 0.15,
@@ -472,9 +472,9 @@ class HumanLikeMemoryRetriever:
 class MemoryQualityAssessor:
     """Assesses and maintains memory quality for human-like conversations"""
     
-    def __init__(self, memory_system):
-        self.memory = memory_system
-        self.quality_thresholds = {
+    def __init__(self, memory_system: Any) -> None:
+        self.memory: Any = memory_system
+        self.quality_thresholds: Dict[str, float] = {
             'excellent': 0.8,
             'good': 0.6,
             'acceptable': 0.4,
@@ -640,10 +640,10 @@ class MemoryQualityAssessor:
         
         return suggestions
 
-def create_enhanced_memory_retriever(memory_system):
+def create_enhanced_memory_retriever(memory_system: Any) -> HumanLikeMemoryRetriever:
     """Create enhanced memory retriever system"""
     return HumanLikeMemoryRetriever(memory_system)
 
-def create_memory_quality_assessor(memory_system):
+def create_memory_quality_assessor(memory_system: Any) -> MemoryQualityAssessor:
     """Create memory quality assessor"""
     return MemoryQualityAssessor(memory_system)

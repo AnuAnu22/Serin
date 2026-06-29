@@ -3,7 +3,7 @@ Correction Handler - Learning from User Corrections
 Detects when users correct the bot and updates memories accordingly.
 """
 import re
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 from datetime import datetime
 from logger_config import logger
 
@@ -12,7 +12,7 @@ class CorrectionDetector:
     """Detect when users are correcting the bot"""
     
     # Patterns that indicate corrections
-    CORRECTION_PATTERNS = [
+    CORRECTION_PATTERNS: List[str] = [
         r"no[,\s]+(that's|thats|it's|its)?\s*(wrong|incorrect|not right|not true)",
         r"actually[,\s]+(it's|its|i|the)\s+",
         r"correction[:\s]+",
@@ -31,7 +31,7 @@ class CorrectionDetector:
         self,
         message: str,
         previous_bot_response: str,
-        context: List[Dict] = None
+        context: Optional[List[Dict]] = None
     ) -> Optional[Dict]:
         """
         Detect if message is correcting the bot.
@@ -80,7 +80,7 @@ class CorrectionDetector:
         self,
         message: str,
         bot_response: str,
-        context: List[Dict] = None
+        context: Optional[List[Dict]] = None
     ) -> Optional[Dict]:
         """
         Extract what's being corrected and the correct information.
@@ -168,14 +168,14 @@ class CorrectionDetector:
 class MemoryCorrector:
     """Updates memories based on corrections"""
     
-    def __init__(self, memory_system):
+    def __init__(self, memory_system: Any) -> None:
         """
         Initialize memory corrector.
         
         Args:
             memory_system: UnifiedMemorySystem instance
         """
-        self.memory = memory_system
+        self.memory: Any = memory_system
     
     def apply_correction(
         self,
@@ -183,7 +183,7 @@ class MemoryCorrector:
         user_id: str,
         username: str,
         channel_id: str
-    ):
+    ) -> None:
         """
         Apply correction to memory system.
         
@@ -238,7 +238,7 @@ class MemoryCorrector:
     
     def get_correction_history(
         self,
-        user_id: str = None,
+        user_id: Optional[str] = None,
         limit: int = 10
     ) -> List[Dict]:
         """

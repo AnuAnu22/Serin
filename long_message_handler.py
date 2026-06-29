@@ -3,7 +3,7 @@ Long Message Handler - React naturally to walls of text
 Humans don't always process long messages well - they react to length
 """
 import random
-from typing import Optional
+from typing import Optional, Dict, Any
 from logger_config import logger
 
 
@@ -45,7 +45,7 @@ class LongMessageHandler:
         self.reaction_chance = 0.15  # 15% chance to react to long messages
         logger.info("✅ Long message handler initialized")
     
-    def analyze_message_length(self, content: str) -> dict:
+    def analyze_message_length(self, content: str) -> Dict[str, Any]:
         """
         Analyze message length and complexity.
         

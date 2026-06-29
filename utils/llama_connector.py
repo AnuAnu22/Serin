@@ -58,7 +58,7 @@ class LlamaConnector:
         
         logger.info(f"LLM Connector initialized - Provider: {self.provider}, Base URL: {self.base_url}")
     
-    def get_available_models_sorted(self) -> Dict[str, List[str]]:
+    def get_available_models_sorted(self) -> Dict[str, Any]:
         """
         Get available models sorted by parameter size.
         
@@ -99,7 +99,7 @@ class LlamaConnector:
             logger.error(f"Failed to get sorted models: {e}")
             return {'smallest': None, 'largest': None, 'all': []}
 
-    def load_model(self, temperature: Optional[float] = None, top_p: Optional[float] = None):
+    def load_model(self, temperature: Optional[float] = None, top_p: Optional[float] = None) -> None:
         """
         Initialize the OpenAI client and detect available model.
         For LM Studio, this will auto-detect the loaded model.

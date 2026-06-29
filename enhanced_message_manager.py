@@ -3,9 +3,14 @@ Enhanced Message Manager - Professional Message Processing System
 FIXES MEMORY CONTEXT ISSUE: Uses improved context building that works even when message crawler fails.
 """
 
+from __future__ import annotations
+
 import asyncio
 import base64
 import os
+from typing import TYPE_CHECKING
+
+import discord
 
 from qdrant_memory_system import QdrantMemorySystem
 from enhanced_memory_context import EnhancedMemoryContext, ImprovedSystemPrompt
@@ -26,19 +31,27 @@ from visual_memory_system import VisualMemorySystem
 from active_search import ActiveSearch
 from models.model_factory import get_model_connector
 import random
-from typing import List, Dict, Optional, Tuple
+from mention_translator import MentionTranslator
+from typing import List, Dict, Optional, Tuple, Any, Set
 
 class EnhancedMessageManagerV3:
-    def __init__(self, client, mention_translator, memory_system=None, sub_timeout=1, voice_output_manager=None):
+    def __init__(
+        self,
+        client: discord.Client,
+        mention_translator: MentionTranslator,
+        memory_system: Optional[QdrantMemorySystem] = None,
+        sub_timeout: int = 1,
+        voice_output_manager: Any = None,  # Optional[VoiceOutputManager]
+    ) -> None:
         self.client = client
         self.mention_translator = mention_translator
-        self.current_batch = []
-        self.flush_task = None
+        self.current_batch: list[discord.Message] = []
+        self.flush_task: Optional[asyncio.Task[None]] = None
         self.sub_timeout = sub_timeout
         self.voice_output_manager = voice_output_manager
         
         # TIER 8: Observable Brain State
-        self.current_state = {
+        self.current_state: Dict[str, Any] = {
             'status': 'IDLE',  # IDLE, THINKING, GENERATING, SPEAKING
             'current_prompt': None,
             'current_user_message': None,
@@ -52,12 +65,12 @@ class EnhancedMessageManagerV3:
         else:
             # Default to Qdrant
             self.memory = QdrantMemorySystem()
-            
+
         # Initialize LLM connector for image analysis
         self.llm = get_model_connector()
-        
+
         # Initialize separate vision model (SmolVLM) if vision is enabled
-        self.vision_llm = None
+        self.vision_llm: Any = None
         supports_vision = os.environ.get("LLM_SUPPORTS_VISION", "false").lower() in ("true", "1", "yes")
         vision_model = os.environ.get("VISION_MODEL", "smolvlm256m")
         if supports_vision:
@@ -91,6 +104,7 @@ class EnhancedMessageManagerV3:
         
         # TIER 7: Active Search (Thinking Brain)
         # We need a model connector for this
+        self.active_search: Optional[ActiveSearch] = None
         try:
             model_connector = get_model_connector()
             model_connector.load_model()
@@ -101,6 +115,7 @@ class EnhancedMessageManagerV3:
             logger.error(f"❌ Active Search disabled: {e}")
         
         # TIER 6: Visual Cortex
+        self.visual_memory: Optional[VisualMemorySystem] = None
         if hasattr(self.memory, 'qdrant_client') and self.memory.qdrant_client:
             self.visual_memory = VisualMemorySystem(self.memory.qdrant_client)
         else:
@@ -108,13 +123,13 @@ class EnhancedMessageManagerV3:
             logger.warning("⚠️ Visual Cortex disabled (requires Qdrant)")
         
         # Track last bot response for correction detection
-        self.last_bot_response = None
-        self.last_bot_response_channel = None
+        self.last_bot_response: Optional[str] = None
+        self.last_bot_response_channel: Optional[str] = None
         
         # Enhanced system prompt
         self.system_prompt = ImprovedSystemPrompt.get_enhanced_system_prompt()
         
-        self.stats = {
+        self.stats: Dict[str, int] = {
             'messages_processed': 0,
             'responses_generated': 0,
             'corrections_detected': 0,
@@ -122,12 +137,12 @@ class EnhancedMessageManagerV3:
             'context_improvements': 0,
             'voice_responses': 0
         }
-        
+
         # Cache for visual contexts between processing and flushing
-        self.pending_visual_contexts = {}
-        
+        self.pending_visual_contexts: Dict[int, str] = {}
+
         # Voice pipeline (set externally if available)
-        self.voice_pipeline = None
+        self.voice_pipeline: Any = None
         
         # Log memory system type
         memory_type = "Qdrant" if hasattr(self.memory, 'qdrant_client') else "ChromaDB"
@@ -138,7 +153,7 @@ class EnhancedMessageManagerV3:
         if self.voice_output_manager:
             logger.info("   ✓ Voice Output Manager connected")
 
-    def update_state(self, status: str, prompt: Optional[str] = None, user_message: Optional[str] = None):
+    def update_state(self, status: str, prompt: Optional[str] = None, user_message: Optional[str] = None) -> None:
         """Update the observable brain state"""
         self.current_state['status'] = status
         self.current_state['last_activity'] = datetime.now().isoformat()
@@ -147,14 +162,14 @@ class EnhancedMessageManagerV3:
         if user_message is not None:
             self.current_state['current_user_message'] = user_message
             
-    def abort_current_generation(self):
+    def abort_current_generation(self) -> None:
         """Signal to abort current generation"""
         logger.warning("🛑 Abort signal received!")
         self.current_state['abort_flag'] = True
         self.current_state['status'] = 'ABORTING'
 
 
-    async def process_voice_input(self, user_id: str, username: str, channel_id: str, transcription: str):
+    async def process_voice_input(self, user_id: str, username: str, channel_id: str, transcription: str) -> None:
         """
         Process voice input and generate voice response.
         Uses sentence-level batching for low-latency voice response.
@@ -243,10 +258,10 @@ class EnhancedMessageManagerV3:
         except Exception as e:
             logger.exception(f"❌ Error processing voice input: {e}")
 
-    async def start(self):
+    async def start(self) -> None:
         logger.info("✅ Enhanced MessageManager started")
     
-    async def process_message(self, message):
+    async def process_message(self, message: discord.Message) -> None:
         """Process incoming message with enhanced context"""
         try:
             user_id = str(message.author.id)
@@ -422,7 +437,7 @@ class EnhancedMessageManagerV3:
             self.stats['errors'] += 1
             logger.exception(f"❌ Error processing message: {e}")
     
-    async def _schedule_flush(self):
+    async def _schedule_flush(self) -> None:
         """Schedule batch flush with timeout"""
         try:
             await asyncio.sleep(self.sub_timeout)
@@ -430,7 +445,7 @@ class EnhancedMessageManagerV3:
         except asyncio.CancelledError:
             pass
     
-    async def _flush_batch_with_enhanced_context(self, immediate: bool):
+    async def _flush_batch_with_enhanced_context(self, immediate: bool) -> None:
         """Process batch with enhanced context building"""
         batch = self.current_batch
         self.current_batch = []
@@ -822,7 +837,7 @@ class EnhancedMessageManagerV3:
             except:
                 pass
     
-    def _analyze_personality(self, user_id: str, content: str):
+    def _analyze_personality(self, user_id: str, content: str) -> None:
         """Analyze message and update personality traits"""
         traits = []
         interests = []
@@ -891,11 +906,11 @@ class EnhancedMessageManagerV3:
         
         return None
     
-    def get_user_profile(self, user_id: str) -> Optional[dict]:
+    def get_user_profile(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user profile"""
         return self.memory.get_user_profile(user_id)
     
-    def get_memory_stats(self) -> dict:
+    def get_memory_stats(self) -> Dict[str, Any]:
         """Get memory statistics"""
         stats = self.memory.get_stats()
         stats['manager_stats'] = self.stats

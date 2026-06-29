@@ -4,16 +4,32 @@ Builds conversation context that makes the bot feel like a real person.
 
 Enterprise-grade context building with temporal awareness integration.
 """
-from typing import List, Dict, Optional, Tuple
+from __future__ import annotations
+
+import re
+from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
 from datetime import datetime
 from logger_config import logger
 from temporal_context import TemporalFormatter, parse_time, get_time_range
 
+if TYPE_CHECKING:
+    from qdrant_memory_system import QdrantMemorySystem
+
+_TIME_PATTERN_RE = re.compile(
+    r'(last \w+day)|'
+    r'(this morning|this afternoon|tonight|this evening)|'
+    r'(yesterday|today|tomorrow)|'
+    r'(\d+ days? ago)|'
+    r'(\d+ weeks? ago)|'
+    r'(a (?:few|couple) days? ago)|'
+    r'(last (?:week|month|night))'
+)
+
 
 class ConversationContextBuilder:
-    def __init__(self, memory_system):
-        self.memory = memory_system
-        self.temporal_formatter = TemporalFormatter()
+    def __init__(self, memory_system: QdrantMemorySystem) -> None:
+        self.memory: QdrantMemorySystem = memory_system
+        self.temporal_formatter: TemporalFormatter = TemporalFormatter()
     
     def build_context(
         self,
@@ -263,23 +279,8 @@ class ConversationContextBuilder:
             "what did we talk about last Tuesday?" → "last Tuesday"
             "do you remember this morning?" → "this morning"
         """
-        query_lower = query.lower()
-        
-        # Common time reference patterns
-        time_patterns = [
-            r'(last \w+day)',           # last Tuesday, last Monday
-            r'(this morning|this afternoon|tonight|this evening)',
-            r'(yesterday|today|tomorrow)',
-            r'(\d+ days? ago)',
-            r'(\d+ weeks? ago)',
-            r'(a (few|couple) days? ago)',
-            r'(last (week|month|night))',
-        ]
-        
-        for pattern in time_patterns:
-            import re
-            match = re.search(pattern, query_lower)
-            if match:
-                return match.group(1)
+        match = _TIME_PATTERN_RE.search(query.lower())
+        if match:
+            return match.group(1)
         
         return None

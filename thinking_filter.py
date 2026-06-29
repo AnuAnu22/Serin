@@ -2,7 +2,10 @@
 Thinking Tag Filter - Remove reasoning/thinking tags from model outputs
 Prevents <think>, [Thinking], etc. from appearing in responses or memory
 """
+from __future__ import annotations
+
 import re
+from typing import List, Pattern, Any
 from logger_config import logger
 
 
@@ -39,9 +42,9 @@ class ThinkingFilter:
         r'<\|think\|>.*?<\|/think\|>',
     ]
     
-    def __init__(self):
+    def __init__(self) -> None:
         # Compile patterns for performance
-        self.compiled_patterns = [
+        self.compiled_patterns: List[Pattern[str]] = [
             re.compile(pattern, re.IGNORECASE | re.DOTALL)
             for pattern in self.THINKING_PATTERNS
         ]

@@ -11,13 +11,13 @@ from logger_config import logger
 class EnhancedMemoryContext:
     """Handles enhanced memory context for the bot"""
     
-    def __init__(self, memory_system=None):
-        self.memory_system = memory_system
-        self.context_history = []
-        self.memory_weights = {}
-        self.temporal_context = {}
+    def __init__(self, memory_system: Optional[Any] = None) -> None:
+        self.memory_system: Optional[Any] = memory_system
+        self.context_history: List[Dict[str, Any]] = []
+        self.memory_weights: Dict[str, float] = {}
+        self.temporal_context: Dict[str, Any] = {}
         
-    def add_context(self, context: Dict[str, Any]):
+    def add_context(self, context: Dict[str, Any]) -> None:
         """Add memory context"""
         self.context_history.append({
             'timestamp': datetime.now(),

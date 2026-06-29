@@ -30,7 +30,7 @@ class DatabaseRecoveryError(Exception):
     pass
 
 class DatabaseProtector:
-    def __init__(self, data_dir: str = "./bot_data", backup_dir: str = None):
+    def __init__(self, data_dir: str = "./bot_data", backup_dir: Optional[str] = None) -> None:
         """
         Initialize database protection system
         
@@ -354,7 +354,7 @@ class DatabaseProtector:
             logger.error(f"❌ Backup creation failed: {e}")
             raise DatabaseRecoveryError(f"Backup creation failed: {e}")
     
-    def _compress_backup(self, backup_path: Path):
+    def _compress_backup(self, backup_path: Path) -> None:
         """Compress backup directory to save space"""
         try:
             # Create tar.gz archive with correct parameters
@@ -375,7 +375,7 @@ class DatabaseProtector:
             # Don't fail the backup process if compression fails
             logger.info(f"✅ Backup completed without compression: {backup_path.name}")
     
-    def _cleanup_old_backups(self):
+    def _cleanup_old_backups(self) -> None:
         """Remove old backups beyond retention limit"""
         try:
             backup_files = list(self.backup_dir.glob("*.tar.gz"))
@@ -793,7 +793,7 @@ class DatabaseProtector:
             logger.error(f"❌ Full recovery error: {e}")
             return False
     
-    def _restore_compressed_backup(self, backup_path: str):
+    def _restore_compressed_backup(self, backup_path: str) -> None:
         """Restore from compressed backup"""
         try:
             import tarfile
@@ -811,7 +811,7 @@ class DatabaseProtector:
             logger.error(f"❌ Compressed backup restore failed: {e}")
             raise
     
-    def _restore_directory_backup(self, backup_path: str):
+    def _restore_directory_backup(self, backup_path: str) -> None:
         """Restore from directory backup"""
         try:
             backup_dir = Path(backup_path)
@@ -837,7 +837,7 @@ class DatabaseProtector:
     # GRACEFUL SHUTDOWN
     # ========================================================================
     
-    def setup_graceful_shutdown(self):
+    def setup_graceful_shutdown(self) -> None:
         """Set up graceful shutdown handlers"""
         import signal
         import atexit
@@ -873,7 +873,7 @@ class DatabaseProtector:
         
         logger.info("🛡️ Graceful shutdown handlers registered")
     
-    def graceful_shutdown(self):
+    def graceful_shutdown(self) -> None:
         """Perform graceful shutdown with database protection"""
         try:
             logger.info("💾 Creating shutdown backup...")

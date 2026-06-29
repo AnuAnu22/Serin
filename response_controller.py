@@ -8,9 +8,11 @@ FIXED: Bot name detection in messages
 """
 import random
 import asyncio
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any, Coroutine
 from datetime import datetime, timedelta
 from logger_config import logger
+
+import discord
 
 
 class ResponseController:
@@ -35,11 +37,11 @@ class ResponseController:
         # Event broadcaster (for WebSocket)
         self.broadcaster = None
 
-    def set_broadcaster(self, broadcast_func):
+    def set_broadcaster(self, broadcast_func: Any) -> None:
         """Set broadcaster function for real-time decisions"""
         self.broadcaster = broadcast_func
         
-    def set_creator_id(self, user_id: str):
+    def set_creator_id(self, user_id: str) -> None:
         """Set creator ID for priority responses"""
         self.creator_id = user_id
         logger.info(f"✅ Creator ID set: {user_id}")
@@ -79,7 +81,7 @@ class ResponseController:
         return True
 
     
-    def _start_conversation(self, channel_id: str, user_id: str):
+    def _start_conversation(self, channel_id: str, user_id: str) -> None:
         """Mark start of active conversation"""
         self.active_conversations[channel_id] = {
             'user_id': user_id,
@@ -88,7 +90,7 @@ class ResponseController:
         }
         logger.debug(f"💬 Started conversation with user {user_id} in channel {channel_id}")
     
-    def _update_conversation(self, channel_id: str, user_id: str):
+    def _update_conversation(self, channel_id: str, user_id: str) -> None:
         """Update active conversation"""
         if channel_id in self.active_conversations:
             conv = self.active_conversations[channel_id]
@@ -256,7 +258,7 @@ class ResponseController:
         self._broadcast_decision("SKIPPED", "selective_skip", channel_id)
         return False, "selective_skip"
 
-    def _broadcast_decision(self, status: str, reason: str, channel_id: str):
+    def _broadcast_decision(self, status: str, reason: str, channel_id: str) -> None:
         """Broadcast decision to websocket"""
         if self.broadcaster:
             try:
@@ -314,7 +316,7 @@ class ResponseController:
         channel_id: str,
         recent_messages: List[Dict],
         sentiment_scores: List[float]
-    ):
+    ) -> None:
         """Update conversation mood/energy level"""
         if not recent_messages or not sentiment_scores:
             return
@@ -350,7 +352,7 @@ class ResponseController:
         self.conversation_mood[channel_id] = mood
         logger.debug(f"📊 Conversation mood: {mood} (msgs/min: {msg_per_min:.1f})")
     
-    def mark_response(self, channel_id: str):
+    def mark_response(self, channel_id: str) -> None:
         """Mark that bot has responded"""
         self.last_response_time[channel_id] = datetime.now()
         self.message_buffer[channel_id] = 0
@@ -392,12 +394,12 @@ class ResponseController:
     
     async def send_with_typing(
         self,
-        channel,
+        channel: discord.TextChannel,
         response: str,
         simulate_typing: bool = True,
         message_complexity: str = "simple",
         has_question: bool = False   
-    ):
+    ) -> None:
         """Send message with realistic typing simulation"""
         if not simulate_typing:
             await channel.send(response)
@@ -436,18 +438,18 @@ class ResponseController:
 class PersonalityState:
     """Tracks bot's personality state"""
     
-    def __init__(self):
-        self.energy_level = 0.5
-        self.sass_level = 0.5
-        self.engagement = 0.5
-        self.last_update = datetime.now()
+    def __init__(self) -> None:
+        self.energy_level: float = 0.5
+        self.sass_level: float = 0.5
+        self.engagement: float = 0.5
+        self.last_update: datetime = datetime.now()
     
     def update_from_conversation(
         self,
         conversation_mood: str,
         user_traits: List[str],
         time_of_day: int
-    ):
+    ) -> None:
         """Update personality state"""
         # Energy varies by time of day
         if 0 <= time_of_day < 6:
@@ -491,7 +493,7 @@ class PersonalityState:
     
     def get_tone_modifier(self) -> str:
         """Get tone guidance for LLM"""
-        modifiers = []
+        modifiers: List[str] = []
         
         if self.energy_level > 0.65:
             modifiers.append("Be energetic and punchy")

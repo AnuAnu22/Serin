@@ -16,7 +16,7 @@ import uuid
 from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Optional, Union
 
 # Resolve paths relative to THIS file, not the working directory
 _PROJECT_ROOT = Path(__file__).parent

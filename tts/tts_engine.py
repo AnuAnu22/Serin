@@ -13,7 +13,7 @@ Features:
 import asyncio
 import io
 import wave
-from typing import Optional, Dict
+from typing import Any, Dict, List, Optional, Tuple, Union
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -66,7 +66,7 @@ class TTSEngine:
         self,
         model_name: str = "tts_models/multilingual/multi-dataset/xtts_v2",
         device: str = "cuda"
-    ):
+    ) -> None:
         """
         Initialize TTS engine.
         Uses edge-tts by default (no model download needed).
@@ -117,7 +117,7 @@ class TTSEngine:
             'backend': self.backend,
         }
 
-    async def load_model(self):
+    async def load_model(self) -> bool:
         """Load TTS model (edge-tts has no model to load, Coqui does)"""
         if self.backend == "edge-tts":
             # edge-tts needs no loading
@@ -152,8 +152,8 @@ class TTSEngine:
     async def synthesize(
         self,
         text: str,
-        profile: str = None,
-        speaker: str = None,
+        profile: Optional[str] = None,
+        speaker: Optional[str] = None,
         language: str = "en"
     ) -> Optional[bytes]:
         """
@@ -249,7 +249,7 @@ class TTSEngine:
             return mp3_data
 
     async def _synthesize_coqui(
-        self, text: str, profile: str, speaker: str, language: str
+        self, text: str, profile: str, speaker: Optional[str], language: str
     ) -> Optional[bytes]:
         """Synthesize using Coqui XTTS v2"""
         if not self.tts:
@@ -307,7 +307,7 @@ class TTSEngine:
             self.stats['errors'] += 1
             return None
 
-    def set_voice_reference(self, audio_path: str):
+    def set_voice_reference(self, audio_path: str) -> None:
         """Set voice reference for voice cloning (Coqui only)"""
         try:
             if os.path.exists(audio_path):
@@ -318,12 +318,12 @@ class TTSEngine:
         except Exception as e:
             logger.error(f"❌ Error setting voice reference: {e}")
 
-    def clear_voice_reference(self):
+    def clear_voice_reference(self) -> None:
         """Clear voice reference"""
         self.voice_reference = None
         logger.info("✅ Voice reference cleared")
 
-    def set_profile(self, profile: str):
+    def set_profile(self, profile: str) -> None:
         """Set active voice profile"""
         if profile in self.profiles:
             self.active_profile = profile
@@ -333,7 +333,7 @@ class TTSEngine:
         else:
             logger.warning(f"⚠️ Unknown profile: {profile}")
 
-    def get_available_speakers(self) -> list:
+    def get_available_speakers(self) -> List[str]:
         """Get list of available speakers"""
         if self.backend == "coqui" and self.tts and hasattr(self.tts, 'speakers'):
             return self.tts.speakers or []
@@ -341,7 +341,7 @@ class TTSEngine:
             return list(set(EDGE_VOICE_PRESETS.values()))
         return []
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> Dict[str, Any]:
         """Get TTS statistics"""
         return {
             'total_generations': self.stats['total_generations'],

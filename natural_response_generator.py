@@ -289,12 +289,12 @@ def apply_natural_variations(text: str, tone_modifier: Optional[str] = None) -> 
         ' what is ': " whats ",
     }
     
-    text_lower = text.lower()
-    for full, contracted in contractions.items():
-        if full in text_lower:
-            # Find and replace while preserving case
-            import re
-            text = re.sub(full.strip(), contracted.strip(), text, flags=re.IGNORECASE)
+    contraction_pattern = re.compile(
+        r'\b(' + '|'.join(re.escape(k.strip()) for k in contractions) + r')\b',
+        re.IGNORECASE
+    )
+    contraction_lookup = {k.strip().lower(): v.strip() for k, v in contractions.items()}
+    text = contraction_pattern.sub(lambda m: contraction_lookup[m.group(0).lower()], text)
     
     # 10% chance to add "lol" or "haha" if tone is casual/energetic
     if tone_modifier and ('energetic' in tone_modifier.lower() or 'witty' in tone_modifier.lower()):

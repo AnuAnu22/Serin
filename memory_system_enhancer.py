@@ -24,7 +24,7 @@ from memory_testing_framework import create_memory_system_tester
 class MemorySystemEnhancer:
     """Main integration class for memory system enhancements"""
     
-    def __init__(self, data_dir: str = "./bot_data", test_mode: bool = False):
+    def __init__(self, data_dir: str = "./bot_data", test_mode: bool = False) -> None:
         self.data_dir = data_dir
         self.test_mode = test_mode
         self.memory_system = None
@@ -38,7 +38,7 @@ class MemorySystemEnhancer:
         # Initialize components
         self._initialize_components()
     
-    def _initialize_components(self):
+    def _initialize_components(self) -> None:
         """Initialize all enhancement components"""
         try:
             # Initialize main memory system
@@ -146,7 +146,7 @@ class MemorySystemEnhancer:
         
         return assessment_report
     
-    def apply_enhancements(self, enhancement_config: Dict = None) -> Dict:
+    def apply_enhancements(self, enhancement_config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Apply memory system enhancements"""
         self.log("🚀 Applying memory system enhancements...")
         
@@ -250,7 +250,7 @@ class MemorySystemEnhancer:
             self.log(f"❌ Enhanced testing failed: {e}", "error")
             return {"error": str(e)}
     
-    def enable_continuous_monitoring(self, monitoring_config: Dict = None) -> Dict:
+    def enable_continuous_monitoring(self, monitoring_config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Enable continuous monitoring and optimization"""
         self.log("📊 Enabling continuous monitoring...")
         
@@ -318,7 +318,7 @@ class MemorySystemEnhancer:
             self.log(f"❌ Continuous monitoring setup failed: {e}", "error")
             return {"error": str(e)}
     
-    def export_system_configuration(self, export_path: str = None) -> str:
+    def export_system_configuration(self, export_path: Optional[str] = None) -> str:
         """Export current system configuration and state"""
         if export_path is None:
             export_path = f"memory_system_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"

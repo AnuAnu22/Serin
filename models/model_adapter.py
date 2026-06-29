@@ -3,7 +3,7 @@ Model Adapter - Handles format differences between model families.
 Detects model type and applies correct chat format, stop tokens, etc.
 """
 import re
-from typing import List, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple, Union
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -134,7 +134,7 @@ class ModelAdapter:
     Makes any model work with the same bot code.
     """
     
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str) -> None:
         """
         Initialize adapter for specific model.
         

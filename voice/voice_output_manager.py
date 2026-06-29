@@ -4,14 +4,14 @@ Manages the queue of sentences to speak, ensures smooth playback, and handles in
 """
 import asyncio
 import discord
-from typing import Optional, List, Dict
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from logger_config import logger
 
 class VoiceOutputManager:
-    def __init__(self, tts_engine, voice_listener):
+    def __init__(self, tts_engine: Any, voice_listener: Any) -> None:
         """
         Initialize Voice Output Manager.
         
@@ -36,7 +36,7 @@ class VoiceOutputManager:
         
         logger.info("✅ Voice output manager initialized")
     
-    async def start(self):
+    async def start(self) -> None:
         """Start processing loop"""
         if self.is_running:
             return
@@ -45,14 +45,14 @@ class VoiceOutputManager:
         self.processing_task = asyncio.create_task(self._process_queue())
         logger.info("▶️ Voice output manager started")
     
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop processing loop"""
         self.is_running = False
         if self.processing_task:
             self.processing_task.cancel()
         logger.info("⏹️ Voice output manager stopped")
     
-    async def speak(self, text: str, guild_id: int, priority: bool = False):
+    async def speak(self, text: str, guild_id: int, priority: bool = False) -> None:
         """
         Queue text to be spoken.
         
@@ -73,7 +73,7 @@ class VoiceOutputManager:
                 await self.sentence_queue.put((sentence, guild_id))
                 logger.debug(f"🗣️ Queued: '{sentence[:30]}...'")
     
-    async def stop_speaking(self, guild_id: int):
+    async def stop_speaking(self, guild_id: int) -> None:
         """
         Interrupt current speech and clear queue for guild.
         """
@@ -93,7 +93,7 @@ class VoiceOutputManager:
         self.is_speaking = False
         logger.info(f"🛑 Stopped speaking in guild {guild_id}")
     
-    async def _process_queue(self):
+    async def _process_queue(self) -> None:
         """Process sentence queue"""
         while self.is_running:
             try:
@@ -140,7 +140,7 @@ class VoiceOutputManager:
         
         self.is_speaking = False
     
-    async def _play_audio(self, vc: discord.VoiceClient, audio_data: bytes):
+    async def _play_audio(self, vc: discord.VoiceClient, audio_data: bytes) -> None:
         """Play audio data on VoiceClient"""
         try:
             # Create AudioSource
@@ -171,7 +171,7 @@ class VoiceOutputManager:
         except Exception as e:
             logger.error(f"❌ Error playing audio: {e}")
     
-    def _cleanup_temp(self, filename, error):
+    def _cleanup_temp(self, filename: str, error: Optional[Exception]) -> None:
         """Cleanup temp file after playback"""
         try:
             if os.path.exists(filename):

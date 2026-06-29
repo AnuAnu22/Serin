@@ -8,7 +8,7 @@ Features:
 - Transcription toggle
 - No restart required
 """
-from typing import Dict, Optional
+from typing import Any, Dict, List, Optional, Union
 from logger_config import logger
 
 
@@ -18,7 +18,7 @@ class AudioConfigManager:
     Allows live updates to VAD and silence detection settings.
     """
     
-    def __init__(self, audio_processor):
+    def __init__(self, audio_processor: Any) -> None:
         """
         Initialize audio config manager.
         
@@ -230,7 +230,7 @@ class AudioConfigManager:
             logger.error(f"❌ Error applying preset: {e}")
             return False
     
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> Dict[str, Any]:
         """Get configuration stats"""
         current = self.get_current_settings()
         

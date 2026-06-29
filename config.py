@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional, Set
 from dotenv import load_dotenv
 from logger_config import logger
 
@@ -7,42 +9,42 @@ from logger_config import logger
 load_dotenv()
 
 class BotConfig:
-    _instance = None
+    _instance: Optional[BotConfig] = None
 
-    def __new__(cls):
+    def __new__(cls) -> BotConfig:
         if cls._instance is None:
             cls._instance = super(BotConfig, cls).__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         if self._initialized:
             return
         
-        self._initialized = True
+        self._initialized: bool = True
         
         # --- Core Settings ---
-        self.DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
-        self.DEBUG_MODE = os.getenv('DEBUG_MODE', 'false').lower() == 'true'
-        self.TRACE_MESSAGES = os.getenv('TRACE_MESSAGES', 'true').lower() == 'true'
-        self.MAINTENANCE_INTERVAL_HOURS = int(os.getenv('MAINTENANCE_INTERVAL_HOURS', '24'))
-        self.CONTROL_PANEL_PORT = int(os.getenv('CONTROL_PANEL_PORT', '8081'))
+        self.DISCORD_TOKEN: Optional[str] = os.getenv('DISCORD_TOKEN')
+        self.DEBUG_MODE: bool = os.getenv('DEBUG_MODE', 'false').lower() == 'true'
+        self.TRACE_MESSAGES: bool = os.getenv('TRACE_MESSAGES', 'true').lower() == 'true'
+        self.MAINTENANCE_INTERVAL_HOURS: int = int(os.getenv('MAINTENANCE_INTERVAL_HOURS', '24'))
+        self.CONTROL_PANEL_PORT: int = int(os.getenv('CONTROL_PANEL_PORT', '8081'))
         
         # --- Feature Flags ---
-        self.ENABLE_VOICE = os.getenv('ENABLE_VOICE', 'true').lower() == 'true'
-        self.ENABLE_TTS = os.getenv('ENABLE_TTS', 'true').lower() == 'true'
+        self.ENABLE_VOICE: bool = os.getenv('ENABLE_VOICE', 'true').lower() == 'true'
+        self.ENABLE_TTS: bool = os.getenv('ENABLE_TTS', 'true').lower() == 'true'
         
         # --- Qdrant Settings ---
-        self.QDRANT_HOST = os.getenv('QDRANT_HOST', 'localhost')
-        self.QDRANT_PORT = int(os.getenv('QDRANT_PORT', '6333'))
+        self.QDRANT_HOST: str = os.getenv('QDRANT_HOST', 'localhost')
+        self.QDRANT_PORT: int = int(os.getenv('QDRANT_PORT', '6333'))
         
         # --- Model Settings ---
-        self.LLM_MODEL = os.getenv('LLM_MODEL', 'solidrust/Hermes-3-Llama-3.1-8B-AWQ')
-        self.LLM_API_URL = os.getenv('LLM_API_URL', 'http://localhost:30000/v1')
+        self.LLM_MODEL: str = os.getenv('LLM_MODEL', 'solidrust/Hermes-3-Llama-3.1-8B-AWQ')
+        self.LLM_API_URL: str = os.getenv('LLM_API_URL', 'http://localhost:30000/v1')
         
         # --- Allowed Channels ---
-        allowed_ids_str = os.getenv('ALLOWED_CHANNEL_IDS', '')
-        self.ALLOWED_CHANNEL_IDS = set()
+        allowed_ids_str: str = os.getenv('ALLOWED_CHANNEL_IDS', '')
+        self.ALLOWED_CHANNEL_IDS: Set[int] = set()
         if allowed_ids_str:
             try:
                 self.ALLOWED_CHANNEL_IDS = {int(x.strip()) for x in allowed_ids_str.split(',') if x.strip()}
@@ -50,7 +52,7 @@ class BotConfig:
                 logger.warning("⚠️ Invalid ALLOWED_CHANNEL_IDS in .env")
         
         # --- Personality Settings (Runtime only for now) ---
-        self.PERSONALITY = {
+        self.PERSONALITY: Dict[str, float] = {
             'energy': 0.5,
             'sass': 0.5,
             'engagement': 0.5
@@ -71,7 +73,7 @@ class BotConfig:
             'PERSONALITY': self.PERSONALITY
         }
 
-    def update_from_dict(self, data: Dict[str, Any]):
+    def update_from_dict(self, data: Dict[str, Any]) -> None:
         """Update config from dictionary"""
         if 'DEBUG_MODE' in data:
             self.DEBUG_MODE = bool(data['DEBUG_MODE'])

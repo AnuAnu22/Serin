@@ -1274,27 +1274,17 @@ class SQLiteBM25Index:
         """Add document to BM25 index"""
         cursor = self.conn.cursor()
         
-        # Insert into FTS table directly
-        # First delete if exists (to handle updates)
-        cursor.execute("DELETE FROM documents_fts WHERE id = ?", (doc_id,))
-        
         cursor.execute("""
-            INSERT INTO documents_fts (id, text, person_id, channel_id)
+            INSERT OR REPLACE INTO documents_fts (id, text, person_id, channel_id)
             VALUES (?, ?, ?, ?)
         """, (doc_id, text, person_id, channel_id))
         
         self.conn.commit()
     
     def _sanitize_query(self, query: str) -> str:
-        """Sanitize query for FTS5"""
-        # Replace special characters with spaces
-        # FTS5 special chars: " * ^ ( ) - + : . ? ' [ ] { } \ !
-        sanitized = query
-        # Use a list of characters to avoid string escaping issues
-        special_chars = ['"', '*', '^', '(', ')', '-', '+', ':', '?', '.', ',', "'", '[', ']', '{', '}', '\\', '!']
-        for char in special_chars:
-            sanitized = sanitized.replace(char, ' ')
-        return sanitized.strip()
+        """Sanitize FTS5 query with a single pass."""
+        special_chars = set('+-*<>":()^~{}[]\\!?.\',')
+        return ''.join(' ' if ch in special_chars else ch for ch in query).strip()
     
     def search(self, query: str, user_id: Optional[str] = None, channel_id: Optional[str] = None, limit: int = 20) -> List[Dict]:
         """Search documents using BM25"""

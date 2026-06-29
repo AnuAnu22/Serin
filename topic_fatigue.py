@@ -4,7 +4,7 @@ Humans get less enthusiastic about topics after discussing them repeatedly
 """
 import time
 from collections import defaultdict
-from typing import Dict, List
+from typing import Dict, List, Optional
 from logger_config import logger
 
 
@@ -28,8 +28,8 @@ class TopicFatigue:
         self,
         channel_id: str,
         topic: str,
-        timestamp: float = None
-    ):
+        timestamp: Optional[float] = None
+    ) -> None:
         """
         Track a topic mention in conversation.
         
@@ -102,7 +102,7 @@ class TopicFatigue:
         
         return fatigue
     
-    def _clean_old_topics(self, channel_id: str):
+    def _clean_old_topics(self, channel_id: str) -> None:
         """Remove topic mentions older than TOPIC_TIMEOUT"""
         current_time = time.time()
         cutoff = current_time - self.TOPIC_TIMEOUT
@@ -204,7 +204,7 @@ def get_fatigue_tracker() -> TopicFatigue:
     return _fatigue_tracker
 
 
-def track_topic(channel_id: str, topic: str):
+def track_topic(channel_id: str, topic: str) -> None:
     """
     Convenience function to track topic.
     

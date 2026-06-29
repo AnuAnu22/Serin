@@ -50,12 +50,12 @@ class ConfigUpdateRequest(BaseModel):
     qdrant_port: Optional[int] = None
     data_dir: Optional[str] = None
 
-def register_enhanced_routes(app: FastAPI, bot_state: Dict, broadcast_func):
+def register_enhanced_routes(app: FastAPI, bot_state: Dict[str, Any], broadcast_func: Any) -> None:
     """Register enhanced routes on the FastAPI app instance"""
     
     logger.info("🚀 Registering enhanced API routes...")
 
-    def get_memory_system():
+    def get_memory_system() -> Any:
         system = bot_state.get('memory_system')
         if not system:
             raise HTTPException(status_code=500, detail="Memory system not initialized")

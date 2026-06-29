@@ -3,7 +3,7 @@ Model Factory - Creates appropriate model connector based on configuration.
 This is the ONLY place where specific connectors are imported.
 """
 import os
-from typing import Dict, Optional
+from typing import Any, Dict, List, Optional, Union
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -79,7 +79,7 @@ def get_model_connector(
         )
 
 
-def get_available_providers() -> dict:
+def get_available_providers() -> Dict[str, bool]:
     """
     Get list of available providers and their status.
     
@@ -163,7 +163,7 @@ def unload_model(model_name: str) -> bool:
         return False
 
 
-def unload_all_models():
+def unload_all_models() -> None:
     """Unload all cached models."""
     global loaded_models
     

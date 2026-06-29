@@ -10,7 +10,7 @@ import os
 import hashlib
 import tarfile
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Any, Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass
 from enum import Enum
 from logger_config import logger
@@ -46,14 +46,14 @@ class RepairAction:
 class DatabaseIntegrityChecker:
     """Comprehensive database integrity checking and repair"""
     
-    def __init__(self, memory_system, backup_dir: str = "./bot_data/backups"):
+    def __init__(self, memory_system: Any, backup_dir: str = "./bot_data/backups") -> None:
         self.memory = memory_system
         self.backup_dir = backup_dir
         os.makedirs(backup_dir, exist_ok=True)
         self.issue_registry = {}
         self.repair_history = []
         
-    def run_comprehensive_health_check(self) -> Dict:
+    def run_comprehensive_health_check(self) -> Dict[str, Any]:
         """Run comprehensive database health check"""
         logger.info("🔍 Running comprehensive database health check...")
         
@@ -109,7 +109,7 @@ class DatabaseIntegrityChecker:
         logger.info(f"✅ Health check completed - Score: {health_report['overall_health_score']}/100")
         return health_report
     
-    def _check_table_integrity(self) -> Dict:
+    def _check_table_integrity(self) -> Dict[str, Any]:
         """Check database table integrity"""
         logger.debug("🗄️ Checking table integrity...")
         
@@ -169,7 +169,7 @@ class DatabaseIntegrityChecker:
         
         return result
     
-    def _check_single_table_integrity(self, table_name: str) -> List[Dict]:
+    def _check_single_table_integrity(self, table_name: str) -> List[Dict[str, Any]]:
         """Check integrity of a single table"""
         issues = []
         cursor = self.memory.conn.cursor()
@@ -259,7 +259,7 @@ class DatabaseIntegrityChecker:
         
         return issues
     
-    def _check_data_consistency(self) -> Dict:
+    def _check_data_consistency(self) -> Dict[str, Any]:
         """Check data consistency across tables"""
         logger.debug("🔄 Checking data consistency...")
         
@@ -326,7 +326,7 @@ class DatabaseIntegrityChecker:
         
         return result
     
-    def _check_index_performance(self) -> Dict:
+    def _check_index_performance(self) -> Dict[str, Any]:
         """Check index performance and suggest optimizations"""
         logger.debug("📊 Checking index performance...")
         
@@ -374,7 +374,7 @@ class DatabaseIntegrityChecker:
         
         return result
     
-    def _check_backup_status(self) -> Dict:
+    def _check_backup_status(self) -> Dict[str, Any]:
         """Check backup system status"""
         logger.debug("💾 Checking backup status...")
         
@@ -431,7 +431,7 @@ class DatabaseIntegrityChecker:
         
         return result
     
-    def _check_concurrent_access(self) -> Dict:
+    def _check_concurrent_access(self) -> Dict[str, Any]:
         """Check for concurrent access issues"""
         logger.debug("🔄 Checking concurrent access...")
         
@@ -469,7 +469,7 @@ class DatabaseIntegrityChecker:
         
         return result
     
-    def _check_corruption_indicators(self) -> Dict:
+    def _check_corruption_indicators(self) -> Dict[str, Any]:
         """Check for database corruption indicators"""
         logger.debug("🚨 Checking corruption indicators...")
         
@@ -589,7 +589,7 @@ class DatabaseIntegrityChecker:
         
         return issues
     
-    def _generate_fix_suggestion(self, issue_data: Dict) -> str:
+    def _generate_fix_suggestion(self, issue_data: Dict[str, Any]) -> str:
         """Generate fix suggestion for an issue"""
         issue_type = issue_data.get("type", "")
         
@@ -604,7 +604,7 @@ class DatabaseIntegrityChecker:
         
         return fix_suggestions.get(issue_type, "Manual investigation required")
     
-    def _is_auto_repairable(self, issue_data: Dict) -> bool:
+    def _is_auto_repairable(self, issue_data: Dict[str, Any]) -> bool:
         """Determine if an issue can be auto-repaired"""
         auto_repairable_types = [
             "duplicate_user_ids",
@@ -760,7 +760,7 @@ class DatabaseIntegrityChecker:
             logger.error(f"❌ Failed to create pre-repair backup: {e}")
             return None
     
-    def _generate_health_recommendations(self, health_report: Dict) -> List[str]:
+    def _generate_health_recommendations(self, health_report: Dict[str, Any]) -> List[str]:
         """Generate health recommendations based on report"""
         recommendations = []
         
@@ -793,7 +793,7 @@ class DatabaseIntegrityChecker:
         
         return recommendations
     
-    def _save_health_report(self, health_report: Dict):
+    def _save_health_report(self, health_report: Dict[str, Any]) -> None:
         """Save health report to file"""
         try:
             report_file = os.path.join(self.backup_dir, f"health_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
@@ -845,6 +845,6 @@ class DatabaseIntegrityChecker:
             logger.error(f"❌ Emergency backup failed: {e}")
             return None
 
-def create_database_healer(memory_system):
+def create_database_healer(memory_system: Any) -> DatabaseIntegrityChecker:
     """Create database integrity checker and repair system"""
     return DatabaseIntegrityChecker(memory_system)

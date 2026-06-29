@@ -16,7 +16,7 @@ class VisualMemorySystem:
     The Visual Cortex of Serin.
     Uses CLIP embeddings to store and recall visual memories (images).
     """
-    def __init__(self, qdrant_client: QdrantClient, collection_name: str = "visual_memory"):
+    def __init__(self, qdrant_client: QdrantClient, collection_name: str = "visual_memory") -> None:
         self.client = qdrant_client
         self.collection_name = collection_name
         
@@ -33,7 +33,7 @@ class VisualMemorySystem:
         # Ensure collection exists
         self._ensure_collection()
 
-    def _ensure_collection(self):
+    def _ensure_collection(self) -> None:
         """Create visual memory collection if it doesn't exist"""
         try:
             collections = self.client.get_collections().collections

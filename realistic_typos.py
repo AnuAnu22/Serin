@@ -110,7 +110,7 @@ class RealisticTypos:
         else:
             return self._common_misspelling(text)
     
-    def _should_add_typo(self, text: str, personality_state: dict = None) -> bool:
+    def _should_add_typo(self, text: str, personality_state: Optional[dict] = None) -> bool:
         """Decide if we should add a typo"""
         
         # Check for protected words

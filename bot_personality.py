@@ -5,22 +5,22 @@ The bot has its own preferences, opinions, and can express them naturally.
 import sqlite3
 import json
 import random
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Tuple
 from logger_config import logger
 
 
 class BotPersonality:
-    def __init__(self, db_path: str = "./bot_data/bot_data.db"):
+    def __init__(self, db_path: str = "./bot_data/bot_data.db") -> None:
         """Initialize bot personality system"""
-        self.db_path = db_path
-        self.conn = sqlite3.connect(db_path, check_same_thread=False)
+        self.db_path: str = db_path
+        self.conn: sqlite3.Connection = sqlite3.connect(db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self._init_schema()
         self._load_default_preferences()
         
         logger.info("✅ Bot personality system initialized")
     
-    def _init_schema(self):
+    def _init_schema(self) -> None:
         """Initialize personality database schema"""
         cursor = self.conn.cursor()
         
@@ -52,7 +52,7 @@ class BotPersonality:
         self.conn.commit()
         logger.debug("✅ Personality schema initialized")
     
-    def _load_default_preferences(self):
+    def _load_default_preferences(self) -> None:
         """Load default preferences if database is empty"""
         cursor = self.conn.cursor()
         cursor.execute("SELECT COUNT(*) as count FROM bot_preferences")
@@ -223,8 +223,8 @@ class BotPersonality:
         item: str,
         stance: str,
         intensity: float = 0.5,
-        reason: str = None
-    ):
+        reason: Optional[str] = None
+    ) -> None:
         """Set or update a preference"""
         cursor = self.conn.cursor()
         cursor.execute("""
@@ -276,7 +276,7 @@ class BotPersonality:
             prefixes = ["not sure but ", "maybe ", "I guess "]
             return random.choice(prefixes) + opinion_text
     
-    def set_opinion(self, topic: str, opinion_text: str, confidence: float = 0.5):
+    def set_opinion(self, topic: str, opinion_text: str, confidence: float = 0.5) -> None:
         """Set or update an opinion"""
         cursor = self.conn.cursor()
         cursor.execute("""
@@ -371,7 +371,7 @@ class BotPersonality:
         
         return " ".join(context_parts) if context_parts else ""
     
-    def detect_topic_in_message(self, message: str) -> Optional[tuple]:
+    def detect_topic_in_message(self, message: str) -> Optional[Tuple[str, str]]:
         """
         Detect if message mentions something bot has preferences about.
         

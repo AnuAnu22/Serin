@@ -4,7 +4,7 @@ Uses the OpenAI Python client pointed at an SGLang server.
 """
 import os
 import asyncio
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional, Tuple, Union
 from openai import OpenAI
 import sys
 import os
@@ -21,7 +21,7 @@ class SGLangConnector(ModelInterface):
     - Auto-selects the first available model if none specified
     """
 
-    def __init__(self, model_name: Optional[str] = None):
+    def __init__(self, model_name: Optional[str] = None) -> None:
         # Configuration
         self.base_url = os.getenv("SGLANG_BASE_URL", "http://localhost:30000/v1")
         self.api_key = os.getenv("SGLANG_API_KEY", "unused")
@@ -44,7 +44,7 @@ class SGLangConnector(ModelInterface):
         self,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None
-    ):
+    ) -> None:
         """
         Initialize OpenAI client and detect/load model from SGLang.
         """

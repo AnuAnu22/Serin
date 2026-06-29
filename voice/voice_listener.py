@@ -11,7 +11,7 @@ Features:
 """
 import asyncio
 import discord
-from typing import Dict, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Union
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -19,7 +19,7 @@ from logger_config import logger
 
 
 class VoiceListener:
-    def __init__(self, client, audio_processor):
+    def __init__(self, client: discord.Client, audio_processor: Any) -> None:
         """
         Initialize voice listener.
         
@@ -131,7 +131,7 @@ class VoiceListener:
             return False
     
 
-    async def _start_listening(self, voice_client: discord.VoiceClient, guild_id: int, channel_id: int):
+    async def _start_listening(self, voice_client: discord.VoiceClient, guild_id: int, channel_id: int) -> None:
         """Start listening using discord.py 2.x AudioSink"""
         try:
             # Create custom sink
@@ -149,7 +149,7 @@ class VoiceListener:
         except Exception as e:
             logger.exception(f"Error starting listener: {e}")
     
-    async def _stop_listening(self, guild_id: int):
+    async def _stop_listening(self, guild_id: int) -> None:
         """
         Stop listening to audio.
         
@@ -165,11 +165,11 @@ class VoiceListener:
         except Exception as e:
             logger.error(f"❌ Error stopping recording: {e}")
     
-    def _recording_callback(self, sink, user, audio):
+    def _recording_callback(self, sink: Any, user: Any, audio: Any) -> None:
         """Callback when recording finishes for a user"""
         logger.debug(f"📼 Recording callback triggered for user {user}")
     
-    def _recording_error_callback(self, sink, error):
+    def _recording_error_callback(self, sink: Any, error: Exception) -> None:
         """Callback when recording error occurs"""
         logger.error(f"❌ Recording error: {error}")
         self.stats['errors'] += 1
@@ -229,7 +229,7 @@ class VoiceListener:
 class AudioSink(discord.sinks.Sink):
     """discord.py 2.x compatible audio sink"""
     
-    def __init__(self, audio_processor, guild_id: int, channel_id: int, stats: Dict):
+    def __init__(self, audio_processor: Any, guild_id: int, channel_id: int, stats: Dict[str, Any]) -> None:
         super().__init__()
         self.audio_processor = audio_processor
         self.guild_id = guild_id
@@ -250,7 +250,7 @@ class AudioSink(discord.sinks.Sink):
         except Exception as e:
             logger.error(f"Error in AudioSink.write: {e}")
     
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Called when recording stops"""
         logger.debug(f"🎤 AudioSink cleanup")
     

@@ -5,7 +5,7 @@ Refactored from llama_connector.py to implement ModelInterface.
 import os
 import re
 import asyncio
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional, Tuple, Union
 from openai import OpenAI
 import sys
 import os
@@ -21,7 +21,7 @@ class LMStudioConnector(ModelInterface):
     Works with any model loaded in LM Studio.
     """
     
-    def __init__(self, model_name: Optional[str] = None):
+    def __init__(self, model_name: Optional[str] = None) -> None:
         """
         Initialize LM Studio connector.
         
@@ -55,7 +55,7 @@ class LMStudioConnector(ModelInterface):
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
         force_model_name: Optional[str] = None
-    ):
+    ) -> None:
         """
         Initialize OpenAI client and detect/load model.
         
