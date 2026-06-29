@@ -15,7 +15,8 @@ import json
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Union
 import os
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +24,7 @@ from pydantic import BaseModel
 import uvicorn
 from logger_config import logger
 from enhanced_api_routes import register_enhanced_routes
+from config import config
 
 def make_json_safe(obj: Any) -> Any:
     """
@@ -111,6 +113,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Auth middleware
+@app.middleware("http")
+async def check_auth(request: Request, call_next):
+    if config.CONTROL_PANEL_KEY:
+        api_key = request.headers.get("X-API-Key", "")
+        if api_key != config.CONTROL_PANEL_KEY:
+            return JSONResponse({"error": "unauthorized"}, status_code=401)
+    return await call_next(request)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="control_panel/static"), name="static")
@@ -838,7 +849,6 @@ async def update_system_prompt(data: Dict[str, str]):
 async def get_full_config():
     """Get full bot configuration"""
     try:
-        from config import config
         return config.to_dict()
     except Exception as e:
         return {'error': str(e)}
@@ -847,7 +857,6 @@ async def get_full_config():
 async def update_full_config(data: Dict[str, Any]):
     """Update bot configuration"""
     try:
-        from config import config
         config.update_from_dict(data)
         return {'success': True}
     except Exception as e:
@@ -1298,19 +1307,21 @@ def init_bot_state(
 
 async def start_server(host: str = "127.0.0.1", port: int = 8080):
     """Start web server with port retry logic"""
+    if host != "127.0.0.1" and not config.CONTROL_PANEL_KEY:
+        logger.warning("Control panel exposed to network without authentication!")
     max_retries = 5
     current_port = port
     
     for i in range(max_retries):
         try:
-            config = uvicorn.Config(
+            uvicorn_cfg = uvicorn.Config(
                 app,
                 host=host,
                 port=current_port,
                 log_level="info",
                 access_log=False
             )
-            server = uvicorn.Server(config)
+            server = uvicorn.Server(uvicorn_cfg)
             
             logger.info(f"🌐 Control panel starting at http://{host}:{current_port}")
             await server.serve()

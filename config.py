@@ -29,6 +29,7 @@ class BotConfig:
         self.TRACE_MESSAGES: bool = os.getenv('TRACE_MESSAGES', 'true').lower() == 'true'
         self.MAINTENANCE_INTERVAL_HOURS: int = int(os.getenv('MAINTENANCE_INTERVAL_HOURS', '24'))
         self.CONTROL_PANEL_PORT: int = int(os.getenv('CONTROL_PANEL_PORT', '8081'))
+        self.CONTROL_PANEL_KEY: str = os.getenv('CONTROL_PANEL_KEY', '')
         
         # --- Feature Flags ---
         self.ENABLE_VOICE: bool = os.getenv('ENABLE_VOICE', 'true').lower() == 'true'

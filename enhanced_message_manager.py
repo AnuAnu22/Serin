@@ -505,419 +505,73 @@ class EnhancedMessageManagerV3:
         batch = self.current_batch
         self.current_batch = []
         self.flush_task = None
-        
-        # Filter out bot messages
-        batch = [m for m in batch if not getattr(m.author, "bot", False)]
-        
+
         if not batch:
             return
-        
+
         channel = batch[0].channel
-        
+
         try:
-            
-            # Prepare user messages
-            user_messages = []
-            for msg in batch:
-                # Check for images in batch processing too
-                content = self.mention_translator.clean_for_bot(msg.content, msg)
-                if msg.attachments:
-                    has_image = any(a.content_type and a.content_type.startswith('image/') for a in msg.attachments)
-                    if has_image:
-                        content += " [User posted an image]"
-
-                message_payload = {
-                    'user_id': str(msg.author.id),
-                    'user_name': msg.author.display_name,
-                    'content': content,
-                    'timestamp': msg.created_at.isoformat()
-                }
-                
-                # Check for pending image URL
-                if msg.id in self.pending_visual_contexts:
-                    # It's an image URL now, not a description
-                    message_payload['image_url'] = self.pending_visual_contexts[msg.id]
-                    del self.pending_visual_contexts[msg.id]
-
-                user_messages.append(message_payload)
-            
-            # ENHANCED CONTEXT BUILDING - Using proper ConversationContextBuilder
-            logger.debug("🧪 Building enhanced context...")
-            
-            # TIER 5: Check for Admin Instruction
-            is_instruction = False
-            last_msg_content = user_messages[-1]['content']
-            last_msg_user = user_messages[-1]['user_name']
-            
-            if last_msg_content.startswith('/instruct'):
-                # Security check: Only allow "Rin" (or creator)
-                if 'rin' in last_msg_user.lower() or (self.response_controller.creator_id and user_messages[-1]['user_id'] == self.response_controller.creator_id):
-                    logger.info(f"👮 Admin instruction detected from {last_msg_user}")
-                    is_instruction = True
-                    # Strip prefix
-                    user_messages[-1]['content'] = last_msg_content.replace('/instruct', '', 1).strip()
-                    # Force response
-                    immediate = True
-                else:
-                    logger.warning(f"⚠️ Unauthorized /instruct attempt from {last_msg_user}")
-            
-            context = self.context_builder.build_context(
-                user_messages=user_messages,
-                channel_id=str(channel.id)
-            )
-            
-            # CRITICAL FIX: Filter polluted memories (from previous bad summaries)
-            garbage_patterns = [
-                "We are given", "We must write", "CRITICAL RULES", "CRITICAL:",
-                "one sentence", "Summary:", "Task:", "INSTRUCTIONS",
-                "### FINAL", "[the ", "template", "example",
-                "Output Format", "JSON", "search_needed", "query:",
-                "username followed by", "third person"
-            ]
-            
-            if 'relevant_memories' in context:
-                clean_memories = []
-                for mem in context['relevant_memories']:
-                    content = mem.get('content', '')
-                    is_garbage = any(pattern.lower() in content.lower() for pattern in garbage_patterns)
-                    if is_garbage:
-                        logger.warning(f"🧹 Filtered polluted memory: {content[:50]}...")
-                        continue
-                    clean_memories.append(mem)
-                context['relevant_memories'] = clean_memories
-            
-            # Track context improvements
-            self.stats['context_improvements'] += 1
-            logger.info("📈 Using ConversationContextBuilder for context")
-            
-            log_context(context)
-            
-            # Rest of the logic remains the same...
-            # TIER 5: Check voice context
-            primary_user_id = user_messages[-1]['user_id']
-            voice_info = self.voice_tracker.get_voice_info(primary_user_id)
-            
-            # Maybe mention voice status (30% chance if recently joined)
-            if voice_info:
-                duration = voice_info.get('duration_minutes', 0)
-                if duration < 2:  # Just joined
-                    voice_reaction = get_voice_join_reaction()
-                    if voice_reaction:
-                        await channel.send(voice_reaction)
-                        await asyncio.sleep(random.uniform(1.0, 2.0))
-            
-            # Analyze message length
-            length_analysis = analyze_message_length(user_messages[-1]['content'])
-            
-            # React to long messages
-            length_handler = get_length_handler()
-            personality_dict = self.personality.__dict__ if hasattr(self, 'personality') else None
-            
-            if length_handler.should_react_to_length(length_analysis, personality_dict):
-                reaction = length_handler.get_length_reaction(length_analysis)
-                if reaction:
-                    await channel.send(reaction)
-                    await asyncio.sleep(random.uniform(1.0, 2.0))
-            
-            # Topic fatigue tracking
-            detected_topic = self._detect_topic(user_messages[-1]['content'])
-            fatigue_tracker = get_fatigue_tracker()
-            fatigue_level = 0.0
-            
-            if detected_topic:
-                fatigue_tracker.track_topic(str(channel.id), detected_topic)
-                fatigue_level = fatigue_tracker.get_topic_fatigue_level(str(channel.id), detected_topic)
-                
-                if fatigue_level > 0.3:
-                    modified_state = fatigue_tracker.apply_fatigue_to_personality(
-                        self.personality.__dict__,
-                        fatigue_level
-                    )
-                    for key, value in modified_state.items():
-                        setattr(self.personality, key, value)
-            
-            # Update relationships
-            participants = list(set(um['user_id'] for um in user_messages))
-            if len(participants) > 1:
-                for i, user_a in enumerate(participants):
-                    for user_b in participants[i+1:]:
-                        self.memory.update_relationship(user_a, user_b, 'message')
-            
-            # Update conversation mood
-            sentiment_scores = [
-                self.analyzer.polarity_scores(msg['content'])['compound']
-                for msg in user_messages
-            ]
-            self.response_controller.update_conversation_mood(
-                str(channel.id),
-                user_messages,
-                sentiment_scores
-            )
-            
-            # Update personality state
-            primary_profile = context['profiles'].get(primary_user_id, {})
-            primary_traits = primary_profile.get('personality_traits', [])
-            conversation_mood = self.response_controller.conversation_mood.get(str(channel.id), 'neutral')
-            
-            self.personality.update_from_conversation(
-                conversation_mood,
-                primary_traits,
-                datetime.now().hour
-            )
-            
-            # SELECTIVE RESPONSE CHECK
-            should_respond, reason = self.response_controller.should_respond(
-                message_content=user_messages[-1]['content'],
-                channel_id=str(channel.id),
-                bot_mentioned=immediate,
-                user_id=primary_user_id,
-                recent_messages=context['recent_conversation']
-            )
-            log_response(should_respond, reason, user_messages[-1]['content'])
-            
-            if not should_respond and not is_instruction:
-                logger.info(f"🤐 Skipping response (reason: {reason})")
-                return
-            
-            logger.info(f"💬 Responding (reason: {reason})")
-            
-            # Conversation analysis
-            conv_analysis = self.conversation_analyzer.analyze_conversation_flow(
-                user_messages,
-                str(channel.id)
-            )
-            
-            logger.info(f"💬 Conversation: {conv_analysis['conversation_type']}")
-            if conv_analysis['current_topic']:
-                logger.info(f"📌 Topic: {conv_analysis['current_topic']}")
-            
-            # Check for preference triggers
-            preference_trigger = self.bot_personality.detect_topic_in_message(user_messages[-1]['content'])
-            
-            preference_context = None
-            if preference_trigger:
-                category, item = preference_trigger
-                preference_context = self.bot_personality.express_preference(category, item)
-                logger.debug(f"💭 Preference: {preference_context}")
-            
-            # ENHANCED CONTEXT FORMATTING
-            formatted_context = self.context_builder.format_context_for_llm(context)
-            
-            # Add personality context
-            personality_context = self.bot_personality.get_personality_context()
-            if personality_context:
-                formatted_context += f"\n\n{personality_context}"
-            
-            if preference_context:
-                formatted_context += f"\n\nNote: You think {preference_context}"
-            
-            # TIER 5: Add voice context if relevant
-            if voice_info:
-                channel_name = voice_info.get('channel_name', 'voice channel')
-                duration = voice_info.get('duration_minutes', 0)
-                formatted_context += f"\n\n[Note: {user_messages[-1]['user_name']} is currently in '{channel_name}' ({duration} min)]"
-            
-            # Resolve referents
-            last_message = user_messages[-1]['content']
-            # Note: This would need to be adapted for the enhanced context system
-            resolved_message = last_message  # Simple fallback for now
-            
-            # Get tone modifier
-            tone_modifier = self.personality.get_tone_modifier()
-            
-            logger.info("=" * 60)
-            logger.info("🧠 ENHANCED CONTEXT PREPARED")
-            logger.info("=" * 60)
-            logger.info(f"Context source: {context.get('context_source', 'unknown')}")
-            logger.info(f"Recent messages: {len(context['recent_conversation'])}")
-            logger.info(f"Relevant memories: {len(context['relevant_memories'])}")
-            logger.info(f"User profiles: {len(context['profiles'])}")
-            logger.info(f"Relationships: {len(context['relationships'])}")
-            logger.info(f"Conversation mood: {conversation_mood}")
-            logger.info(f"Personality: {tone_modifier}")
-            logger.info(f"Context improvements: {self.stats['context_improvements']}")
-            logger.info("=" * 60)
-            
-            # 🔍 COMPREHENSIVE PROMPT DEBUG LOGGING
-            logger.info("=" * 80)
-            logger.info("🔍 COMPLETE PROMPT BEING SENT TO LLM")
-            logger.info("=" * 80)
-            logger.info("📨 CURRENT MESSAGES:")
-            for i, msg in enumerate(user_messages):
-                logger.info(f"  [{i}] {msg.get('user_name', 'Unknown')}: {msg.get('content', '')[:100]}...")
-            
-            logger.info(f"\n📋 FORMATTED CONTEXT LENGTH: {len(formatted_context)} characters")
-            logger.info(f"📋 FORMATTED CONTEXT:\n{formatted_context}")
-            
-            logger.info(f"\n🎭 PERSONALITY STATE:")
-            logger.info(f"  Tone modifier: {tone_modifier}")
-            logger.info(f"  Message complexity: {length_analysis['complexity']}")
-            
-            logger.info(f"\n🔧 TECHNICAL PARAMETERS:")
-            logger.info(f"  Resolved message: {resolved_message[:100]}...")
-            logger.info(f"  Channel ID: {channel.id}")
-            logger.info(f"  Channel name: {channel.name}")
-            
-            logger.info("=" * 80)
-            logger.info("🚀 SENDING TO get_response_natural()")
-            logger.info("=" * 80)
-            
-            # TIER 8: Update Observable State
-            self.current_state['abort_flag'] = False # Reset flag
-            self.update_state(
-                status='THINKING',
-                prompt=formatted_context,
-                user_message=user_messages[-1]['content']
+            from pipeline_stages import (
+                ActiveSearchStage,
+                ContextAssemblyStage,
+                ConversationUpdateStage,
+                GenerationStage,
+                MemoryRetrievalStage,
+                MessageContext,
+                MessagePipeline,
+                PipelineDeps,
+                MessagePreparationStage,
+                ResponseDecisionStage,
+                VoiceActionStage,
             )
 
-            # TIER 7: Active Retrieval (Thinking Loop)
-            active_search_results = []
-            if self.active_search:
-                logger.info("🤔 Entering Thinking Loop...")
-                
-                # Max loops: 2 (as requested for balance of depth vs speed)
-                max_loops = 2
-                loop_count = 0
-                accumulated_results_str = ""
-                
-                while loop_count < max_loops:
-                    # Decide if search is needed (or MORE search is needed)
-                    needs_search, query, reason = await self.active_search.analyze_need_to_search(
-                        user_message=user_messages[-1]['content'],
-                        recent_context=formatted_context,
-                        previous_results=accumulated_results_str if loop_count > 0 else None
-                    )
-                    
-                    if needs_search and query:
-                        logger.info(f"🧠 Thought (Iter {loop_count+1}): I need to search for '{query}' ({reason})")
-                        
-                        # Execute Search
-                        new_results = self.memory.search_memories(
-                            query=query,
-                            user_id=primary_user_id,
-                            n_results=3
-                        )
-                        logger.info(f"📚 Found {len(new_results)} results")
-                        
-                        if new_results:
-                            # Add to accumulated results for the NEXT thinking step
-                            accumulated_results_str += f"\nResults for '{query}':\n"
-                            for mem in new_results:
-                                ts = (mem.get('timestamp') or '')[:10]
-                                accumulated_results_str += f"- {mem['content']} (from {ts})\n"
-                            
-                            # Add to final context immediately
-                            formatted_context += f"\n\n--- ACTIVE RECALL (Iteration {loop_count+1}) ---\n"
-                            formatted_context += f"Query: {query}\n"
-                            for mem in new_results:
-                                ts = (mem.get('timestamp') or '')[:10]
-                                formatted_context += f"- {mem['content']} (from {ts})\n"
-                            
-                            active_search_results.extend(new_results)
-                        else:
-                            logger.info("   (No results found)")
-                            accumulated_results_str += f"\nResults for '{query}': None found.\n"
-                            # If we found nothing, the LLM might want to try a different query next time
-                            
-                        loop_count += 1
-                    else:
-                        logger.info(f"⚡ Thinking complete: No further search needed ({reason})")
-                        break
-
-            # TIER 7b: Voice Action Decision (structured output)
-            if self.voice_action_decider and self.voice_action_callback and not self.current_state['abort_flag']:
-                try:
-                    voice_decision = await self.voice_action_decider.decide(
-                        user_message=user_messages[-1]['content'],
-                        context=formatted_context,
-                        personality_state=self.personality.__dict__,
-                    )
-                    if voice_decision and voice_decision['action'] in ('join', 'leave'):
-                        result = await self.voice_action_callback(
-                            voice_decision,
-                            primary_user_id,
-                            channel.guild.id,
-                        )
-                        if result.get('executed'):
-                            formatted_context += (
-                                f"\n\n[System: Serin {voice_decision['action']}ed the voice channel "
-                                f"because: {voice_decision.get('reason', 'unknown')}]"
-                            )
-                        elif result.get('message') == 'user_not_in_vc':
-                            formatted_context += (
-                                "\n\n[System: Serin tried to join the user's voice channel "
-                                "but the user is not currently in one. Serin should respond naturally.]"
-                            )
-                except Exception as e:
-                    logger.error(f"❌ Voice action error: {e}")
-                    formatted_context += (
-                        "\n\n[System: Serin could not decide on a voice action due to an error."
-                        " No action was taken. Do not assume Serin joined or left any voice channel.]"
-                    )
-
-            self.update_state(
-                status='GENERATING',
-                prompt=formatted_context,
-                user_message=user_messages[-1]['content']
+            deps = PipelineDeps(
+                memory=self.memory,
+                context_builder=self.context_builder,
+                bot_personality=self.bot_personality,
+                response_controller=self.response_controller,
+                personality=self.personality,
+                voice_tracker=self.voice_tracker,
+                conversation_analyzer=self.conversation_analyzer,
+                analyzer=self.analyzer,
+                pending_visual_contexts=self.pending_visual_contexts,
+                active_search=self.active_search,
+                voice_action_decider=self.voice_action_decider,
+                voice_action_callback=self.voice_action_callback,
+                mention_translator=self.mention_translator,
+                current_state=self.current_state,
+                stats=self.stats,
+                last_bot_response=self.last_bot_response,
+                last_bot_response_channel=self.last_bot_response_channel,
             )
-            
-            # Generate response with enhanced context
-            response = await get_response_natural(
-                current_messages=user_messages,
-                context=formatted_context,
-                resolved_last_message=resolved_message,
-                tone_modifier=tone_modifier,
-                personality_state=self.personality.__dict__,
-                message_complexity=length_analysis['complexity'],
-                is_instruction=is_instruction
-            )
-            
-            # TIER 8: Check Abort Flag
-            if self.current_state['abort_flag']:
-                logger.warning("🛑 Response generation aborted by user!")
-                self.update_state(status='IDLE', prompt=None)
-                return
 
-            if response and response.strip():
-                # Truncate if too long
-                if len(response) > 2000:
-                    response = response[:1997] + "..."
-                
-                # Restore mentions
-                response = self.mention_translator.restore_for_discord(response, channel.guild)
-                
-                # TIER 8: Update state to SPEAKING/SENDING
-                self.update_state(status='SENDING')
-                
-                # Send with typing
-                await self.response_controller.send_with_typing(
-                    channel,
-                    response,
-                    simulate_typing=True,
-                    message_complexity=length_analysis['complexity'],
-                    has_question='?' in last_message
-                )
-                
-                # Mark response
-                self.response_controller.mark_response(str(channel.id))
-                
-                # TIER 5: Store last response for correction detection
-                self.last_bot_response = response
-                self.last_bot_response_channel = str(channel.id)
-                
-                self.stats['responses_generated'] += 1
-                
-                logger.info(f"✅ Enhanced response sent: '{response[:60]}...'")
-            else:
-                logger.warning("⚠️ Empty response generated, not sending")
-            
-            # Reset state
+            pipeline = MessagePipeline(
+                stages=[
+                    MessagePreparationStage(),
+                    MemoryRetrievalStage(),
+                    ConversationUpdateStage(),
+                    ResponseDecisionStage(),
+                    ContextAssemblyStage(),
+                    ActiveSearchStage(),
+                    VoiceActionStage(),
+                    GenerationStage(),
+                ],
+                deps=deps,
+            )
+
+            ctx = MessageContext(batch=batch, bot_mentioned=immediate)
+            ctx = await pipeline.process(ctx)
+
+            if ctx.response:
+                self.last_bot_response = ctx.response
+                self.last_bot_response_channel = str(ctx.channel.id)
+
             self.update_state(status='IDLE')
 
-        
         except Exception as e:
             self.stats['errors'] += 1
-            logger.exception(f"❌ Error in enhanced batch flush: {e}")
+            logger.exception(f"Error in enhanced batch flush: {e}")
             try:
                 await channel.send("Sorry, had a brain fart. Try again?")
             except:

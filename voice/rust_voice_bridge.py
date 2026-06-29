@@ -45,7 +45,8 @@ import struct
 import subprocess
 import sys
 import threading
-from typing import Any, Dict, Optional
+import time
+from typing import Any, Callable, Dict, Optional
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from logger_config import logger
@@ -240,14 +241,17 @@ class RustVoiceBridge:
         self._channel_id: Optional[int] = None
 
         # ── Stdin serialization lock ─────────────────────────────────────────
-        # The Rust binary reads stdin line-by-line in a blocking thread.
-        # If send_tts_audio() and interrupt() write concurrently, their data
-        # could interleave (e.g., "SPEAK:1000\n" + "INTERRUPT\n" → corrupted).
-        # This lock ensures only one write at a time.
         self._stdin_lock = threading.Lock()
 
-        # Crash recovery state (minimal — crash = voice lost, caller must reconnect)
-        self._voice_client: Optional[Any] = None  # saved for potential reconnect
+        # ── Supervisor / crash recovery ──────────────────────────────────────
+        self._voice_client: Optional[Any] = None
+        self._last_connection_info: Optional[Dict] = None
+        self._start_mode: str = "connection_info"  # "voice_client" or "connection_info"
+        self._death_event = asyncio.Event()
+        self._shutdown_requested = False
+        self._supervisor_task: Optional[asyncio.Task] = None
+        self._reconnect_callback: Optional[Callable] = None
+        self._restart_timestamps: collections.deque = collections.deque(maxlen=5)
 
         # Username cache: maps user_id string → display name
         self._usernames: Dict[str, str] = {}
@@ -324,11 +328,17 @@ class RustVoiceBridge:
             self._guild_id = guild_id
             self._channel_id = channel_id
             self._running = True
-            self._voice_client = voice_client  # save for potential restart
-            self._restart_count = 0  # reset on successful start
+            self._voice_client = voice_client
+            self._last_connection_info = info
+            self._start_mode = "voice_client"
+            self._death_event.clear()
+            self._shutdown_requested = False
 
             # Start async reader loop — dispatches events from RustStdoutReader
             self._reader_task = asyncio.create_task(self._read_loop())
+
+            # Start supervisor — watches for process death and re-spawns
+            self._supervisor_task = asyncio.create_task(self._supervise_rust_process())
 
             # Start stderr reader (Rust tracing output → Python logger)
             self._start_stderr_reader()
@@ -344,8 +354,18 @@ class RustVoiceBridge:
     async def stop(self) -> None:
         """Stop the Rust voice receiver and clean up."""
         self._running = False
+        self._shutdown_requested = True
+        self._death_event.set()  # unblock supervisor so it can exit
 
-        # Cancel the async reader loop first
+        # Cancel supervisor first (prevents races with re-spawn)
+        if self._supervisor_task and not self._supervisor_task.done():
+            self._supervisor_task.cancel()
+            try:
+                await self._supervisor_task
+            except asyncio.CancelledError:
+                pass
+
+        # Cancel the async reader loop
         if self._reader_task and not self._reader_task.done():
             self._reader_task.cancel()
             try:
@@ -581,9 +601,8 @@ class RustVoiceBridge:
             self.audio_processor._release_lock(str(self._guild_id))
 
     def _handle_process_death(self) -> None:
-        """Handle Rust process unexpected death — log diagnostics and stop."""
+        """Handle Rust process unexpected death — log diagnostics and trigger supervisor."""
         self.stats['errors'] += 1
-        self._running = False
 
         # Retry poll() a few times — OS may not have reaped the process yet
         exit_code = None
@@ -611,7 +630,94 @@ class RustVoiceBridge:
                 logger.error(f"   |{line}")
             logger.error("--- end stderr ---")
 
-        logger.warning("⚠️ Voice receive unavailable — call join_channel() again to reconnect")
+        # Signal supervisor to attempt re-spawn
+        self._death_event.set()
+
+    # -----------------------------------------------------------------------
+    # Supervisor: monitors Rust process health and re-spawns on crash
+    # -----------------------------------------------------------------------
+
+    async def _supervise_rust_process(self) -> None:
+        """
+        Background supervisor task: waits for the Rust process to die,
+        then attempts to re-spawn it with rate limiting.
+
+        Rate limiting: max 5 restart attempts within a 60-second window.
+        If the rate limit is exceeded, the supervisor gives up to avoid
+        infinite crash loops.
+
+        On successful re-spawn, calls the reconnect callback (if set) so
+        the voice listener can re-attach any state.
+        """
+        while not self._shutdown_requested:
+            await self._death_event.wait()
+            if self._shutdown_requested:
+                return
+
+            # Rate limiting: check restart frequency
+            now = time.monotonic()
+            self._restart_timestamps.append(now)
+            if len(self._restart_timestamps) >= 5:
+                # 5 restarts in the deque — check if they're within 60s
+                oldest = self._restart_timestamps[0]
+                if now - oldest < 60.0:
+                    logger.critical("Rust process crashed 5 times in 60s — giving up")
+                    self.stats['errors'] += 1
+                    return
+
+            logger.error("Rust voice process died unexpectedly, restarting in 2s...")
+            self.stats['restarts'] += 1
+            await asyncio.sleep(2)
+
+            # Clean up old process references
+            self.proc = None
+            self.reader = None
+            self._running = False
+
+            # Re-spawn using the same method that was originally used
+            success = False
+            guild_id = self._guild_id
+            channel_id = self._channel_id
+            if guild_id is None or channel_id is None:
+                logger.error("Guild or channel ID missing — cannot restart")
+                return
+            try:
+                if self._start_mode == "voice_client" and self._voice_client:
+                    success = await self.start(
+                        guild_id, channel_id, self._voice_client
+                    )
+                elif self._last_connection_info:
+                    success = await self.start_with_info(
+                        guild_id, channel_id, self._last_connection_info
+                    )
+                else:
+                    logger.error("No connection info available for restart — giving up")
+                    return
+            except Exception as e:
+                logger.exception(f"Failed to restart Rust process: {e}")
+
+            if success:
+                logger.info("Rust voice process restarted successfully")
+                if self._reconnect_callback:
+                    try:
+                        await self._reconnect_callback()
+                    except Exception as e:
+                        logger.error(f"Reconnect callback failed: {e}")
+                # Clear death event so supervisor waits for next death
+                self._death_event.clear()
+            else:
+                logger.error("Failed to restart Rust process — will retry")
+                # Allow retry by clearing death event and looping
+                self._death_event.clear()
+
+    def set_reconnect_callback(self, callback: Optional[Callable]) -> None:
+        """
+        Set a callback to be called when the Rust process is re-spawned after a crash.
+
+        The callback should be an async callable that re-attaches any state
+        needed after reconnection (e.g., the voice listener re-attaching audio streams).
+        """
+        self._reconnect_callback = callback
 
     # -----------------------------------------------------------------------
     # Internal: stderr reader (Rust tracing/diagnostics → Python logger)
@@ -778,9 +884,16 @@ class RustVoiceBridge:
             self._channel_id = channel_id
             self._running = True
             self._voice_client = None
-            self._restart_count = 0
+            self._last_connection_info = connection_info
+            self._start_mode = "connection_info"
+            self._death_event.clear()
+            self._shutdown_requested = False
 
             self._reader_task = asyncio.create_task(self._read_loop())
+
+            # Start supervisor — watches for process death and re-spawns
+            self._supervisor_task = asyncio.create_task(self._supervise_rust_process())
+
             self._start_stderr_reader()
 
             logger.info("✅ Rust voice receiver started (gateway info mode)")
