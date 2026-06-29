@@ -15,14 +15,14 @@
 //!   cargo run --release -- --token TOKEN --guild-id G --channel-id C
 
 use std::env;
-use std::io::{self, BufRead, Write};
+use std::io::{self, Write};
 use std::sync::Arc;
 
 use dashmap::DashMap;
 use serenity::async_trait;
 use serenity::client::{Client, Context, EventHandler};
 use serenity::model::gateway::Ready;
-use serenity::model::id::{ChannelId, GuildId, UserId};
+use serenity::model::id::{ChannelId, GuildId};
 use serenity::prelude::GatewayIntents;
 use songbird::driver::DecodeMode;
 use songbird::Songbird;
@@ -94,7 +94,7 @@ impl VoiceEventHandler for Receiver {
         match ctx {
             Ctx::SpeakingStateUpdate(speaking) => {
                 if let Some(user_id) = speaking.user_id {
-                    self.known_ssrcs.insert(speaking.ssrc, user_id.get());
+                    self.known_ssrcs.insert(speaking.ssrc, user_id.0);
                 }
             }
 
@@ -122,7 +122,13 @@ impl VoiceEventHandler for Receiver {
                         if pcm.is_empty() {
                             continue;
                         }
-                        let pcm_bytes: &[u8] = &pcm[..];
+                        // decoded_voice is Vec<i16> (PCM samples), reinterpret as bytes
+                        let pcm_bytes: &[u8] = unsafe {
+                            std::slice::from_raw_parts(
+                                pcm.as_ptr() as *const u8,
+                                pcm.len() * std::mem::size_of::<i16>(),
+                            )
+                        };
                         println!("AUDIO:{}:{}", user_id, pcm_bytes.len());
                         Self::flush_stdout();
                         io::stdout().write_all(pcm_bytes).ok();
@@ -141,7 +147,7 @@ impl VoiceEventHandler for Receiver {
             }
 
             Ctx::ClientDisconnect(disc) => {
-                let uid = disc.user_id.get();
+                let uid = disc.user_id.0;
                 self.known_ssrcs.retain(|_, v| *v != uid);
                 // Clean up active_users for this user
                 let ssrcs_to_remove: Vec<u32> = self.active_users.iter()
@@ -167,7 +173,7 @@ impl VoiceEventHandler for Receiver {
 // ---------------------------------------------------------------------------
 
 struct Handler {
-    songbird_holder: Arc<tokio::sync::Mutex<Option<Songbird>>>,
+    songbird_holder: Arc<tokio::sync::Mutex<Option<Arc<Songbird>>>>,
 }
 
 #[async_trait]
@@ -206,7 +212,7 @@ async fn main() {
     let songbird_config = Config::default()
         .decode_mode(DecodeMode::Decode(songbird::driver::DecodeConfig::default()));
 
-    let songbird_holder: Arc<tokio::sync::Mutex<Option<Songbird>>> =
+    let songbird_holder: Arc<tokio::sync::Mutex<Option<Arc<Songbird>>>> =
         Arc::new(tokio::sync::Mutex::new(None));
 
     let handler = Handler {
@@ -221,7 +227,6 @@ async fn main() {
 
     // Start gateway in background
     let shard_manager = client.shard_manager.clone();
-    let client_data = client.data.clone();
     tokio::spawn(async move {
         if let Err(e) = client.start().await {
             eprintln!("Gateway error: {:?}", e);
@@ -231,7 +236,7 @@ async fn main() {
 
     // Wait for Songbird manager to become available
     eprintln!("WAITING_SONGBIRD");
-    let manager = loop {
+    let manager: Arc<Songbird> = loop {
         {
             let lock = songbird_holder.lock().await;
             if let Some(ref m) = *lock {
@@ -267,13 +272,18 @@ async fn main() {
         }
     }
 
-    // Spawn stdin reader for commands
+    // Spawn stdin reader for commands (LEAVE)
     let manager_for_stdin = manager.clone();
     let stdin_handle = tokio::spawn(async move {
-        let stdin = io::stdin();
-        for line in stdin.lock().lines() {
-            match line {
-                Ok(line) if line.trim() == "LEAVE" => {
+        use tokio::io::{AsyncBufReadExt, BufReader};
+        let stdin = tokio::io::stdin();
+        let mut reader = BufReader::new(stdin);
+        let mut line = String::new();
+        loop {
+            line.clear();
+            match reader.read_line(&mut line).await {
+                Ok(0) => break,
+                Ok(_) if line.trim() == "LEAVE" => {
                     eprintln!("LEAVING");
                     let _ = manager_for_stdin.remove(guild_id).await;
                     break;

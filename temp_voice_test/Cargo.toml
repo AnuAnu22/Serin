@@ -10,7 +10,7 @@ path = "src/main.rs"
 [dependencies]
 serenity = { version = "0.12", default-features = false, features = ["client", "gateway", "voice", "cache", "model"] }
 songbird = { version = "0.6.0", features = ["driver", "gateway", "serenity", "receive"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "io-util", "io-std"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-futures = "0.2"
