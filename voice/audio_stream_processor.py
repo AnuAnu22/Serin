@@ -136,6 +136,11 @@ class AudioStreamProcessor:
             Transcribed text or None
         """
         try:
+            # Gemma4 audio limit: truncate to 30 seconds max
+            MAX_AUDIO_BYTES = 5_760_000  # 48kHz stereo 16-bit × 30 seconds
+            if len(audio_data) > MAX_AUDIO_BYTES:
+                logger.info(f"⏱️ Truncating audio from {len(audio_data)} to {MAX_AUDIO_BYTES} bytes (30s limit)")
+                audio_data = audio_data[:MAX_AUDIO_BYTES]
             wav_b64 = self._pcm_to_wav_base64(audio_data)
             
             messages = [{

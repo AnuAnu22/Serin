@@ -100,6 +100,15 @@ class VoiceListener:
                     await self._start_listening(voice_client, guild_id, channel_id)
                     
                     logger.info(f"🎤 Joined {channel.name} in {guild.name}")
+
+            # Wait for voice client to be ready
+            for _ in range(10):
+                if voice_client.is_connected():
+                    break
+                await asyncio.sleep(0.5)
+            if not voice_client.is_connected():
+                logger.error(f"❌ Voice client failed to connect to {channel.name}")
+                return False
             
             self.stats['connections'] += 1
             self.stats['active_channels'].add(str(channel_id))
@@ -152,19 +161,22 @@ class VoiceListener:
     
 
     async def _start_listening(self, voice_client: discord.VoiceClient, guild_id: int, channel_id: int) -> None:
-        """Start listening using discord.py 2.x AudioSink"""
         try:
-            # Create custom sink
             sink = AudioSink(
                 audio_processor=self.audio_processor,
                 guild_id=guild_id,
                 channel_id=channel_id,
                 stats=self.stats
             )
-            
-            voice_client.start_recording(sink, self._recording_callback, sink)
-            logger.info(f"🎧 Started listening in channel {channel_id}")
-        
+            for attempt in range(3):
+                if voice_client.is_connected():
+                    voice_client.start_recording(sink, self._recording_callback, sink)
+                    logger.info(f"🎧 Started listening in channel {channel_id}")
+                    return
+                else:
+                    logger.warning(f"⏳ Voice client not connected yet, waiting... (attempt {attempt+1}/3)")
+                    await asyncio.sleep(1)
+            logger.error(f"❌ Could not start recording after 3 attempts (voice client disconnected)")
         except Exception as e:
             logger.exception(f"Error starting listener: {e}")
     

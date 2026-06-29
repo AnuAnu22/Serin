@@ -284,7 +284,7 @@ async def on_ready():
             voice_pipeline = VoiceMemoryPipeline(
                 memory_system=memory_system,
                 background_processor=None,
-                message_manager=None
+                message_manager=message_manager
             )
 
             # 3. Audio Stream Processor
@@ -660,34 +660,6 @@ async def main():
         # Set up discord client reference
         natural_response_generator.discord_client = client
         logger.debug("Discord client reference set")
-
-        # Configure connection settings
-        connector = aiohttp.TCPConnector(
-            limit=50,
-            ttl_dns_cache=300,
-            enable_cleanup_closed=True
-        )
-
-        timeout = aiohttp.ClientTimeout(
-            total=120,
-            connect=30,
-            sock_read=30
-        )
-
-        # Set up custom session with improved settings
-        session = aiohttp.ClientSession(
-            connector=connector,
-            timeout=timeout,
-            headers={"User-Agent": "DiscordBot (https://discord.com) v1.0"}
-        )
-
-        # Configure Discord client with improved connection settings
-        if hasattr(client, 'http'):
-            client.http.connector = connector
-            try:
-                setattr(client.http, '_session', session)  # type: ignore
-            except Exception:
-                logger.warning("Could not update HTTP session directly - falling back to default")
 
         MAX_RETRIES = 5
         retry_count = 0
