@@ -266,9 +266,7 @@ class VoiceOutputQueue:
                     break
         
         except Exception as e:
-            logger.error(f"❌ Error playing TTS: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
+            logger.exception(f"❌ Error playing TTS: {e}")
             self.stats['errors'] += 1
     
     def cancel_current(self, guild_id: str):

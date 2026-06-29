@@ -162,7 +162,7 @@ class SGLangConnector(ModelInterface):
         stop: Optional[List[str]] = None,
         **kwargs
     ) -> str:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
             lambda: self.blocking_chat_completion(messages, temperature, max_tokens, stop, **kwargs)
@@ -213,7 +213,7 @@ class SGLangConnector(ModelInterface):
         stop: Optional[List[str]] = None,
         **kwargs
     ) -> str:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
             lambda: self.blocking_send_input(prompt, temperature, max_tokens, stop, **kwargs)

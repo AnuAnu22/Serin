@@ -221,7 +221,7 @@ class LMStudioConnector(ModelInterface):
         **kwargs
     ) -> str:
         """Async wrapper for chat_completion."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
             lambda: self.blocking_chat_completion(messages, temperature, max_tokens, stop, **kwargs)
@@ -292,7 +292,7 @@ class LMStudioConnector(ModelInterface):
         **kwargs
     ) -> str:
         """Async wrapper for send_input."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
             lambda: self.blocking_send_input(prompt, temperature, max_tokens, stop, **kwargs)

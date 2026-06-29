@@ -213,7 +213,7 @@ class AudioStreamProcessor:
             # Get buffer
             buffer = self.user_buffers.get(user_id)
             
-            if not buffer or len(buffer) < 16000:  # Minimum 0.5 seconds at 48kHz stereo
+            if not buffer or len(buffer) < 96000:  # Minimum 0.5 seconds at 48kHz stereo 16-bit PCM
                 logger.debug(f"⏭️ Skipping empty/short buffer for {username}")
                 if user_id in self.user_buffers:
                     self.user_buffers[user_id] = bytearray()
@@ -314,9 +314,7 @@ class AudioStreamProcessor:
                 logger.debug(f"⭐ Empty transcription from {username}")
         
         except Exception as e:
-            logger.error(f"❌ Error transcribing audio: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
+            logger.exception(f"❌ Error transcribing audio: {e}")
             self.stats['errors'] += 1
     
     def check_interrupt(self, user_id: str) -> bool:

@@ -14,23 +14,26 @@ class ThinkingFilter:
     
     # Common thinking tag patterns
     THINKING_PATTERNS = [
+        # Gemma 4 channel-based thinking (official format)
+        r'<\|channel\|>thought\n.*?\n<channel\|>',
+
         # XML-style tags
         r'<think>.*?</think>',
         r'<thinking>.*?</thinking>',
         r'<thought>.*?</thought>',
         r'<reasoning>.*?</reasoning>',
         r'<analysis>.*?</analysis>',
-        
+
         # Markdown-style
         r'\[Thinking:.*?\]',
         r'\[Think:.*?\]',
         r'\[Thought:.*?\]',
         r'\[Reasoning:.*?\]',
-        
+
         # Parenthetical
         r'\(thinking:.*?\)',
         r'\(think:.*?\)',
-        
+
         # Special model tokens
         r'<\|thinking\|>.*?<\|/thinking\|>',
         r'<\|think\|>.*?<\|/think\|>',

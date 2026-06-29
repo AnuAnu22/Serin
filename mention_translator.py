@@ -85,7 +85,8 @@ class MentionTranslator:
                     if member:
                         self.update_cache(member)
                         return f"@{member.global_name or member.name}"
-                except:
+                except Exception as e:
+                    logger.debug(f"Failed to get guild member: {e}")
                     pass
             
             # Fallback: keep original mention if we can't resolve
@@ -134,7 +135,8 @@ class MentionTranslator:
                         if member.name.lower() == username or (member.global_name and member.global_name.lower() == username):
                             self.update_cache(member)
                             return f"<@{member.id}>"
-                except:
+                except Exception as e:
+                    logger.debug(f"Failed to iterate guild members: {e}")
                     pass
             
             # Can't resolve - leave as @username (won't ping but readable)

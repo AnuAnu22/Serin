@@ -76,14 +76,16 @@ class QdrantMemorySystem:
         if EMBEDDING_AVAILABLE:
             try:
                 # Upgrade to Nomic Embed v1.5 for state-of-the-art performance
-                self.embedding_model = SentenceTransformer('nomic-ai/nomic-embed-text-v1.5', trust_remote_code=True)
-                self.embedding_dim = 768  # Nomic dimension
-                logger.info("✅ Nomic Embed v1.5 model loaded (High Quality)")
+                self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+                self.embedding_dim = 384  # MiniLM dimension
+                logger.info("✅ Embedding model loaded (all-MiniLM-L6-v2)")
             except Exception as e:
                 logger.error(f"❌ Failed to load embedding model: {e}")
                 self.embedding_model = None
+                self.embedding_dim = 384
         else:
             self.embedding_model = None
+            self.embedding_dim = 384
         
         # Initialize BM25 index
         if BM25_AVAILABLE:
@@ -281,9 +283,9 @@ class QdrantMemorySystem:
     
     def _setup_collection(self):
         """Setup Qdrant collection with optimized configuration"""
-        print("DEBUG: Entering _setup_collection")
+        logger.debug("Entering _setup_collection")
         if not self.qdrant_client:
-            print("DEBUG: No qdrant_client")
+            logger.debug("No qdrant_client")
             return
         
         try:
@@ -291,14 +293,14 @@ class QdrantMemorySystem:
             try:
                 self.qdrant_client.get_collection("memories")
                 logger.info("✅ Existing memories collection found")
-                print("DEBUG: Collection already exists")
+                logger.debug("Collection already exists")
                 return
             except Exception as e:
-                print(f"DEBUG: Collection does not exist ({e}), creating...")
+                logger.debug("Collection does not exist (%s), creating...", e)
                 pass
             
             # Create collection with optimized settings
-            print("DEBUG: Calling create_collection with defaults...")
+            logger.debug("Calling create_collection with defaults...")
             self.qdrant_client.create_collection(
                 collection_name="memories",
                 vectors_config=VectorParams(
@@ -309,7 +311,7 @@ class QdrantMemorySystem:
             )
             
             # Record collection metadata
-            print("DEBUG: Recording metadata...")
+            logger.debug("Recording metadata...")
             cursor = self.conn.cursor()
             cursor.execute("""
                 INSERT OR REPLACE INTO qdrant_collections 
@@ -319,15 +321,14 @@ class QdrantMemorySystem:
             self.conn.commit()
             
             logger.info("✅ Qdrant collection 'memories' created with optimized settings")
-            print("DEBUG: Collection created successfully")
+            logger.debug("Collection created successfully")
             
         except Exception as e:
             logger.error(f"❌ Failed to setup Qdrant collection: {e}")
-            print(f"CRITICAL ERROR: Failed to setup Qdrant collection: {e}")
             import traceback
             traceback.print_exc()
     
-    def generate_memory_id(self, source_message_id: str, chunk_index: int = 0) -> str:
+    def generate_memory_id(self, source_message_id: Optional[str], chunk_index: int = 0) -> str:
         """Generate deterministic ID for idempotent ingestion"""
         if source_message_id:
             # Use UUID5 for deterministic IDs based on message ID and chunk
@@ -339,14 +340,21 @@ class QdrantMemorySystem:
             return str(uuid.uuid4())
     
     def _chunk_content(self, content: str, min_tokens: int = 200, max_tokens: int = 600) -> List[str]:
-        """Split content into appropriate chunks"""
+        """Split content into appropriate chunks.
+        
+        Uses approximate character-to-token ratio of 4:1 for English text.
+        """
+        # Approximate: 1 token ~= 4 characters
+        chars_per_token = 4
+        max_chars = max_tokens * chars_per_token
+        
         # Simple chunking by sentences
         sentences = content.split('. ')
         chunks = []
         current_chunk = ""
         
         for sentence in sentences:
-            if len(current_chunk) + len(sentence) + 2 <= max_tokens:
+            if len(current_chunk) + len(sentence) + 2 <= max_chars:
                 current_chunk += sentence + ". "
             else:
                 if current_chunk:
@@ -354,9 +362,9 @@ class QdrantMemorySystem:
                 current_chunk = sentence + ". "
                 
                 # Start new chunk if it's already too long
-                if len(current_chunk) > max_tokens:
-                    chunks.append(current_chunk[:max_tokens])
-                    current_chunk = current_chunk[max_tokens:]
+                if len(current_chunk) > max_chars:
+                    chunks.append(current_chunk[:max_chars])
+                    current_chunk = current_chunk[max_chars:]
         
         if current_chunk:
             chunks.append(current_chunk.strip())
@@ -395,7 +403,7 @@ class QdrantMemorySystem:
             "total_chunks": total_chunks
         }
     
-    def _is_duplicate(self, content: str, user_id: str, source_message_id: str = None) -> bool:
+    def _is_duplicate(self, content: str, user_id: str, source_message_id: Optional[str] = None) -> bool:
         """Check if memory already exists"""
         if source_message_id:
             # Check by message ID first
@@ -492,7 +500,7 @@ class QdrantMemorySystem:
         
         self.conn.commit()
     
-    def add_memory_enhanced(self, content: str, user_id: str, **kwargs) -> str:
+    def add_memory_enhanced(self, content: str, user_id: str, **kwargs) -> Optional[str]:
         """Enhanced memory ingestion with chunking and idempotency"""
         content = filter_for_memory(content)
         
@@ -511,7 +519,7 @@ class QdrantMemorySystem:
             if self.embedding_model:
                 try:
                     # Nomic requires 'search_document: ' prefix for documents
-                    prefixed_chunks = [f"search_document: {c}" for c in chunks]
+                    prefixed_chunks = [c for c in chunks]
                     chunk_embeddings = self.embedding_model.encode(prefixed_chunks)
                     embeddings = [emb.tolist() for emb in chunk_embeddings]
                 except Exception as e:
@@ -566,7 +574,7 @@ class QdrantMemorySystem:
             logger.error(f"❌ Error adding memory: {e}")
             return None
     
-    def search_hybrid(self, query: str, user_id: str = None, n_results: int = 5, **filters) -> List[Dict]:
+    def search_hybrid(self, query: str, user_id: Optional[str] = None, n_results: int = 5, **filters) -> List[Dict]:
         """Hybrid search: BM25 + Vector + Rerank"""
         try:
             # Stage 1: BM25 keyword search
@@ -618,7 +626,7 @@ class QdrantMemorySystem:
             logger.error(f"❌ Error in hybrid search: {e}")
             return []
     
-    def _build_qdrant_filter(self, user_id: str, filters: Dict) -> models.Filter:
+    def _build_qdrant_filter(self, user_id: Optional[str], filters: Dict) -> models.Filter:
         """Build Qdrant payload filter"""
         conditions = []
         
@@ -672,7 +680,15 @@ class QdrantMemorySystem:
                     'id': candidate_id,
                     'bm25_score': candidate.get('score', 0),
                     'vector_score': 0,
-                    'payload': candidate.get('payload', {})
+                    'payload': {
+                        'text': candidate.get('text', ''),
+                        'person_id': candidate.get('person_id', ''),
+                        'person_display': candidate.get('person_id', ''),
+                        'channel_id': candidate.get('channel_id', ''),
+                        'timestamp': '',
+                        'importance': 0.5,
+                        'memory_type': 'utterance',
+                    }
                 }
         
         # Add vector candidates
@@ -802,7 +818,7 @@ class QdrantMemorySystem:
             source_message_id=message_id
         )
     
-    def search_memories(self, query: str, user_id: str = None, channel_id: str = None, 
+    def search_memories(self, query: str, user_id: Optional[str] = None, channel_id: Optional[str] = None, 
                        n_results: int = 5, time_decay_days: int = 60) -> List[Dict]:
         """Legacy compatibility method"""
         filters = {}
@@ -827,7 +843,7 @@ class QdrantMemorySystem:
         try:
             if self.qdrant_client:
                 # Build filter
-                qdrant_filter = self._build_qdrant_filter(user_id, {'channel_id': channel_id} if channel_id else {})
+                qdrant_filter = self._build_qdrant_filter(user_id, {'channel_id': channel_id, 'memory_type': 'utterance'} if channel_id else {'memory_type': 'utterance'})
                 
                 # Get recent memories
                 results = self.qdrant_client.scroll(
@@ -846,7 +862,8 @@ class QdrantMemorySystem:
                     })
                 
                 # Sort by timestamp
-                memories.sort(key=lambda x: x['timestamp'])
+                memories.sort(key=lambda x: x['timestamp'] or '')
+                memories = [m for m in memories if m['timestamp']]
                 return memories[-limit:]
             
             return []
@@ -914,7 +931,7 @@ class QdrantMemorySystem:
             return profile
         return None
     
-    def update_user_traits(self, user_id: str, traits: List[str] = None, interests: List[str] = None):
+    def update_user_traits(self, user_id: str, traits: Optional[List[str]] = None, interests: Optional[List[str]] = None):
         """Update user personality traits and interests"""
         cursor = self.conn.cursor()
         try:
@@ -1055,7 +1072,7 @@ class QdrantMemorySystem:
         channel_id: str,
         content: str,
         message_id: str,
-        timestamp: datetime = None
+        timestamp: Optional[datetime] = None
     ):
         """Store recent message in SQLite"""
         cursor = self.conn.cursor()
@@ -1279,7 +1296,7 @@ class SQLiteBM25Index:
             sanitized = sanitized.replace(char, ' ')
         return sanitized.strip()
     
-    def search(self, query: str, user_id: str = None, channel_id: str = None, limit: int = 20) -> List[Dict]:
+    def search(self, query: str, user_id: Optional[str] = None, channel_id: Optional[str] = None, limit: int = 20) -> List[Dict]:
         """Search documents using BM25"""
         cursor = self.conn.cursor()
         

@@ -301,10 +301,14 @@ class BotPersonality:
         Returns:
             True if bot should express disagreement
         """
-        # Check if bot has preference/opinion on this topic
-        # For now, simple check - can be enhanced
+        # Check if bot has an opinion on this topic
+        opinion = self.get_opinion(topic)
+        if opinion:
+            confidence = opinion['confidence']
+            # Higher confidence means more likely to disagree
+            return random.random() < confidence
         
-        # 30% chance to disagree if bot has opposite opinion
+        # Fallback: 30% chance to disagree if no opinion
         if random.random() < 0.3:
             return True
         

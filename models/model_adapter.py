@@ -85,6 +85,10 @@ MODEL_CONFIG = {
         "stop_tokens": ["<end_of_turn>", "<eos>"],
         "strip_tokens": ["<start_of_turn>", "<bos>"],
         "thinking_patterns": [
+            # Gemma 4 uses <|channel>thought ... <channel|> for reasoning.
+            # When served via llama.cpp --jinja, thinking goes to reasoning_content.
+            # These patterns catch leaked thinking tokens in content.
+            r'<\|channel\|>thought\n.*?\n<channel\|>',
             r'<think>.*?</think>',
             r'<thinking>.*?</thinking>',
         ]

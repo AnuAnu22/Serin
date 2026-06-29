@@ -117,12 +117,16 @@ class MemorySyncMonitor:
                 'timestamp': datetime.now()
             }
             
-            # This should work with the current interface
+            # Test background processor with expected parameters (dry run - check signature only)
+            import inspect
             try:
-                self.bg_processor.queue_message(**test_data)
-            except TypeError as e:
-                if "message_id" in str(e):
-                    api_errors.append(f"CRITICAL: queue_message signature mismatch: {e}")
+                sig = inspect.signature(self.bg_processor.queue_message)
+                expected_params = ['content', 'user_id', 'username', 'channel_id']
+                for param in expected_params:
+                    if param not in sig.parameters:
+                        api_errors.append(f"CRITICAL: queue_message missing parameter '{param}'")
+            except (ValueError, TypeError) as e:
+                api_errors.append(f"Error inspecting queue_message signature: {e}")
         except Exception as e:
             api_errors.append(f"Error testing queue_message: {e}")
         
@@ -308,11 +312,10 @@ class MemorySyncMonitor:
             'operation': operation,
             'error': error,
             'context': context or {},
-            'traceback': traceback.format_exc()
         }
         
         self.sync_failures.append(failure_record)
-        logger.error(f"🔴 SYNC FAILURE [{component}]: {operation} - {error}")
+        logger.exception(f"🔴 SYNC FAILURE [{component}]: {operation} - {error}")
     
     def get_diagnostic_report(self) -> Dict:
         """Get comprehensive diagnostic report"""

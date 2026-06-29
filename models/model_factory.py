@@ -46,9 +46,14 @@ def get_model_connector(
     logger.info(f"🏭 Model factory: Creating connector for provider '{provider}'")
     
     # vLLM (default)
-    if provider in ("vllm", "lmstudio", "openai", "custom"):
+    if provider in ("vllm", "openai", "custom"):
         from models.vllm_connector import VLLMConnector
         return VLLMConnector(model_name)
+    
+    # LM Studio
+    elif provider == "lmstudio":
+        from models.lm_studio_connector import LMStudioConnector
+        return LMStudioConnector(model_name)
     
     # SGLang
     elif provider == "sglang":

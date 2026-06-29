@@ -23,8 +23,6 @@ from pydantic import BaseModel
 import uvicorn
 from logger_config import logger
 from enhanced_api_routes import register_enhanced_routes
-from starlette.websockets import WebSocketDisconnect
-import json
 
 def make_json_safe(obj):
     """
@@ -130,17 +128,15 @@ async def websocket_endpoint(websocket: WebSocket):
     logger.info(f"🌐 WebSocket connected (total: {len(active_websockets)})")
     
     try:
-    try:
         # Send initial stats immediately
         try:
-            # Send initial packet
             client = bot_state['discord_client']
             latency = int(client.latency * 1000) if client else 0
-            
+
             await websocket.send_json({
                 "type": "heartbeat",
                 "latency": latency,
-                "gpu": 0  # Placeholder for now
+                "gpu": 0
             })
         except Exception as e:
             logger.error(f"Error sending initial stats: {e}")
@@ -149,35 +145,30 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             # Wait for messages or timeout
             try:
-                # 1 second heartbeat interval
                 await asyncio.wait_for(websocket.receive_text(), timeout=1.0)
             except asyncio.TimeoutError:
                 pass
             except Exception:
                 break
-            
+
             if not websocket.client_state.value == 1:
                 break
-                
+
             # Send Heartbeat
             try:
                 client = bot_state['discord_client']
                 latency = int(client.latency * 1000) if client else 0
-                # TODO: Get real GPU usage
-                
+
                 await websocket.send_json({
                     "type": "heartbeat",
                     "latency": latency,
                     "gpu": 0
                 })
-                
-                # Also send audio level if available (simulated for now)
-                # In real imp, this would come from VoiceReceiver
-                
+
             except Exception as e:
                 logger.debug(f"Error sending heartbeat: {e}")
                 break
-    
+
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
     finally:
@@ -186,9 +177,9 @@ async def websocket_endpoint(websocket: WebSocket):
             active_websockets.remove(websocket)
         try:
             await websocket.close()
-        except:
+        except Exception:
             pass
-        logger.info(f"🌐 WebSocket disconnected (remaining: {len(active_websockets)})")
+        logger.info(f"WebSocket disconnected (remaining: {len(active_websockets)})")
 
 async def broadcast_log(log_entry: Dict):
     """Broadcast log entry to all connected WebSockets"""
@@ -711,6 +702,7 @@ async def abort_generation():
         
         manager.abort_current_generation()
         return {'success': True}
+    except Exception as e:
         return {'success': False, 'error': str(e)}
 
 @app.post("/api/emergency-stop")
@@ -998,9 +990,11 @@ class WebSocketLogHandler(logging.Handler):
             }
             
             # Schedule broadcast in event loop safely
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
+            try:
+                loop = asyncio.get_running_loop()
                 asyncio.create_task(broadcast_log(log_entry))
+            except RuntimeError:
+                pass  # Not in an async context, skip broadcast
         except Exception:
             pass  # Silently fail to avoid recursion
 

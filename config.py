@@ -26,7 +26,7 @@ class BotConfig:
         self.DEBUG_MODE = os.getenv('DEBUG_MODE', 'false').lower() == 'true'
         self.TRACE_MESSAGES = os.getenv('TRACE_MESSAGES', 'true').lower() == 'true'
         self.MAINTENANCE_INTERVAL_HOURS = int(os.getenv('MAINTENANCE_INTERVAL_HOURS', '24'))
-        self.CONTROL_PANEL_PORT = int(os.getenv('CONTROL_PANEL_PORT', '8080'))
+        self.CONTROL_PANEL_PORT = int(os.getenv('CONTROL_PANEL_PORT', '8081'))
         
         # --- Feature Flags ---
         self.ENABLE_VOICE = os.getenv('ENABLE_VOICE', 'true').lower() == 'true'

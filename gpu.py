@@ -1,7 +1,8 @@
 from llama_cpp import Llama
 import torch  # optional: just to check CUDA
+from logger_config import logger
 
-print("PyTorch CUDA available:", torch.cuda.is_available())  # if you have torch
+logger.info("PyTorch CUDA available: %s", torch.cuda.is_available())
 
 # Load a tiny model or your model
 llm = Llama(

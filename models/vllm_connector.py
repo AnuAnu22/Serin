@@ -34,6 +34,12 @@ class VLLMConnector(ModelInterface):
         self.top_p = float(os.getenv("LLM_TOP_P", "0.9"))
         self.max_tokens = int(os.getenv("LLM_MAX_TOKENS", "400"))
 
+        # Gemma 4 / reasoning model support:
+        # When thinking is enabled, reasoning tokens count against max_tokens,
+        # leaving none for actual content. Disable at the template level.
+        # Set LLM_ENABLE_THINKING=true to re-enable for complex reasoning tasks.
+        self.enable_thinking = os.getenv("LLM_ENABLE_THINKING", "false").lower() == "true"
+
         # Client and adapter
         self.client: Optional[OpenAI] = None
         self.adapter: Optional[ModelAdapter] = None
@@ -131,6 +137,16 @@ class VLLMConnector(ModelInterface):
             "stream": False
         }
 
+        # Gemma 4 and similar reasoning models burn max_tokens on reasoning_content
+        # before producing any content. Disable thinking at the template level
+        # unless explicitly enabled via LLM_ENABLE_THINKING env var.
+        # Uses extra_body since chat_template_kwargs is a llama-server extension,
+        # not part of the OpenAI API spec.
+        if self.adapter.get_model_type() in ("gemma", "deepseek"):
+            extra = kwargs.pop("extra_body", {})
+            extra["chat_template_kwargs"] = {"enable_thinking": self.enable_thinking}
+            params["extra_body"] = extra
+
         if model_stop_tokens:
             params["stop"] = model_stop_tokens
 
@@ -138,7 +154,7 @@ class VLLMConnector(ModelInterface):
 
         try:
             response = self.client.chat.completions.create(**params)
-            raw_text = response.choices[0].message.content
+            raw_text = response.choices[0].message.content or ""
             return self.adapter.clean_response(raw_text)
         except Exception as e:
             logger.error(f"❌ Error during chat completion: {e}")
@@ -152,7 +168,7 @@ class VLLMConnector(ModelInterface):
         stop: Optional[List[str]] = None,
         **kwargs
     ) -> str:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
             lambda: self.blocking_chat_completion(messages, temperature, max_tokens, stop, **kwargs)
@@ -203,7 +219,7 @@ class VLLMConnector(ModelInterface):
         stop: Optional[List[str]] = None,
         **kwargs
     ) -> str:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
             lambda: self.blocking_send_input(prompt, temperature, max_tokens, stop, **kwargs)

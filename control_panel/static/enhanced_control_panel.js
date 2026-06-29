@@ -334,7 +334,7 @@ async function apiCall(endpoint, method = 'GET', body = null) {
             console.log(`📦 Request body:`, body);
         }
         
-        const response = await fetch(`http://127.0.0.1:8080${endpoint}`, options);
+        const response = await fetch(`${window.location.origin}${endpoint}`, options);
         console.log(`📡 Response status: ${response.status}`);
         
         if (!response.ok) {
@@ -401,7 +401,7 @@ function startLiveUpdates() {
     if (liveUpdateInterval) return;
     
     liveUpdateInterval = setInterval(() => {
-        const activeTab = document.querySelector('.tab-content.active');
+        const activeTab = document.querySelector('.tab-content:not(.hidden)');
         if (!activeTab) return;
         
         const tabId = activeTab.id;

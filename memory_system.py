@@ -41,7 +41,7 @@ class UnifiedMemorySystem:
                 embedding_function=self.embedding_fn
             )
             logger.info("✅ Loaded existing memories collection")
-        except:
+        except Exception:
             self.memories = self.chroma_client.create_collection(
                 name="memories",
                 embedding_function=self.embedding_fn,

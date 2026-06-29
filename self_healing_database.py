@@ -526,16 +526,19 @@ class DatabaseIntegrityChecker:
             
             # Check ChromaDB health
             try:
-                chroma_count = self.memory.memories.count()
-                result["details"]["chroma_memories"] = chroma_count
-                
-                # Flag unusually high memory counts
-                if chroma_count > 500000:
-                    result["issues"].append({
-                        "type": "high_memory_count",
-                        "count": chroma_count
-                    })
-                    result["score"] -= 15
+                if hasattr(self.memory, 'memories'):
+                    chroma_count = self.memory.memories.count()
+                    result["details"]["chroma_memories"] = chroma_count
+                    
+                    # Flag unusually high memory counts
+                    if chroma_count > 500000:
+                        result["issues"].append({
+                            "type": "high_memory_count",
+                            "count": chroma_count
+                        })
+                        result["score"] -= 15
+                elif hasattr(self.memory, 'qdrant_client'):
+                    result["details"]["memory_system"] = "Qdrant (skipping ChromaDB check)"
                     
             except Exception as e:
                 result["issues"].append({
@@ -731,13 +734,15 @@ class DatabaseIntegrityChecker:
             
             # Create database backup
             db_backup_path = os.path.join(self.backup_dir, f"bot_data_pre_repair_{timestamp}.db")
-            shutil.copy2(self.memory.db_path, db_backup_path)
+            if hasattr(self.memory, 'db_path') and os.path.exists(self.memory.db_path):
+                shutil.copy2(self.memory.db_path, db_backup_path)
             
-            # Create ChromaDB backup
-            chroma_backup_path = os.path.join(self.backup_dir, f"chroma_data_pre_repair_{timestamp}.tar.gz")
-            if os.path.exists(self.memory.data_dir):
+            # Create ChromaDB/Qdrant backup
+            chroma_backup_path = os.path.join(self.backup_dir, f"memory_data_pre_repair_{timestamp}.tar.gz")
+            data_dir = getattr(self.memory, 'data_dir', None)
+            if data_dir and os.path.exists(data_dir):
                 with tarfile.open(chroma_backup_path, 'w:gz') as tar:
-                    tar.add(self.memory.data_dir, arcname='chroma_data')
+                    tar.add(data_dir, arcname='memory_data')
             
             # Create combined backup
             with tarfile.open(backup_path, 'w:gz') as tar:
@@ -811,11 +816,13 @@ class DatabaseIntegrityChecker:
             # Create complete backup
             with tarfile.open(backup_path, 'w:gz') as tar:
                 # Add database
-                tar.add(self.memory.db_path, arcname='bot_data.db')
+                if hasattr(self.memory, 'db_path') and os.path.exists(self.memory.db_path):
+                    tar.add(self.memory.db_path, arcname='bot_data.db')
                 
-                # Add ChromaDB data
-                if os.path.exists(self.memory.data_dir):
-                    tar.add(self.memory.data_dir, arcname='chroma_data')
+                # Add memory data
+                data_dir = getattr(self.memory, 'data_dir', None)
+                if data_dir and os.path.exists(data_dir):
+                    tar.add(data_dir, arcname='memory_data')
                 
                 # Add backup metadata
                 metadata = {

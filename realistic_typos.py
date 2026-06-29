@@ -4,6 +4,7 @@ Very rare (2-5%), only casual mistakes, never on important words
 """
 import random
 import re
+from typing import Optional
 from logger_config import logger
 
 
@@ -77,7 +78,7 @@ class RealisticTypos:
     def add_typos(
         self,
         text: str,
-        personality_state: dict = None,
+        personality_state: Optional[dict] = None,
         is_important: bool = False
     ) -> str:
         """
@@ -242,7 +243,7 @@ def get_typo_engine() -> RealisticTypos:
 
 def add_realistic_typos(
     text: str,
-    personality_state: dict = None,
+    personality_state: Optional[dict] = None,
     is_important: bool = False
 ) -> str:
     """

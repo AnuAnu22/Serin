@@ -4,6 +4,7 @@ Adds "hmm", "like", "you know" etc. to make responses feel more human
 """
 import random
 import re
+from typing import Optional
 from logger_config import logger
 
 
@@ -37,7 +38,7 @@ class ConversationalFillers:
     def add_fillers(
         self,
         text: str,
-        personality_state: dict = None,
+        personality_state: Optional[dict] = None,
         message_complexity: str = "simple"
     ) -> str:
         """
@@ -74,7 +75,7 @@ class ConversationalFillers:
         
         return text
     
-    def _should_add_fillers(self, text: str, personality_state: dict = None) -> bool:
+    def _should_add_fillers(self, text: str, personality_state: Optional[dict] = None) -> bool:
         """Decide if fillers should be added"""
         
         # Don't add to very short messages
@@ -100,7 +101,7 @@ class ConversationalFillers:
     def _determine_filler_type(
         self,
         text: str,
-        personality_state: dict = None,
+        personality_state: Optional[dict] = None,
         complexity: str = "simple"
     ) -> str:
         """
@@ -193,7 +194,7 @@ def get_filler_engine() -> ConversationalFillers:
 
 def add_conversational_fillers(
     text: str,
-    personality_state: dict = None,
+    personality_state: Optional[dict] = None,
     complexity: str = "simple"
 ) -> str:
     """

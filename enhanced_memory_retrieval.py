@@ -408,19 +408,19 @@ class HumanLikeMemoryRetriever:
             content = memory.get('content', '').lower()
             declared_traits = [t.lower() for t in user_personality.get('declared_traits', [])]
             
-            # Simple contradiction detection
-            contradiction_score = 0
+            # Simple consistency detection
+            consistency_score = 0
             for trait in declared_traits:
                 if trait in content:
-                    # If trait is mentioned, it's likely consistent
-                    contradiction_score += 1
+                    # If trait is mentioned, it's likely consistent with user's personality
+                    consistency_score += 1
             
             # Apply personality consistency bonus
-            personality_consistency_bonus = min(0.2, contradiction_score * 0.05)
+            personality_consistency_bonus = min(0.2, consistency_score * 0.05)
             memory['personality_consistency'] = personality_consistency_bonus
             
-            # Only exclude highly contradictory memories
-            if contradiction_score >= 3:  # Too many trait mentions might indicate inconsistency
+            # Only exclude memories with no personality consistency at all
+            if consistency_score <= 0 and declared_traits:
                 continue
             
             consistent_memories.append(memory)

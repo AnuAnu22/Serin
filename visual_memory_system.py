@@ -30,10 +30,6 @@ class VisualMemorySystem:
             logger.error(f"❌ Failed to load CLIP model: {e}")
             self.model = None
 
-        # BLIP model removed in favor of VLM (Qwen-VL)
-        self.processor = None
-        self.caption_model = None
-
         # Ensure collection exists
         self._ensure_collection()
 
@@ -89,9 +85,9 @@ class VisualMemorySystem:
     def analyze_image(self, image_url: str) -> Optional[str]:
         """
         Deprecated: Image analysis is now handled by the VLM directly.
-        Returns None to signal that no local caption is available.
+        Raises NotImplementedError to signal callers to use VLM instead.
         """
-        return None
+        raise NotImplementedError("Image analysis is now handled by the VLM directly")
 
     def store_image_memory(
         self,

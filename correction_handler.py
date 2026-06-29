@@ -305,6 +305,6 @@ def get_correction_acknowledgment(correction: Dict) -> str:
             response = template.format(corrected=corrected[:50])
         
         return response
-    except:
+    except (KeyError, IndexError, ValueError):
         # Fallback if formatting fails
         return f"oh my bad, {corrected}. got it"

@@ -272,7 +272,7 @@ class MessageCrawler:
                     try:
                         discord_msg = await channel.fetch_message(int(sql_msg['message_id']))
                         # Message exists, continue
-                    except:
+                    except Exception:
                         # Message doesn't exist or deleted - this is a gap
                         gaps_found += 1
                         logger.warning(f"⚠️ Gap found at position {checkpoint} in #{channel.name}")

@@ -3,6 +3,7 @@ Long Message Handler - React naturally to walls of text
 Humans don't always process long messages well - they react to length
 """
 import random
+from typing import Optional
 from logger_config import logger
 
 
@@ -86,7 +87,7 @@ class LongMessageHandler:
     def should_react_to_length(
         self,
         message_analysis: dict,
-        personality_state: dict = None
+        personality_state: Optional[dict] = None
     ) -> bool:
         """
         Decide if bot should react to message length.
@@ -112,7 +113,7 @@ class LongMessageHandler:
         
         return random.random() < chance
     
-    def get_length_reaction(self, message_analysis: dict) -> str:
+    def get_length_reaction(self, message_analysis: dict) -> Optional[str]:
         """
         Get natural reaction to long message.
         

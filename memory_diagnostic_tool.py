@@ -11,7 +11,11 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 from logger_config import logger
-import chromadb
+try:
+    import chromadb
+    CHROMADB_AVAILABLE = True
+except ImportError:
+    CHROMADB_AVAILABLE = False
 from collections import Counter, defaultdict
 
 @dataclass
@@ -116,13 +120,22 @@ class MemorySystemDiagnostic:
             return False
     
     def _check_chroma_health(self) -> bool:
-        """Check ChromaDB connection and basic operations"""
+        """Check ChromaDB connection and basic operations.
+        
+        Returns True if ChromaDB is healthy, or if using Qdrant (skips check).
+        """
+        if not CHROMADB_AVAILABLE:
+            logger.debug("ChromaDB not available - skipping check (using Qdrant)")
+            return True
+        if not hasattr(self.memory, 'memories'):
+            logger.debug("Memory system has no .memories attribute - likely Qdrant, skipping check")
+            return True
         try:
             count = self.memory.memories.count()
-            logger.debug(f"✅ ChromaDB health check passed - {count} memories")
+            logger.debug(f"ChromaDB health check passed - {count} memories")
             return True
         except Exception as e:
-            logger.error(f"❌ ChromaDB health check failed: {e}")
+            logger.error(f"ChromaDB health check failed: {e}")
             return False
     
     def _check_schema_integrity(self) -> Dict:

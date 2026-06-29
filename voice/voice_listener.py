@@ -90,9 +90,7 @@ class VoiceListener:
             return True
         
         except Exception as e:
-            logger.error(f"❌ Error joining voice channel: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
+            logger.exception(f"❌ Error joining voice channel: {e}")
             self.stats['errors'] += 1
             return False
     
@@ -149,9 +147,7 @@ class VoiceListener:
             logger.info(f"🎧 Started listening in channel {channel_id}")
         
         except Exception as e:
-            logger.error(f"Error starting listener: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
+            logger.exception(f"Error starting listener: {e}")
     
     async def _stop_listening(self, guild_id: int):
         """

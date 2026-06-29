@@ -218,7 +218,7 @@ class LlamaConnector:
         **kwargs
     ) -> str:
         """Async wrapper for send_input."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
             lambda: self.blocking_send_input(prompt, temperature, max_tokens, stop, **kwargs)
@@ -281,7 +281,7 @@ class LlamaConnector:
         **kwargs
     ) -> str:
         """Async wrapper for chat_completion."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
             lambda: self.blocking_chat_completion(messages, temperature, max_tokens, stop, **kwargs)
@@ -341,7 +341,7 @@ class LlamaConnector:
         Yields:
             Text chunks as they arrive
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         
         # Create a generator that yields chunks
         def sync_generator():
@@ -377,5 +377,5 @@ class LlamaConnector:
     
     async def get_embedding_async(self, text: str) -> List[float]:
         """Async wrapper for get_embedding."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, self.get_embedding, text)

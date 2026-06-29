@@ -4,6 +4,8 @@ FIXES MEMORY CONTEXT ISSUE: Uses improved context building that works even when 
 """
 
 import asyncio
+import base64
+import os
 
 from qdrant_memory_system import QdrantMemorySystem
 from enhanced_memory_context import EnhancedMemoryContext, ImprovedSystemPrompt
@@ -27,7 +29,7 @@ import random
 from typing import List, Dict, Optional, Tuple
 
 class EnhancedMessageManagerV3:
-    def __init__(self, client, mention_translator, memory_system=None, sub_timeout=3, voice_output_manager=None):
+    def __init__(self, client, mention_translator, memory_system=None, sub_timeout=1, voice_output_manager=None):
         self.client = client
         self.mention_translator = mention_translator
         self.current_batch = []
@@ -53,6 +55,20 @@ class EnhancedMessageManagerV3:
             
         # Initialize LLM connector for image analysis
         self.llm = get_model_connector()
+        
+        # Initialize separate vision model (SmolVLM) if vision is enabled
+        self.vision_llm = None
+        supports_vision = os.environ.get("LLM_SUPPORTS_VISION", "false").lower() in ("true", "1", "yes")
+        vision_model = os.environ.get("VISION_MODEL", "smolvlm256m")
+        if supports_vision:
+            try:
+                from models.vllm_connector import VLLMConnector
+                self.vision_llm = VLLMConnector(model_name=vision_model)
+                self.vision_llm.load_model()
+                logger.info(f"👁️ Vision model loaded: {vision_model}")
+            except Exception as e:
+                logger.warning(f"⚠️ Vision model '{vision_model}' not available: {e}")
+                self.vision_llm = None
 
         
         # Initialize context systems
@@ -85,7 +101,7 @@ class EnhancedMessageManagerV3:
             logger.error(f"❌ Active Search disabled: {e}")
         
         # TIER 6: Visual Cortex
-        if hasattr(self.memory, 'qdrant_client'):
+        if hasattr(self.memory, 'qdrant_client') and self.memory.qdrant_client:
             self.visual_memory = VisualMemorySystem(self.memory.qdrant_client)
         else:
             self.visual_memory = None
@@ -110,6 +126,9 @@ class EnhancedMessageManagerV3:
         # Cache for visual contexts between processing and flushing
         self.pending_visual_contexts = {}
         
+        # Voice pipeline (set externally if available)
+        self.voice_pipeline = None
+        
         # Log memory system type
         memory_type = "Qdrant" if hasattr(self.memory, 'qdrant_client') else "ChromaDB"
         logger.info(f"✅ Enhanced MessageManager initialized with {memory_type} memory system")
@@ -119,7 +138,7 @@ class EnhancedMessageManagerV3:
         if self.voice_output_manager:
             logger.info("   ✓ Voice Output Manager connected")
 
-    def update_state(self, status: str, prompt: str = None, user_message: str = None):
+    def update_state(self, status: str, prompt: Optional[str] = None, user_message: Optional[str] = None):
         """Update the observable brain state"""
         self.current_state['status'] = status
         self.current_state['last_activity'] = datetime.now().isoformat()
@@ -195,7 +214,7 @@ class EnhancedMessageManagerV3:
                 resolved_last_message=transcription,
                 tone_modifier=self.personality.get_tone_modifier(),
                 personality_state=self.personality.__dict__,
-                message_complexity=1, # Assume simple for voice
+                message_complexity="simple", # Assume simple for voice
                 is_instruction=False
             )
             
@@ -222,9 +241,7 @@ class EnhancedMessageManagerV3:
                         logger.error(f"❌ Error sending to voice output: {e}")
             
         except Exception as e:
-            logger.error(f"❌ Error processing voice input: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
+            logger.exception(f"❌ Error processing voice input: {e}")
 
     async def start(self):
         logger.info("✅ Enhanced MessageManager started")
@@ -275,6 +292,7 @@ class EnhancedMessageManagerV3:
             
             # TIER 6: Visual Memory Processing (MOVED UP)
             visual_context = ""
+            supports_vision = os.environ.get("LLM_SUPPORTS_VISION", "true").lower() in ("true", "1", "yes")
             if message.attachments and self.visual_memory:
                 for attachment in message.attachments:
                     if attachment.content_type and attachment.content_type.startswith('image/'):
@@ -288,36 +306,45 @@ class EnhancedMessageManagerV3:
                             visual_context += f"\n[Visual Memory: I recognize this image! It looks like what {top_match['username']} posted on {top_match['timestamp'][:10]}. Context: '{top_match['context']}']"
                             logger.info(f"💡 Visual recognition: {visual_context}")
                         
-                        # Store image URL for VLM (Qwen-VL)
-                        # We no longer analyze locally with BLIP
-                        self.pending_visual_contexts[message.id] = attachment.url
+                        # Download image and encode as base64 for reliable delivery
+                        image_data_url = None
+                        try:
+                            image_bytes = await attachment.read()
+                            if image_bytes:
+                                mime = attachment.content_type or 'image/jpeg'
+                                b64 = base64.b64encode(image_bytes).decode('utf-8')
+                                image_data_url = f"data:{mime};base64,{b64}"
+                                logger.info(f"📷 Encoded image as base64 ({len(image_bytes)} bytes)")
+                        except Exception as e:
+                            logger.warning(f"⚠️ Failed to download/encode image: {e}")
+                        
+                        # Store image data URL for VLM (or URL as fallback)
+                        self.pending_visual_contexts[message.id] = image_data_url or attachment.url
                         
                         # Add visual indicator to content for LLM
                         cleaned_content += " [User posted an image]"
                         
                         # Generate description for memory storage using VLM
-                        # This ensures "past memory" has understanding
                         storage_description = ""
-                        try:
-                            # Initialize if needed
-                            if not self.llm.client:
-                                self.llm.load_model()
-                                
-                            # Ask VLM to describe
-                            desc_prompt = [
-                                {"role": "user", "content": [
-                                    {"type": "text", "text": "Describe this image in detail for archival purposes. Include any text you can read."},
-                                    {"type": "image_url", "image_url": {"url": attachment.url}}
-                                ]}
-                            ]
-                            storage_description = await self.llm.chat_completion(desc_prompt, max_tokens=300)
-                            logger.info(f"📝 Generated archival description: {storage_description[:100]}...")
-                        except Exception as e:
-                            logger.error(f"⚠️ Failed to generate archival description: {e}")
-                            storage_description = "Image (description unavailable)"
+                        if image_data_url and self.vision_llm:
+                            try:
+                                desc_prompt = [
+                                    {"role": "user", "content": [
+                                        {"type": "text", "text": "Describe this image in detail for archival purposes. Include any text you can read."},
+                                        {"type": "image_url", "image_url": {"url": image_data_url}}
+                                    ]}
+                                ]
+                                storage_description = await self.vision_llm.chat_completion(desc_prompt, max_tokens=300)
+                                logger.info(f"📝 Generated archival description: {storage_description[:100]}...")
+                            except Exception as e:
+                                logger.warning(f"⚠️ Vision not available for archival: {e}")
+                                storage_description = "Image (vision model error)"
+                        elif image_data_url:
+                            storage_description = "Image (vision model not loaded)"
+                        else:
+                            storage_description = "Image (could not download)"
                         
                         # 2. Store (Remember this)
-                        # We use the message content AND VLM description as context
                         storage_context = f"{cleaned_content}\n[Image Content: {storage_description}]"
                             
                         self.visual_memory.store_image_memory(
@@ -393,9 +420,7 @@ class EnhancedMessageManagerV3:
         
         except Exception as e:
             self.stats['errors'] += 1
-            logger.error(f"❌ Error processing message: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
+            logger.exception(f"❌ Error processing message: {e}")
     
     async def _schedule_flush(self):
         """Schedule batch flush with timeout"""
@@ -417,8 +442,9 @@ class EnhancedMessageManagerV3:
         if not batch:
             return
         
+        channel = batch[0].channel
+        
         try:
-            channel = batch[0].channel
             
             # Prepare user messages
             user_messages = []
@@ -707,13 +733,15 @@ class EnhancedMessageManagerV3:
                             # Add to accumulated results for the NEXT thinking step
                             accumulated_results_str += f"\nResults for '{query}':\n"
                             for mem in new_results:
-                                accumulated_results_str += f"- {mem['content']} (from {mem['timestamp'][:10]})\n"
+                                ts = (mem.get('timestamp') or '')[:10]
+                                accumulated_results_str += f"- {mem['content']} (from {ts})\n"
                             
                             # Add to final context immediately
                             formatted_context += f"\n\n--- ACTIVE RECALL (Iteration {loop_count+1}) ---\n"
                             formatted_context += f"Query: {query}\n"
                             for mem in new_results:
-                                formatted_context += f"- {mem['content']} (from {mem['timestamp'][:10]})\n"
+                                ts = (mem.get('timestamp') or '')[:10]
+                                formatted_context += f"- {mem['content']} (from {ts})\n"
                             
                             active_search_results.extend(new_results)
                         else:
@@ -788,9 +816,7 @@ class EnhancedMessageManagerV3:
         
         except Exception as e:
             self.stats['errors'] += 1
-            logger.error(f"❌ Error in enhanced batch flush: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
+            logger.exception(f"❌ Error in enhanced batch flush: {e}")
             try:
                 await channel.send("Sorry, had a brain fart. Try again?")
             except:
@@ -865,7 +891,7 @@ class EnhancedMessageManagerV3:
         
         return None
     
-    def get_user_profile(self, user_id: str) -> dict:
+    def get_user_profile(self, user_id: str) -> Optional[dict]:
         """Get user profile"""
         return self.memory.get_user_profile(user_id)
     

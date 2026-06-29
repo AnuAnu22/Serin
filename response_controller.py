@@ -26,7 +26,6 @@ class ResponseController:
             'serін',  # Cyrillic lookalike
             '@serin',
             'serine',
-            'serin',
             'Serin'
         ]
         
@@ -280,33 +279,34 @@ class ResponseController:
     ) -> float:
         """
         Calculate realistic typing delay based on response length and context.
+        Total delay is capped at 1-10 seconds for snappy feel.
         """
         words = response_length / 5
-        wps = random.uniform(0.7, 1.0)
+        wps = random.uniform(1.2, 2.0)
         base_delay = words / wps
-        
-        # Base thinking time
-        thinking_time = random.uniform(0.5, 2.0)
-        
+
+        # Base thinking time — short and snappy
+        thinking_time = random.uniform(0.3, 1.0)
+
         # Add extra thinking for complex questions
         if has_question:
-            thinking_time += random.uniform(1.0, 2.5)
-        
+            thinking_time += random.uniform(0.5, 1.5)
+
         # Adjust for message complexity
         if message_complexity == "complex":
-            thinking_time += random.uniform(1.5, 3.0)
+            thinking_time += random.uniform(0.5, 2.0)
         elif message_complexity == "medium":
-            thinking_time += random.uniform(0.5, 1.5)
-        
+            thinking_time += random.uniform(0.3, 1.0)
+
         # 10% chance for "types and deletes" pause
         if random.random() < 0.1:
-            thinking_time += random.uniform(1.0, 3.0)
-        
+            thinking_time += random.uniform(0.5, 2.0)
+
         total = thinking_time + base_delay
-        
+
         min_delay = 1.0
-        max_delay = 12.0
-        
+        max_delay = 10.0
+
         return max(min_delay, min(total, max_delay))
     
     def update_conversation_mood(
@@ -430,7 +430,6 @@ class ResponseController:
             
             async with channel.typing():
                 await asyncio.sleep(delay)
-            
             await channel.send(response)
 
 
@@ -484,7 +483,7 @@ class PersonalityState:
         self.last_update = datetime.now()
         
         logger.debug(
-            f"🎭 Personality: "
+            f"Personality: "
             f"energy={self.energy_level:.2f}, "
             f"sass={self.sass_level:.2f}, "
             f"engagement={self.engagement:.2f}"
@@ -494,22 +493,24 @@ class PersonalityState:
         """Get tone guidance for LLM"""
         modifiers = []
         
-        if self.energy_level > 0.7:
-            modifiers.append("Be energetic and enthusiastic")
-        elif self.energy_level < 0.4:
-            modifiers.append("Be chill and laid-back")
+        if self.energy_level > 0.65:
+            modifiers.append("Be energetic and punchy")
+        elif self.energy_level < 0.35:
+            modifiers.append("Be chill and low-energy")
         
-        if self.sass_level > 0.7:
-            modifiers.append("You can be sarcastic and witty")
-        elif self.sass_level < 0.4:
+        if self.sass_level > 0.65:
+            modifiers.append("You can be sarcastic, witty, and a little mean")
+        elif self.sass_level < 0.35:
             modifiers.append("Be straightforward and genuine")
         
-        if self.engagement > 0.7:
-            modifiers.append("Show interest and ask follow-up questions")
-        elif self.engagement < 0.4:
-            modifiers.append("Keep responses brief and to the point")
+        if self.engagement > 0.65:
+            modifiers.append("Show real interest and ask follow-ups")
+        elif self.engagement < 0.35:
+            modifiers.append("Keep it short, don't drag the conversation")
         
         if modifiers:
             return ". ".join(modifiers) + "."
         
-        return "Be natural and conversational."
+        return "Be natural and a little playful."
+
+

@@ -12,7 +12,7 @@ class ActiveSearch:
     def __init__(self, model_connector: ModelInterface):
         self.llm = model_connector
 
-    async def analyze_need_to_search(self, user_message: str, recent_context: str, previous_results: str = None) -> Tuple[bool, Optional[str], Optional[str]]:
+    async def analyze_need_to_search(self, user_message: str, recent_context: str, previous_results: Optional[str] = None) -> Tuple[bool, Optional[str], Optional[str]]:
         """
         Analyze if a search is needed and generate a query.
         If previous_results is provided, it decides if MORE search is needed.
@@ -71,7 +71,7 @@ class ActiveSearch:
         
         return has_keyword or has_question or msg_len > 30
 
-    def _build_thinking_prompt(self, message: str, context: str, previous_results: str = None) -> str:
+    def _build_thinking_prompt(self, message: str, context: str, previous_results: Optional[str] = None) -> str:
         base_prompt = f"""You are the internal monologue of an AI. Decide if you need to search your long-term memory to answer the user.
 
 CONTEXT:

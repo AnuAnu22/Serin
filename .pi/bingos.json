@@ -1,0 +1,358 @@
+{
+  "version": 1,
+  "project_dir": "",
+  "completed": true,
+  "boxes": [
+    {
+      "id": 1,
+      "name": "Project Name",
+      "description": "The exact name used in code and files. No spaces. No vague titles.",
+      "answer": "Serin",
+      "confirmed": true
+    },
+    {
+      "id": 2,
+      "name": "Project Description",
+      "description": "One or two sentences. What it does, what problem it solves.",
+      "answer": "A Discord AI companion that chats, remembers users, monitors server activity, and supports voice interaction and a web control panel.",
+      "confirmed": true
+    },
+    {
+      "id": 3,
+      "name": "Project Type",
+      "description": "One of: CLI tool, library, API service, daemon, desktop app, embedded system, pipeline.",
+      "answer": "daemon",
+      "confirmed": true
+    },
+    {
+      "id": 4,
+      "name": "Target Platform",
+      "description": "OS, architecture, runtime. Specific. Not cross platform without detail.",
+      "answer": "Linux x86-64, Python runtime, Discord-connected service",
+      "confirmed": true
+    },
+    {
+      "id": 5,
+      "name": "Primary Language and Version",
+      "description": "Language and exact version pinned. Not latest.",
+      "answer": "Python 3.11",
+      "confirmed": true
+    },
+    {
+      "id": 6,
+      "name": "Input Format and Source",
+      "description": "Exact format and origin. If none, say none.",
+      "answer": "Discord events and text messages, voice audio streams, environment variables, local config files, Qdrant and SQLite data, and web UI control requests",
+      "confirmed": true
+    },
+    {
+      "id": 7,
+      "name": "Output Format and Destination",
+      "description": "Exact format and destination including schema if structured.",
+      "answer": "Discord text replies, voice output in voice channels, structured memory writes to local Qdrant and SQLite, plain text logs to stdout or log files, and web UI responses",
+      "confirmed": true
+    },
+    {
+      "id": 8,
+      "name": "Error Output Format",
+      "description": "How errors are reported. Fields required in every error.",
+      "answer": "Structured log entries with timestamp, level, subsystem name, and message. Fatal startup errors exit the process. Recoverable runtime errors are logged at ERROR level and execution continues. Fields required: timestamp, level, subsystem, message.",
+      "confirmed": true
+    },
+    {
+      "id": 9,
+      "name": "Logging Format and Level",
+      "description": "Format, minimum level, what must always be logged, what must never be logged.",
+      "answer": "Plain structured text with timestamp and level prefix. Minimum level INFO in production, DEBUG only in development. Must always log: startup steps, subsystem init results, message routing decisions, errors, and recovery events. Must never log: tokens, secrets, raw private message content, or internal prompt dumps unless debug mode is explicitly enabled.",
+      "confirmed": true
+    },
+    {
+      "id": 10,
+      "name": "Configuration Format and Location",
+      "description": "How configured, where config lives. If none, say none.",
+      "answer": "Environment variables for secrets and runtime config, loaded from .env file at startup. Local config module for non-secret settings. Sensitive values never inside code.",
+      "confirmed": true
+    },
+    {
+      "id": 11,
+      "name": "Architecture Pattern",
+      "description": "One pattern only. Pipeline, event loop, state machine, layered, actor.",
+      "answer": "Event-driven daemon with layered subsystems",
+      "confirmed": true
+    },
+    {
+      "id": 12,
+      "name": "Module and File Structure",
+      "description": "Top-level directories and what lives in each.",
+      "answer": "core/ for bot logic and message routing, memory/ for Qdrant and SQLite memory systems, voice/ for Whisper transcription and TTS, web/ for the control panel, utils/ for shared helpers, tests/ for all test files, data/ for local persistent data, docs/ for documentation. No logic at root except the entry point.",
+      "confirmed": true
+    },
+    {
+      "id": 13,
+      "name": "Allowed Dependencies",
+      "description": "Every external library allowed. Anything not listed is forbidden.",
+      "answer": "discord.py or py-cord, qdrant-client, aiosqlite, faster-whisper, Coqui TTS, aiohttp, python-dotenv, sentence-transformers, rank-bm25, pytest, standard Python 3.11 libraries",
+      "confirmed": true
+    },
+    {
+      "id": 14,
+      "name": "Forbidden Dependencies",
+      "description": "Explicitly banned libraries or patterns and why.",
+      "answer": "Heavy opaque frameworks that hide control flow. Duplicate memory systems without a documented reason. Experimental libraries without long-term maintenance. Anything that bypasses Discord permission or safety model. Any library that logs or transmits private message content externally.",
+      "confirmed": true
+    },
+    {
+      "id": 15,
+      "name": "External Services",
+      "description": "Every external system it talks to. If none, say none explicitly.",
+      "answer": "Discord API, local Qdrant instance, local filesystem, optional local model server for LLM inference, optional local voice and TTS components, local web control panel",
+      "confirmed": true
+    },
+    {
+      "id": 16,
+      "name": "Core Functionality",
+      "description": "Observable behaviors the program must exhibit.",
+      "answer": "Read Discord messages and decide whether to respond based on channel rules. Generate natural conversational replies. Store useful memories about users and conversations in Qdrant and SQLite. Retrieve relevant memories when generating replies. Monitor conversation passively when not responding. Support voice transcription and reply when voice is enabled. Expose a web control panel for configuration when web is enabled.",
+      "confirmed": true
+    },
+    {
+      "id": 17,
+      "name": "Explicit Non-Functionality",
+      "description": "What it must never do. Out of scope behaviors.",
+      "answer": "Must not pretend broken subsystems are working. Must not auto-run unsafe or destructive actions. Must not spam channels. Must not expose secrets or tokens in any output. Must not silently mutate memory without a traceable log entry. Must not crash the entire bot when a single subsystem fails.",
+      "confirmed": true
+    },
+    {
+      "id": 18,
+      "name": "Concurrency Model",
+      "description": "Threading model and maximum concurrency. If none, say none.",
+      "answer": "Async-first using Python asyncio. Multiple background tasks for monitoring, memory, voice, and web. Maximum concurrency bounded by explicit task limits. No uncontrolled thread spawning.",
+      "confirmed": true
+    },
+    {
+      "id": 19,
+      "name": "State Management",
+      "description": "Where state lives, lifetime, behavior on restart.",
+      "answer": "Persistent state lives in Qdrant for vector memory and SQLite for structured data. Runtime state lives in memory and must be reconstructable from the persistent stores after any restart. No critical state stored only in process memory.",
+      "confirmed": true
+    },
+    {
+      "id": 20,
+      "name": "Startup and Shutdown Behavior",
+      "description": "What must complete before ready, before clean shutdown.",
+      "answer": "Startup order: validate database integrity, load config and check required env vars, initialize core LLM, initialize memory system, start background workers, start voice and TTS if enabled, start web control panel if enabled. Bot is not ready until all required subsystems report healthy. Shutdown order: stop accepting new messages, stop background tasks cleanly, flush pending memory writes, create backup state record, then exit.",
+      "confirmed": true
+    },
+    {
+      "id": 21,
+      "name": "Error Handling Strategy",
+      "description": "How errors propagate. What is recoverable vs fatal.",
+      "answer": "Fatal on startup: missing Discord token, corrupted database, failed core LLM init. These exit the process immediately with a clear error message. Recoverable at runtime: voice pipeline failure, web panel failure, single memory write failure, single message generation failure. These are logged at ERROR level and the subsystem is marked degraded. The text chat core must survive any single subsystem failure.",
+      "confirmed": true
+    },
+    {
+      "id": 22,
+      "name": "Retry Policy",
+      "description": "What retries, how many times, with what backoff. If nothing, say so.",
+      "answer": "Transient network errors to Discord API: retry 3 times with exponential backoff starting at 1 second. Qdrant connection on startup: retry 3 times with 2 second backoff. Do not retry corrupted local state or missing config. Do not retry failed message generation more than once per message.",
+      "confirmed": true
+    },
+    {
+      "id": 23,
+      "name": "Fault Tolerance Boundaries",
+      "description": "What failures must be survived. What is acceptable to crash on.",
+      "answer": "Must survive: voice subsystem failure, web panel failure, single background task crash, single memory retrieval failure, single message generation failure. Acceptable to crash on: missing Discord token, database corruption with no valid backup, core LLM unavailable at startup.",
+      "confirmed": true
+    },
+    {
+      "id": 24,
+      "name": "Data Integrity Rules",
+      "description": "What must never be corrupted or lost.",
+      "answer": "User memory records in Qdrant must never be silently overwritten without a log entry. SQLite writes must use transactions. Backups must be created before any bulk memory operation. Deletions must be logged with timestamp, what was deleted, and why.",
+      "confirmed": true
+    },
+    {
+      "id": 25,
+      "name": "Recovery Behavior",
+      "description": "What happens after a crash. Resume, restart clean, or manual.",
+      "answer": "On restart, validate database integrity first. If valid, resume from last known good state. If corrupted, attempt restore from most recent backup automatically. If backup restore fails, stop and require manual intervention rather than operating on corrupted data.",
+      "confirmed": true
+    },
+    {
+      "id": 26,
+      "name": "Performance Benchmarks",
+      "description": "Specific numbers. ms, rps, startup time. No adjectives.",
+      "answer": "Text response generated and sent within 10 seconds of message receipt on normal load. Voice transcription completed within 3 seconds for utterances under 10 seconds. Full startup completed within 60 seconds on clean state. Memory retrieval query completed within 500ms.",
+      "confirmed": true
+    },
+    {
+      "id": 27,
+      "name": "Memory Constraints",
+      "description": "Maximum RSS in MB. Peak under load. If unbounded, justify.",
+      "answer": "Total process RSS must stay under 4GB under normal operation. No duplicate model loading. No loading Whisper and TTS models simultaneously unless voice is actively in use. Unload unused models when subsystem is idle for more than 10 minutes.",
+      "confirmed": true
+    },
+    {
+      "id": 28,
+      "name": "Optimization Priority",
+      "description": "Ordered: latency, throughput, memory, binary size.",
+      "answer": "1. Reliability. 2. Response quality. 3. Latency. 4. Memory usage.",
+      "confirmed": true
+    },
+    {
+      "id": 29,
+      "name": "Code Style Rules",
+      "description": "Formatter, linter, naming conventions, max function length.",
+      "answer": "Black formatter. Ruff linter. Type hints on all function signatures. Snake case for variables and functions. No function longer than 50 lines. No file longer than 300 lines. No duplicated logic between legacy and enhanced variants of the same module.",
+      "confirmed": true
+    },
+    {
+      "id": 30,
+      "name": "Complexity Limits",
+      "description": "Max cyclomatic complexity per function. Max nesting depth.",
+      "answer": "Maximum cyclomatic complexity of 10 per function. Maximum nesting depth of 4. Any function that handles more than one distinct responsibility must be split. Any file that handles more than one subsystem must be split.",
+      "confirmed": true
+    },
+    {
+      "id": 31,
+      "name": "Primary Test Definitions",
+      "description": "Behaviors from box 16 as pass/fail test cases.",
+      "answer": "Test 1: Bot starts with valid config without error. Test 2: Bot responds in allowed channels. Test 3: Bot ignores messages in disallowed channels. Test 4: Memory stores a user fact and retrieves it on next relevant message. Test 5: Voice pipeline ingests audio and returns transcription. Test 6: Shutdown completes cleanly and creates backup state. Test 7: Bot recovers and starts after simulated database corruption using backup. Test 8: Voice subsystem failure does not crash text chat.",
+      "confirmed": true
+    },
+    {
+      "id": 32,
+      "name": "Success Criteria with Numbers",
+      "description": "Exact thresholds. What pass means specifically.",
+      "answer": "Startup succeeds in under 60 seconds with valid config. Core text path works in 95% or more of normal test runs. No crash on any single subsystem failure. Memory retrieval returns relevant results in 80% or more of test prompts. All 8 primary tests pass.",
+      "confirmed": true
+    },
+    {
+      "id": 33,
+      "name": "Failure Criteria",
+      "description": "What output or condition means failed. Unambiguous.",
+      "answer": "Missing required config causes unhandled exception instead of clean error message. Database corruption causes full crash instead of backup restore attempt. Voice pipeline failure causes text chat to stop responding. Memory returns results with zero semantic relevance to the query. Any primary test fails.",
+      "confirmed": true
+    },
+    {
+      "id": 34,
+      "name": "Test Execution Method",
+      "description": "The exact single command to run all tests.",
+      "answer": "pytest tests/",
+      "confirmed": true
+    },
+    {
+      "id": 35,
+      "name": "Coverage Minimum",
+      "description": "Minimum coverage percentage. What is exempt and why.",
+      "answer": "80% minimum line coverage on core/, memory/, and startup/recovery paths. voice/ and web/ exempt until stabilized. Experimental prototype files exempt until promoted to main codebase.",
+      "confirmed": true
+    },
+    {
+      "id": 36,
+      "name": "Trust Boundaries",
+      "description": "What is trusted input, what is untrusted, where validation happens.",
+      "answer": "Untrusted: all Discord message content, voice audio input, web UI requests, any user-supplied data. Trusted only after validation: local config after schema check, backup files after integrity check, internal state after startup validation. Validation happens at the boundary before any untrusted data enters core processing.",
+      "confirmed": true
+    },
+    {
+      "id": 37,
+      "name": "Input Validation Rules",
+      "description": "What is validated, format, rejection behavior.",
+      "answer": "Validate all message IDs and channel IDs as positive integers. Validate file paths against allowed directories before any read or write. Validate all JSON payloads against expected schema before processing. Validate web requests for method, path, and payload size. Validate voice audio payload size before passing to transcription. Reject malformed input with a logged warning and skip processing.",
+      "confirmed": true
+    },
+    {
+      "id": 38,
+      "name": "Authentication Method",
+      "description": "How identity is established. If none, say explicitly.",
+      "answer": "Discord bot token for Discord API authentication. Web control panel restricted to localhost only by default. If remote access is enabled it must require a secret token passed in the request header. No anonymous remote access to web panel.",
+      "confirmed": true
+    },
+    {
+      "id": 39,
+      "name": "Secrets Handling",
+      "description": "Where secrets live, how accessed, what must never be logged.",
+      "answer": "Secrets live in environment variables loaded from .env file at startup. Accessed only through the config module, never read directly from os.environ in business logic. Must never log: Discord token, any API keys, .env file contents, raw secret values. Config module masks secret values in any debug output.",
+      "confirmed": true
+    },
+    {
+      "id": 40,
+      "name": "Forbidden Code Patterns",
+      "description": "Specific patterns never allowed in this codebase.",
+      "answer": "Hardcoded secrets or tokens in any file. Use of eval or exec on any user-supplied input. Uncontrolled subprocess execution from user input. Logging private message content or memory contents by default. Global mutable state outside of explicitly designated state modules. Bare except clauses that swallow all exceptions silently.",
+      "confirmed": true
+    },
+    {
+      "id": 41,
+      "name": "Metrics to Expose",
+      "description": "Exact metric names, types, what they measure. If none, say none.",
+      "answer": "messages_received (counter), messages_processed (counter), messages_ignored (counter), passive_captures (counter), voice_events (counter), voice_transcriptions (counter), memory_writes (counter), memory_hits (counter), error_count (counter by subsystem), startup_time_seconds (gauge), recovery_events (counter)",
+      "confirmed": true
+    },
+    {
+      "id": 42,
+      "name": "Health Check Definition",
+      "description": "What healthy means, how checked, what returns it.",
+      "answer": "Healthy means: connected to Discord, core LLM initialized and responding, Qdrant reachable, SQLite readable and writable, and all enabled subsystems started without error. Health check runs at startup and is available via a /health endpoint on the web panel if enabled. Returns JSON with status field of healthy or degraded and a list of subsystem statuses.",
+      "confirmed": true
+    },
+    {
+      "id": 43,
+      "name": "Tracing Requirements",
+      "description": "What operations must be traced. Correlation ID format. If none, say none.",
+      "answer": "Every message intake, memory retrieval, generation call, and response send must carry a correlation ID. Format: msg-{unix_timestamp}-{random_6_chars}. Voice inputs use the same format with prefix voice- instead of msg-. Correlation ID logged at every step of the pipeline for that message.",
+      "confirmed": true
+    },
+    {
+      "id": 44,
+      "name": "Alert Conditions",
+      "description": "What conditions trigger alerts. Thresholds. What silence means.",
+      "answer": "Alert on: 3 or more consecutive startup failures, any memory corruption detection, web panel failing to start when enabled, transcription failure rate above 20% in a 10 minute window, error_count for any subsystem exceeding 10 in 5 minutes. Silence is not health. A subsystem that stops logging entirely must be treated as failed.",
+      "confirmed": true
+    },
+    {
+      "id": 45,
+      "name": "Debug Information Policy",
+      "description": "What debug info exists, how enabled, what never appears in production.",
+      "answer": "Debug mode enabled via DEBUG=true environment variable. Debug logs may include subsystem state, memory retrieval scores, and detailed pipeline traces. Production logs must never include: raw prompt content, private message text, memory record contents, secret values, or internal model outputs unless debug mode is explicitly enabled by the operator.",
+      "confirmed": true
+    },
+    {
+      "id": 46,
+      "name": "Definition of Done",
+      "description": "Exact testable conditions that mean the project is complete.",
+      "answer": "Serin starts reliably with valid config in under 60 seconds. Responds naturally in allowed Discord channels. Memory persists user context across restarts and retrieves relevantly. Recovers from common failures without manual intervention. Text chat core operates correctly when voice and web subsystems are disabled. All 8 primary tests pass. Coverage meets minimums. No placeholders or TODO stubs in core/ or memory/.",
+      "confirmed": true
+    },
+    {
+      "id": 47,
+      "name": "Acceptance Criteria",
+      "description": "What the user will check in real-world to confirm it works.",
+      "answer": "Run it on your machine, connect to Discord, get natural replies in allowed channels within 10 seconds, restart the bot and confirm memory of previous conversation persists, disable voice and confirm text chat still works, confirm a broken web panel does not stop Discord replies.",
+      "confirmed": true
+    },
+    {
+      "id": 48,
+      "name": "Known Acceptable Limitations",
+      "description": "Conscious decisions that will not work. Not bugs.",
+      "answer": "Not every server interaction will be stored in memory. Voice transcription accuracy depends on audio quality and will not be perfect. Some experimental features remain disabled until proven stable. Memory retrieval is probabilistic and will occasionally miss relevant context.",
+      "confirmed": true
+    },
+    {
+      "id": 49,
+      "name": "What Done Does Not Include",
+      "description": "Features explicitly excluded from this version.",
+      "answer": "Perfect autonomous decision making. Flawless long-term memory with no retrieval misses. Universal voice reliability across all audio conditions. Full multimodal intelligence. Unrestricted self-directed behavior. Any feature not listed in box 16.",
+      "confirmed": true
+    },
+    {
+      "id": 50,
+      "name": "Handoff Format",
+      "description": "How finished project is delivered. Binary, source, package. Exact format.",
+      "answer": "Source code in the git repository with all dependencies listed in requirements.txt pinned to exact versions. A .env.template file with all required environment variables documented. A data/ folder structure with initialization scripts. A single startup command documented in README.md.",
+      "confirmed": true
+    }
+  ]
+}
+

@@ -18,8 +18,8 @@ class ConversationContextBuilder:
     def build_context(
         self,
         user_messages: List[Dict],
-        channel_id: str = None,
-        query_time_hint: str = None
+        channel_id: Optional[str] = None,
+        query_time_hint: Optional[str] = None
     ) -> Dict:
         """
         Build context for LLM response.
@@ -127,20 +127,22 @@ class ConversationContextBuilder:
             n_results=20  # Get more, then filter
         )
         
-        # Filter by time range - handle both string and datetime timestamps
-        def safe_datetime_convert(timestamp):
-            """Safely convert timestamp to datetime, handling both string and datetime inputs"""
-            if isinstance(timestamp, str):
-                return datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-            return timestamp
-        
         start_time, end_time = time_range
         filtered = []
         
         for mem in all_memories:
-            timestamp = safe_datetime_convert(mem['timestamp'])
-            if start_time <= timestamp <= end_time:
-                filtered.append(mem)
+            ts_raw = mem.get('timestamp', '')
+            if not ts_raw:
+                continue
+            try:
+                if isinstance(ts_raw, str):
+                    timestamp = datetime.fromisoformat(ts_raw.replace('Z', '+00:00'))
+                else:
+                    timestamp = ts_raw
+                if start_time <= timestamp <= end_time:
+                    filtered.append(mem)
+            except (ValueError, TypeError):
+                continue
         
         logger.info(f"⏰ Filtered {len(all_memories)} → {len(filtered)} memories by time range")
         
@@ -159,7 +161,8 @@ class ConversationContextBuilder:
             narrative_parts.append("--- CURRENT SITUATION ---")
             conv_lines = []
             for msg in context['recent_conversation'][-10:]:
-                conv_lines.append(f"{msg['username']}: {msg['content']}")
+                username = msg.get('username', msg.get('user_name', 'Unknown'))
+                conv_lines.append(f"{username}: {msg['content']}")
             narrative_parts.append("\n".join(conv_lines))
         
         # 2. Internal Memory Stream (The "Brain")
@@ -169,16 +172,19 @@ class ConversationContextBuilder:
         if context['relevant_memories']:
             memory_stream.append("I recall the following relevant details:")
             for mem in context['relevant_memories'][:4]:
-                # Natural time references
-                def safe_datetime_convert(ts):
-                    if isinstance(ts, str):
-                        return datetime.fromisoformat(ts.replace('Z', '+00:00'))
-                    return ts
-                
-                timestamp = safe_datetime_convert(mem['timestamp'])
-                time_ref = self.temporal_formatter.format_natural(timestamp)
-                
-                memory_stream.append(f"- {time_ref}, {mem['username']} mentioned: {mem['content']}")
+                ts_raw = mem.get('timestamp', '')
+                if not ts_raw:
+                    memory_stream.append(f"- {mem.get('username', mem.get('user_name', 'Unknown'))} mentioned: {mem['content']}")
+                    continue
+                try:
+                    if isinstance(ts_raw, str):
+                        timestamp = datetime.fromisoformat(ts_raw.replace('Z', '+00:00'))
+                    else:
+                        timestamp = ts_raw
+                    time_ref = self.temporal_formatter.format_natural(timestamp)
+                except (ValueError, TypeError):
+                    time_ref = "Earlier"
+                memory_stream.append(f"- {time_ref}, {mem.get('username', mem.get('user_name', 'Unknown'))} mentioned: {mem['content']}")
         
         # User profiles (Narrative)
         profiles = context['profiles']
@@ -188,7 +194,7 @@ class ConversationContextBuilder:
                 traits = profile.get('personality_traits', [])
                 interests = profile.get('interests', [])
                 
-                desc = f"- {profile['username']}"
+                desc = f"- {profile.get('username', profile.get('display_name', user_id))}"
                 if traits:
                     desc += f" seems {', '.join(traits[:3])}"
                 if interests:

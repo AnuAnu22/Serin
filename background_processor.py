@@ -378,9 +378,7 @@ Summary:"""
             log_summary(messages, summary)
             
         except Exception as e:
-            logger.error(f"❌ Error creating summary: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
+            logger.exception(f"❌ Error creating summary: {e}")
             self.stats['errors'] += 1
     
     
@@ -398,8 +396,8 @@ Summary:"""
             # Calculate importance
             importance = self._calculate_importance(summary, messages)
             
-            # Store as regular memory
-            self.memory.add_memory(
+            # Store as summary (distinct from real messages to avoid duplicates in context)
+            self.memory.add_memory_enhanced(
                 content=summary,
                 user_id=first_msg['user_id'],
                 username=first_msg['username'],
@@ -407,7 +405,8 @@ Summary:"""
                 participants=participants,
                 emotional_tone='neutral',
                 importance=importance,
-                message_id=None
+                source_message_id=None,
+                memory_type='summary'
             )
             
             logger.debug(f"💾 Stored summary: {summary[:60]}...")

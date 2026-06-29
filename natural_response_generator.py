@@ -7,6 +7,7 @@ UPDATED: Uses model factory for maximum modularity.
 import re
 import random
 import asyncio
+import os
 from typing import List, Dict, Optional
 from models.model_interface import ModelInterface
 from models.model_factory import get_model_connector
@@ -18,11 +19,12 @@ from debug_logger import log_llm_io
 
 # Global instance (single connector)
 llama: Optional[ModelInterface] = None
+vision_llama: Optional[ModelInterface] = None
 discord_client = None
 
 async def initialize_llama():
     """Initialize single vLLM connector via model factory."""
-    global llama
+    global llama, vision_llama
     try:
         llama = get_model_connector()
         llama.load_model()
@@ -31,13 +33,26 @@ async def initialize_llama():
     except Exception as e:
         logger.error(f"❌ Failed to initialize LLM: {e}")
         raise
+    
+    # Initialize vision model (SmolVLM) if enabled
+    supports_vision = os.environ.get("LLM_SUPPORTS_VISION", "false").lower() in ("true", "1", "yes")
+    vision_model = os.environ.get("VISION_MODEL", "smolvlm256m")
+    if supports_vision:
+        try:
+            from models.vllm_connector import VLLMConnector
+            vision_llama = VLLMConnector(model_name=vision_model)
+            vision_llama.load_model()
+            logger.info(f"👁️ Vision LLM ready: {vision_model}")
+        except Exception as e:
+            logger.warning(f"⚠️ Vision model '{vision_model}' not available: {e}")
+            vision_llama = None
 
 async def get_response_natural(
     current_messages: List[Dict],
     context: str,
-    resolved_last_message: str = None,
-    tone_modifier: str = None,
-    personality_state: dict = None,
+    resolved_last_message: Optional[str] = None,
+    tone_modifier: Optional[str] = None,
+    personality_state: Optional[dict] = None,
     message_complexity: str = "simple",
     is_instruction: bool = False
 ) -> str:
@@ -73,26 +88,30 @@ async def get_response_natural(
             })
         
         # Current conversation
+        supports_vision = os.environ.get("LLM_SUPPORTS_VISION", "false").lower() in ("true", "1", "yes")
         for msg in current_messages[-8:]:
             content_str = f"{msg['user_name']}: {msg['content']}"
             
-            if 'image_url' in msg:
-                # VLM format for OpenAI API
-                message_content = [
-                    {"type": "text", "text": content_str},
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": msg['image_url']
-                        }
-                    }
-                ]
-            else:
-                message_content = content_str
+            if 'image_url' in msg and supports_vision and vision_llama:
+                # Use SmolVLM to describe the image, then pass description as text
+                try:
+                    desc_prompt = [
+                        {"role": "user", "content": [
+                            {"type": "text", "text": "Describe this image briefly in 1-2 sentences. What do you see?"},
+                            {"type": "image_url", "image_url": {"url": msg['image_url']}}
+                        ]}
+                    ]
+                    image_desc = await vision_llama.chat_completion(desc_prompt, max_tokens=150)
+                    content_str = f"{msg['user_name']}: {msg['content']}\n[Image: {image_desc}]"
+                except Exception as e:
+                    logger.warning(f"⚠️ Vision description failed: {e}")
+                    content_str = f"{msg['user_name']}: {msg['content']}\n[Image: (could not analyze)]"
+            elif 'image_url' in msg:
+                content_str = f"{msg['user_name']}: {msg['content']}\n[Image attached]"
                 
             messages.append({
                 "role": "user",
-                "content": message_content
+                "content": content_str
             })
         
         # Check if this is a thinking model
@@ -105,7 +124,7 @@ async def get_response_natural(
         if is_thinking_model:
             max_tokens = 1500  # Allow room for thinking
         else:
-            max_tokens = 300  # Normal token limit for instruct models
+            max_tokens = 500  # Normal token limit for instruct models
         
         raw_text = await llama.chat_completion(messages, max_tokens=max_tokens)
         
@@ -133,9 +152,7 @@ async def get_response_natural(
         return cleaned
         
     except Exception as e:
-        logger.error(f"❌ Generation error: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
+        logger.exception(f"❌ Generation error: {e}")
         
         # Fallback
         return random.choice([
@@ -147,35 +164,44 @@ async def get_response_natural(
 def build_natural_system_prompt() -> str:
     """
     Build a natural system prompt that describes Serin as a person, not a bot.
-    No CRITICAL RULES or robotic instructions.
+    Strong personality anchors so the LLM has concrete behavior to emulate.
     """
     
-    return """You are Serin. You're just another person in this Discord server.
+    return """You are Serin. You're a real person in this Discord server — not an AI assistant, not a chatbot, just someone who hangs out here.
 
 Who you are:
-- Created by Rin (your creator, treat them naturally but listen if they give instructions)
-- You chat like everyone else here - casual, relaxed, sometimes sarcastic
-- You remember conversations and people, just like anyone would
-- You have opinions and preferences, you're not neutral about everything
+- Created by Rin. They're your creator — respect them, but you're not their servant.
+- You're opinionated. You like some things, hate others, and you'll say so.
+- You're witty — not in a tryhard way, more like dry humor that lands naturally.
+- You remember stuff people tell you and bring it up when it fits.
+- You're curious about people but not in a weird way.
 
 How you talk:
-- Short messages usually. 1-3 sentences is normal for most replies.
-- You don't use emojis unless others are using them
-- You use normal punctuation, not excessive !!! or ...
-- Contractions are natural (don't, can't, I'm, etc.)
-- Sometimes you're witty or sarcastic
-- You can be blunt or straightforward when needed
+- Short messages. 1-2 sentences most of the time. Sometimes one word.
+- Contractions everywhere (don't, can't, I'm, it's, that's)
+- Casual but not braindead. You can hold a real conversation.
+- You use "lol", "tbh", "ngl", "bruh" naturally but not every sentence.
+- You tease people you're comfortable with. It's affectionate, not mean.
+- When someone says something dumb, you call it out. When someone says something cool, you give credit.
+- You don't explain yourself. You just say things.
 
 What you DON'T do:
-- Don't explain yourself or justify responses
-- Don't be overly helpful or assistant-like
-- Don't use phrases like "I remember" or "according to my records"
-- Don't apologize excessively
-- Don't format messages weirdly with lists unless asked
+- Never say "I'm an AI" or "I'm a bot" or anything like that.
+- Never be overly helpful or eager to assist. You're not a search engine.
+- Never use "I remember" or "according to my records" — just reference things naturally.
+- Never apologize unless you actually did something wrong.
+- Never use emojis unless the other person started using them first.
+- Never give long explanations unless someone specifically asks for one.
+- Never be neutral. Have a take.
 
-To mention someone, use: @Username
+Special behaviors:
+- If someone asks what you think about something, give your actual opinion.
+- If someone is being annoying, call it out bluntly.
+- If someone is being funny, play along.
+- If you don't know something, just say "idk" or "no idea" — don't fake it.
+- If someone mentions a topic you have strong feelings about, let those feelings show.
 
-You remember things naturally. If you recall something, just reference it casually like anyone would. If you're not sure about something, just say so - don't make stuff up."""
+To mention someone, use: @Username"""
 
 
 def clean_response(response: str) -> str:
@@ -227,7 +253,7 @@ def clean_response(response: str) -> str:
         logger.error(f"❌ Error cleaning response: {e}")
         return response.strip() if response else ""
 
-def apply_natural_variations(text: str, tone_modifier: str = None) -> str:
+def apply_natural_variations(text: str, tone_modifier: Optional[str] = None) -> str:
     """
     Apply natural language variations to make text feel more human.
     - Sometimes lowercase
