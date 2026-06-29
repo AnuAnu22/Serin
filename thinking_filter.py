@@ -62,25 +62,26 @@ class ThinkingFilter:
         """
         if not text:
             return text
-        
-        original_length = len(text)
-        cleaned = text
-        
-        # Apply all patterns
-        for pattern in self.compiled_patterns:
-            cleaned = pattern.sub('', cleaned)
-        
-        # Clean up extra whitespace left behind
-        cleaned = re.sub(r'\n\s*\n\s*\n+', '\n\n', cleaned)
-        cleaned = re.sub(r'  +', ' ', cleaned)
-        cleaned = cleaned.strip()
-        
-        # Log if we filtered something
-        if len(cleaned) < original_length:
-            removed = original_length - len(cleaned)
-            logger.debug(f"🧹 Filtered {removed} chars of thinking tags")
-        
-        return cleaned
+
+        try:
+            import serin_core
+            return serin_core.filter_thinking(text)
+        except ImportError:
+            original_length = len(text)
+            cleaned = text
+
+            for pattern in self.compiled_patterns:
+                cleaned = pattern.sub('', cleaned)
+
+            cleaned = re.sub(r'\n\s*\n\s*\n+', '\n\n', cleaned)
+            cleaned = re.sub(r'  +', ' ', cleaned)
+            cleaned = cleaned.strip()
+
+            if len(cleaned) < original_length:
+                removed = original_length - len(cleaned)
+                logger.debug(f"🧹 Filtered {removed} chars of thinking tags")
+
+            return cleaned
     
     def has_thinking_tags(self, text: str) -> bool:
         """

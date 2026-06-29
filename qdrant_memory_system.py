@@ -722,39 +722,42 @@ class QdrantMemorySystem:
         """Simple reranking based on recency and importance"""
         if len(candidates) <= top_k:
             return candidates
-        
-        # Sort by combined score first
+
         candidates.sort(key=lambda x: x['combined_score'], reverse=True)
-        
-        # Take top_k and apply simple reranking
         top_candidates = candidates[:top_k]
-        
-        # Simple reranking: boost recent and important memories
-        for candidate in top_candidates:
-            payload = candidate.get('payload', {})
-            
-            # Recency boost (newer = higher score)
-            timestamp = payload.get('timestamp')
-            if timestamp:
+
+        try:
+            import serin_core
+            scores = [c.get('combined_score', 0) for c in top_candidates]
+            age_days_list = []
+            for c in top_candidates:
+                payload = c.get('payload', {})
+                timestamp = payload.get('timestamp', '')
                 try:
-                    from datetime import datetime
                     dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                    age_days = (datetime.now() - dt).days
-                    recency_boost = max(0, 1 - (age_days / 365))  # Decay over a year
-                    candidate['rerank_score'] = candidate['combined_score'] + (recency_boost * 0.2)
-                except:
+                    age_days_list.append(float((datetime.now() - dt).days))
+                except Exception:
+                    age_days_list.append(0.0)
+            ranked = serin_core.rerank_candidates(scores, age_days_list)
+            return [top_candidates[i] for i, _ in ranked]
+        except ImportError:
+            for candidate in top_candidates:
+                payload = candidate.get('payload', {})
+                timestamp = payload.get('timestamp')
+                if timestamp:
+                    try:
+                        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        age_days = (datetime.now() - dt).days
+                        recency_boost = max(0, 1 - (age_days / 365))
+                        candidate['rerank_score'] = candidate['combined_score'] + (recency_boost * 0.2)
+                    except Exception:
+                        candidate['rerank_score'] = candidate['combined_score']
+                else:
                     candidate['rerank_score'] = candidate['combined_score']
-            else:
-                candidate['rerank_score'] = candidate['combined_score']
-            
-            # Importance boost
-            importance = payload.get('importance', 0.5)
-            candidate['rerank_score'] += (importance - 0.5) * 0.1
-        
-        # Sort by rerank score
-        top_candidates.sort(key=lambda x: x['rerank_score'], reverse=True)
-        
-        return top_candidates
+                importance = payload.get('importance', 0.5)
+                candidate['rerank_score'] += (importance - 0.5) * 0.1
+            top_candidates.sort(key=lambda x: x['rerank_score'], reverse=True)
+            return top_candidates
     
     def _condense_results(self, results: List[Dict]) -> List[Dict]:
         """Condense results to final format"""
@@ -1282,9 +1285,13 @@ class SQLiteBM25Index:
         self.conn.commit()
     
     def _sanitize_query(self, query: str) -> str:
-        """Sanitize FTS5 query with a single pass."""
-        special_chars = set('+-*<>":()^~{}[]\\!?.\',')
-        return ''.join(' ' if ch in special_chars else ch for ch in query).strip()
+        """Sanitize FTS5 query using Rust-accelerated single-pass."""
+        try:
+            import serin_core
+            return serin_core.sanitize_fts_query(query)
+        except ImportError:
+            special_chars = set('+-*<>":()^~{}[]\\!?.\',')
+            return ''.join(' ' if ch in special_chars else ch for ch in query).strip()
     
     def search(self, query: str, user_id: Optional[str] = None, channel_id: Optional[str] = None, limit: int = 20) -> List[Dict]:
         """Search documents using BM25"""

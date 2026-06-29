@@ -271,30 +271,33 @@ def apply_natural_variations(text: str, tone_modifier: Optional[str] = None) -> 
         text = text[:-1]
     
     # Add contractions if not already present
-    contractions = {
-        ' do not ': " dont ",
-        ' cannot ': " cant ",
-        ' will not ': " wont ",
-        ' should not ': " shouldnt ",
-        ' would not ': " wouldnt ",
-        ' is not ': " isnt ",
-        ' are not ': " arent ",
-        ' have not ': " havent ",
-        ' has not ': " hasnt ",
-        ' did not ': " didnt ",
-        ' I am ': " Im ",
-        ' you are ': " youre ",
-        ' it is ': " its ",
-        ' that is ': " thats ",
-        ' what is ': " whats ",
-    }
-    
-    contraction_pattern = re.compile(
-        r'\b(' + '|'.join(re.escape(k.strip()) for k in contractions) + r')\b',
-        re.IGNORECASE
-    )
-    contraction_lookup = {k.strip().lower(): v.strip() for k, v in contractions.items()}
-    text = contraction_pattern.sub(lambda m: contraction_lookup[m.group(0).lower()], text)
+    try:
+        import serin_core
+        text = serin_core.apply_contractions(text)
+    except ImportError:
+        contractions = {
+            ' do not ': " dont ",
+            ' cannot ': " cant ",
+            ' will not ': " wont ",
+            ' should not ': " shouldnt ",
+            ' would not ': " wouldnt ",
+            ' is not ': " isnt ",
+            ' are not ': " arent ",
+            ' have not ': " havent ",
+            ' has not ': " hasnt ",
+            ' did not ': " didnt ",
+            ' I am ': " Im ",
+            ' you are ': " youre ",
+            ' it is ': " its ",
+            ' that is ': " thats ",
+            ' what is ': " whats ",
+        }
+        contraction_pattern = re.compile(
+            r'\b(' + '|'.join(re.escape(k.strip()) for k in contractions) + r')\b',
+            re.IGNORECASE
+        )
+        contraction_lookup = {k.strip().lower(): v.strip() for k, v in contractions.items()}
+        text = contraction_pattern.sub(lambda m: contraction_lookup[m.group(0).lower()], text)
     
     # 10% chance to add "lol" or "haha" if tone is casual/energetic
     if tone_modifier and ('energetic' in tone_modifier.lower() or 'witty' in tone_modifier.lower()):
