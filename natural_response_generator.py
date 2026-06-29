@@ -88,12 +88,23 @@ async def get_response_natural(
             })
         
         # Current conversation
-        supports_vision = os.environ.get("LLM_SUPPORTS_VISION", "false").lower() in ("true", "1", "yes")
+        # Vision: if main LLM has mmproj (LLM_SUPPORTS_VISION=true), send image_url directly.
+        # Otherwise, use SmolVLM fallback if available.
+        main_llm_has_vision = os.environ.get("LLM_SUPPORTS_VISION", "false").lower() in ("true", "1", "yes")
         for msg in current_messages[-8:]:
-            content_str = f"{msg['user_name']}: {msg['content']}"
+            has_image = 'image_url' in msg
             
-            if 'image_url' in msg and supports_vision and vision_llama:
-                # Use SmolVLM to describe the image, then pass description as text
+            if has_image and main_llm_has_vision:
+                # Direct vision: send image_url to main LLM (gemma12b with mmproj)
+                messages.append({
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": f"{msg['user_name']}: {msg['content']}\nDescribe what you see in this image and respond naturally to the conversation."},
+                        {"type": "image_url", "image_url": {"url": msg['image_url']}}
+                    ]
+                })
+            elif has_image and vision_llama:
+                # Fallback: use SmolVLM for description, then pass as text
                 try:
                     desc_prompt = [
                         {"role": "user", "content": [
@@ -106,13 +117,13 @@ async def get_response_natural(
                 except Exception as e:
                     logger.warning(f"⚠️ Vision description failed: {e}")
                     content_str = f"{msg['user_name']}: {msg['content']}\n[Image: (could not analyze)]"
-            elif 'image_url' in msg:
-                content_str = f"{msg['user_name']}: {msg['content']}\n[Image attached]"
-                
-            messages.append({
-                "role": "user",
-                "content": content_str
-            })
+                messages.append({"role": "user", "content": content_str})
+            else:
+                # No vision available
+                content_str = f"{msg['user_name']}: {msg['content']}"
+                if has_image:
+                    content_str += "\n[Image attached]"
+                messages.append({"role": "user", "content": content_str})
         
         # Check if this is a thinking model
         model_info = llama.get_model_info()
