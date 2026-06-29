@@ -47,6 +47,21 @@ async def initialize_llama():
             logger.warning(f"⚠️ Vision model '{vision_model}' not available: {e}")
             vision_llama = None
 
+
+def _should_use_thinking(message: str, complexity: str = "simple") -> bool:
+    """
+    Determine if gemma12b should use thinking for this message.
+    Enables reasoning for complex questions, disables for simple chat.
+    """
+    if complexity == "complex":
+        return True
+    if len(message) > 200:
+        return True
+    think_triggers = ["why", "how", "explain", "compare", "difference", "analyze", "think about", "reason"]
+    msg_lower = message.lower()
+    return any(w in msg_lower for w in think_triggers)
+
+
 async def get_response_natural(
     current_messages: List[Dict],
     context: str,
@@ -128,16 +143,30 @@ async def get_response_natural(
         # Check if this is a thinking model
         model_info = llama.get_model_info()
         model_name = model_info.get('model_name', '').lower()
-        is_thinking_model = 'thinking' in model_name or 'think' in model_name
+        is_thinking_model = 'thinking' in model_name or 'think' in model_name or 'gemma' in model_name
+        
+        # Determine if thinking should be enabled for this message
+        # gemma12b with mmproj can think — enable for complex questions, disable for simple
+        use_thinking = False
+        if is_thinking_model:
+            last_msg = current_messages[-1]['content'] if current_messages else ""
+            use_thinking = _should_use_thinking(last_msg, message_complexity)
         
         # For thinking models: more tokens, no special instructions (they confuse the model)
         # The model naturally uses <think>...</think> tags
-        if is_thinking_model:
+        if is_thinking_model and use_thinking:
             max_tokens = 1500  # Allow room for thinking
+        elif is_thinking_model:
+            max_tokens = 600  # No thinking, but still a thinking-capable model
         else:
             max_tokens = 500  # Normal token limit for instruct models
         
-        raw_text = await llama.chat_completion(messages, max_tokens=max_tokens)
+        # Pass thinking override per-request if this is a thinking model
+        extra = {}
+        if is_thinking_model:
+            extra["chat_template_kwargs"] = {"enable_thinking": use_thinking}
+        
+        raw_text = await llama.chat_completion(messages, max_tokens=max_tokens, extra_body=extra)
         
         # Extract response based on model type
         if is_thinking_model:
