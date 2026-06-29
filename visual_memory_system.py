@@ -165,3 +165,71 @@ class VisualMemorySystem:
         except Exception as e:
             logger.error(f"❌ Error recalling visual memory: {e}")
             return []
+
+    def recall_image_from_bytes(self, image_bytes: bytes, threshold: float = 0.85) -> List[Dict]:
+        """
+        Recall similar images from raw bytes (avoids re-downloading).
+        Returns list of matches with metadata.
+        """
+        if not self.model or not image_bytes:
+            return []
+        try:
+            img_obj = Image.open(BytesIO(image_bytes))
+            embedding = self.model.encode(img_obj).tolist()
+            results = self.client.query_points(
+                collection_name=self.collection_name,
+                query=embedding,
+                limit=3,
+                score_threshold=threshold
+            )
+            return [
+                {
+                    "score": hit.score,
+                    "username": hit.payload.get("username"),
+                    "context": hit.payload.get("context"),
+                    "timestamp": hit.payload.get("timestamp"),
+                    "url": hit.payload.get("url"),
+                }
+                for hit in results.points
+            ]
+        except Exception as e:
+            logger.error(f"❌ Error recalling visual memory from bytes: {e}")
+            return []
+
+    def store_image_from_bytes(
+        self,
+        image_bytes: bytes,
+        image_url: str,
+        user_id: str,
+        username: str,
+        channel_id: str,
+        context_text: str = ""
+    ) -> bool:
+        """
+        Store an image from raw bytes (avoids re-downloading for CLIP).
+        """
+        if not self.model or not image_bytes:
+            return False
+        try:
+            img_obj = Image.open(BytesIO(image_bytes))
+            embedding = self.model.encode(img_obj).tolist()
+            import uuid
+            point_id = str(uuid.uuid4())
+            payload = {
+                "type": "image",
+                "url": image_url,
+                "user_id": user_id,
+                "username": username,
+                "channel_id": channel_id,
+                "context": context_text,
+                "timestamp": datetime.now().isoformat(),
+            }
+            self.client.upsert(
+                collection_name=self.collection_name,
+                points=[models.PointStruct(id=point_id, vector=embedding, payload=payload)],
+            )
+            logger.info(f"📸 Visual memory stored from bytes for {username}")
+            return True
+        except Exception as e:
+            logger.error(f"❌ Error storing visual memory from bytes: {e}")
+            return False

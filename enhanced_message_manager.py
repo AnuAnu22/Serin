@@ -307,13 +307,13 @@ class EnhancedMessageManagerV3:
             
             # TIER 6: Visual Memory Processing (MOVED UP)
             visual_context = ""
-            supports_vision = os.environ.get("LLM_SUPPORTS_VISION", "true").lower() in ("true", "1", "yes")
+            main_llm_has_vision = os.environ.get("LLM_SUPPORTS_VISION", "false").lower() in ("true", "1", "yes")
             if message.attachments and self.visual_memory:
                 for attachment in message.attachments:
                     if attachment.content_type and attachment.content_type.startswith('image/'):
                         logger.info(f"👁️ Processing image from {user_name}...")
                         
-                        # 1. Recall (Do I know this?)
+                        # 1. Recall (Do I know this?) - use URL for CLIP
                         matches = self.visual_memory.recall_image(attachment.url)
                         
                         if matches:
@@ -321,8 +321,9 @@ class EnhancedMessageManagerV3:
                             visual_context += f"\n[Visual Memory: I recognize this image! It looks like what {top_match['username']} posted on {top_match['timestamp'][:10]}. Context: '{top_match['context']}']"
                             logger.info(f"💡 Visual recognition: {visual_context}")
                         
-                        # Download image and encode as base64 for reliable delivery
+                        # Download image and encode as base64 ONCE for all pipelines
                         image_data_url = None
+                        image_bytes = None
                         try:
                             image_bytes = await attachment.read()
                             if image_bytes:
@@ -339,9 +340,25 @@ class EnhancedMessageManagerV3:
                         # Add visual indicator to content for LLM
                         cleaned_content += " [User posted an image]"
                         
-                        # Generate description for memory storage using VLM
+                        # Generate description for memory storage
+                        # Priority: gemma12b direct > SmolVLM fallback > no description
                         storage_description = ""
-                        if image_data_url and self.vision_llm:
+                        if image_data_url and main_llm_has_vision:
+                            # Direct: use main LLM (gemma12b with mmproj)
+                            try:
+                                desc_prompt = [
+                                    {"role": "user", "content": [
+                                        {"type": "text", "text": "Describe this image in detail for archival purposes. Include any text you can read."},
+                                        {"type": "image_url", "image_url": {"url": image_data_url}}
+                                    ]}
+                                ]
+                                storage_description = await self.llm.chat_completion(desc_prompt, max_tokens=300)
+                                logger.info(f"📝 Generated archival description (gemma12b): {storage_description[:100]}...")
+                            except Exception as e:
+                                logger.warning(f"⚠️ gemma12b vision failed for archival: {e}")
+                                storage_description = "Image (vision model error)"
+                        elif image_data_url and self.vision_llm:
+                            # Fallback: use SmolVLM
                             try:
                                 desc_prompt = [
                                     {"role": "user", "content": [
@@ -350,25 +367,34 @@ class EnhancedMessageManagerV3:
                                     ]}
                                 ]
                                 storage_description = await self.vision_llm.chat_completion(desc_prompt, max_tokens=300)
-                                logger.info(f"📝 Generated archival description: {storage_description[:100]}...")
+                                logger.info(f"📝 Generated archival description (SmolVLM): {storage_description[:100]}...")
                             except Exception as e:
-                                logger.warning(f"⚠️ Vision not available for archival: {e}")
+                                logger.warning(f"⚠️ SmolVLM not available for archival: {e}")
                                 storage_description = "Image (vision model error)"
                         elif image_data_url:
                             storage_description = "Image (vision model not loaded)"
                         else:
                             storage_description = "Image (could not download)"
                         
-                        # 2. Store (Remember this)
+                        # 2. Store (Remember this) - use cached bytes for CLIP
                         storage_context = f"{cleaned_content}\n[Image Content: {storage_description}]"
-                            
-                        self.visual_memory.store_image_memory(
-                            image_url=attachment.url,
-                            user_id=user_id,
-                            username=user_name,
-                            channel_id=channel_id,
-                            context_text=storage_context
-                        )
+                        if image_bytes:
+                            self.visual_memory.store_image_from_bytes(
+                                image_bytes=image_bytes,
+                                image_url=attachment.url,
+                                user_id=user_id,
+                                username=user_name,
+                                channel_id=channel_id,
+                                context_text=storage_context
+                            )
+                        else:
+                            self.visual_memory.store_image_memory(
+                                image_url=attachment.url,
+                                user_id=user_id,
+                                username=user_name,
+                                channel_id=channel_id,
+                                context_text=storage_context
+                            )
             
             # Update user profile
             self.memory.upsert_user(user_id, user_name, user_name)
