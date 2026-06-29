@@ -5,16 +5,18 @@ import signal
 import subprocess
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).parent.resolve()
+
 WATCH_DIRS = [
-    Path("/home/user3/Documents/SerinBot/Serin"),
+    PROJECT_ROOT,
 ]
 WATCH_FILES = [
-    Path("/mnt/sdc/serin-core/src/lib.rs"),
+    PROJECT_ROOT / "serin_core" / "src" / "lib.rs",
 ]
 # Rust voice receiver source directory — changes here trigger cargo build
-RUST_RECEIVER_SRC = Path("/home/user3/Documents/SerinBot/Serin/voice/rust_receiver/src")
+RUST_RECEIVER_SRC = PROJECT_ROOT / "voice" / "rust_receiver" / "src"
 SIGNAL_FILE = Path("/tmp/serin-restart.signal")
-BOT_DIR = Path("/home/user3/Documents/SerinBot/Serin")
+BOT_DIR = PROJECT_ROOT
 COOLDOWN_SECS = 1.0
 GRACE_SECS = 3.0
 POLL_INTERVAL = 1.0
@@ -98,7 +100,7 @@ def handle_maturin_change() -> None:
     log("serin-core Rust source changed, building maturin release...")
     result = subprocess.run(
         ["maturin", "develop", "--release"],
-        cwd="/mnt/sdc/serin-core",
+        cwd=str(PROJECT_ROOT / "serin_core"),
         capture_output=True,
         text=True,
     )
@@ -230,7 +232,7 @@ def main() -> None:
     log("Watching for changes...")
     log(f"  Python: {WATCH_DIRS}")
     log(f"  Voice receiver Rust: {RUST_RECEIVER_SRC}")
-    log(f"  serin-core Rust: /mnt/sdc/serin-core/src/lib.rs")
+    log(f"  serin-core Rust: {PROJECT_ROOT / 'serin_core' / 'src' / 'lib.rs'}")
     start_bot()
     watch_loop()
 

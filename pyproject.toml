@@ -50,6 +50,7 @@ dev = [
     "flake8>=6.0.0",
     "mypy>=1.0.0",
     "watchfiles>=1.0.0",
+    "maturin>=1.10.0",        # Build serin_core PyO3 module
 ]
 
 [project.scripts]

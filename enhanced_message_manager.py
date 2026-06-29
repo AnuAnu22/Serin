@@ -25,11 +25,11 @@ from natural_response_generator import get_response_natural
 from long_message_handler import analyze_message_length, get_length_handler
 from topic_fatigue import get_fatigue_tracker
 from correction_handler import CorrectionDetector, MemoryCorrector, get_correction_acknowledgment
-from voice_tracker import VoiceTracker, get_voice_join_reaction, get_voice_duration_reaction
+from voice.voice_tracker import VoiceTracker, get_voice_join_reaction, get_voice_duration_reaction
 from debug_logger import log_message, log_context, log_correction, log_response
 from visual_memory_system import VisualMemorySystem
 from active_search import ActiveSearch
-from voice_action_decider import VoiceActionDecider
+from voice.voice_action_decider import VoiceActionDecider
 from models.model_factory import get_model_connector
 import random
 from mention_translator import MentionTranslator
