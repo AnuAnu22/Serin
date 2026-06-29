@@ -10,12 +10,16 @@ Features:
 - Interrupt detection for conversation flow
 """
 import asyncio
+import base64
+import io
 import numpy as np
+import os
+import struct
+import wave
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Union
 from collections import deque
 import sys
-import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from logger_config import logger
 
@@ -26,7 +30,7 @@ class AudioStreamProcessor:
     Buffers audio while user is speaking, chunks at natural pauses.
     """
     
-    def __init__(self, whisper_transcriber: Any, voice_pipeline: Any, silence_threshold: float = 3.0, voice_output_manager: Optional[Any] = None) -> None:
+    def __init__(self, whisper_transcriber: Any, voice_pipeline: Any, silence_threshold: float = 3.0, voice_output_manager: Optional[Any] = None, llm_connector: Optional[Any] = None) -> None:
         """
         Initialize audio stream processor.
         
@@ -35,11 +39,14 @@ class AudioStreamProcessor:
             voice_pipeline: VoiceMemoryPipeline instance
             silence_threshold: Seconds of silence before processing chunk
             voice_output_manager: VoiceOutputManager instance (for interrupts)
+            llm_connector: Optional LLM connector for direct audio transcription (gemma12b input_audio)
         """
         self.transcriber = whisper_transcriber
         self.voice_pipeline = voice_pipeline
         self.silence_threshold = silence_threshold
         self.voice_output_manager = voice_output_manager
+        self.llm_connector = llm_connector
+        self.supports_audio = os.environ.get("LLM_SUPPORTS_AUDIO", "false").lower() in ("true", "1", "yes")
         
         # Per-user audio buffers
         self.user_buffers: Dict[str, bytearray] = {}
@@ -75,6 +82,86 @@ class AudioStreamProcessor:
         logger.info("✅ Audio stream processor initialized")
         logger.info(f"   🔊 VAD threshold: {self.VAD_THRESHOLD}")
         logger.info(f"   ⏱️ Silence threshold: {silence_threshold}s")
+        if self.llm_connector and self.supports_audio:
+            logger.info("   🎵 Direct audio support enabled (gemma12b input_audio)")
+    
+    @staticmethod
+    def _pcm_to_wav_base64(audio_data: bytes, sample_rate: int = 16000) -> str:
+        """
+        Convert Discord PCM audio (48kHz stereo 16-bit) to 16kHz mono WAV base64.
+        
+        Args:
+            audio_data: Raw PCM audio data (48kHz stereo, 16-bit)
+            sample_rate: Target sample rate (default 16000 for gemma12b)
+        
+        Returns:
+            Base64-encoded WAV audio data
+        """
+        audio_array = np.frombuffer(audio_data, dtype=np.int16)
+        
+        # Stereo to mono (take left channel)
+        if len(audio_array) % 2 == 0:
+            audio_mono = audio_array[::2]
+        else:
+            audio_mono = audio_array
+        
+        # Resample from 48kHz to target sample rate (simple decimation)
+        orig_sr = 48000
+        if orig_sr != sample_rate:
+            ratio = orig_sr / sample_rate
+            target_length = int(len(audio_mono) / ratio)
+            indices = np.linspace(0, len(audio_mono) - 1, target_length)
+            audio_mono = np.interp(indices, np.arange(len(audio_mono)), audio_mono).astype(np.int16)
+        
+        # Write to WAV in memory
+        buf = io.BytesIO()
+        with wave.open(buf, 'wb') as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)
+            wav.setframerate(sample_rate)
+            wav.writeframes(audio_mono.tobytes())
+        
+        return base64.b64encode(buf.getvalue()).decode('ascii')
+    
+    async def _transcribe_with_gemma(self, audio_data: bytes, username: str = "User") -> Optional[str]:
+        """
+        Transcribe audio using gemma12b's direct input_audio support.
+        Falls back to None if LLM is not available or errors.
+        
+        Args:
+            audio_data: Raw PCM audio data
+            username: Username for the prompt
+        
+        Returns:
+            Transcribed text or None
+        """
+        try:
+            wav_b64 = self._pcm_to_wav_base64(audio_data)
+            
+            messages = [{
+                'role': 'user',
+                'content': [
+                    {'type': 'text', 'text': f'Transcribe exactly what {username} said. Output only the transcription, nothing else.'},
+                    {'type': 'input_audio', 'input_audio': {'data': wav_b64, 'format': 'wav'}},
+                ],
+            }]
+            
+            transcription = await self.llm_connector.chat_completion(
+                messages,
+                max_tokens=300,
+                temperature=0.0
+            )
+            
+            transcription = transcription.strip().strip('"\'')
+            
+            if transcription:
+                logger.info(f"✅ Gemma audio transcription: '{transcription}'")
+                return transcription
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Gemma audio transcription error: {e}")
+            return None
     
     async def start(self) -> None:
         """Start processing queue"""
@@ -293,8 +380,14 @@ class AudioStreamProcessor:
             
             logger.info(f"🎤 Transcribing audio from {username} ({len(audio_data)} bytes)...")
             
-            # Transcribe
-            transcription = await self.transcriber.transcribe(audio_data, language="en")
+            # Determine transcription method:
+            # Priority: gemma12b input_audio (if available) → Whisper fallback
+            transcription = None
+            if self.llm_connector and self.supports_audio:
+                transcription = await self._transcribe_with_gemma(audio_data, username)
+            
+            if not transcription:
+                transcription = await self.transcriber.transcribe(audio_data, language="en")
             
             if transcription and len(transcription.strip()) > 0:
                 logger.info(f"✅ Transcribed: '{transcription}'")

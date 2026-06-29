@@ -291,7 +291,8 @@ async def on_ready():
             audio_processor = AudioStreamProcessor(
                 whisper_transcriber=whisper_transcriber,
                 voice_pipeline=voice_pipeline,
-                silence_threshold=1.5
+                silence_threshold=1.5,
+                llm_connector=natural_response_generator.llama
             )
 
             # 4. Voice Listener
