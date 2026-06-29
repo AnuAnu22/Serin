@@ -4,6 +4,7 @@ Uses the OpenAI Python client pointed at a vLLM server.
 """
 import os
 import asyncio
+import httpx
 from typing import Any, Dict, List, Optional, Tuple, Union
 from openai import OpenAI
 import sys
@@ -60,11 +61,13 @@ class VLLMConnector(ModelInterface):
         if top_p is not None:
             self.top_p = top_p
 
-        # Initialize OpenAI client
+        # Initialize OpenAI client with timeout
         try:
             self.client = OpenAI(
                 base_url=self.base_url,
-                api_key=self.api_key
+                api_key=self.api_key,
+                timeout=httpx.Timeout(connect=5.0, read=30.0, write=5.0, pool=5.0),
+                max_retries=2,
             )
             # Test connection
             self.client.models.list()
