@@ -81,8 +81,10 @@ class MinimalAudioProcessor:
                         asyncio.create_task(self._transcribe(audio, user_id, username, guild_id, channel_id))
                     self.currently_speaking.discard(user_id)
                     self.user_silence_frames[user_id] = 0
+                    self.user_buffers[user_id] = bytearray()
                     self.stats['silence'] += 1
-            self.user_buffers[user_id] = bytearray()
+            else:
+                self.user_buffers[user_id] = bytearray()
 
     async def _transcribe(self, audio: bytes, user_id: str, username: str, guild_id: str, channel_id: str):
         try:
@@ -256,23 +258,27 @@ async def run_bridge(args):
         [bin_path, '--token', token, '--guild-id', str(args.guild_id), '--channel-id', str(args.channel_id)],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        stdin=subprocess.DEVNULL,
         bufsize=0,
     )
 
     processor = MinimalAudioProcessor(gemma_url=args.gemma_url)
     reader = StdoutReader(proc)
 
-    # Read stderr in background
-    async def stderr_loop():
+    # Read stderr in background (blocking I/O in a thread, not async)
+    def stderr_thread():
         import io as _io
-        stderr_text = _io.TextIOWrapper(proc.stderr, encoding='utf-8', errors='replace')  # type: ignore
-        while True:
-            line = stderr_text.readline()
-            if not line:
-                break
-            print(f"   [rust] {line.rstrip()}", flush=True)
+        try:
+            stderr_text = _io.TextIOWrapper(proc.stderr, encoding='utf-8', errors='replace', line_buffering=True)  # type: ignore
+            while True:
+                line = stderr_text.readline()
+                if not line:
+                    break
+                print(f"   [rust] {line.rstrip()}", flush=True)
+        except Exception as e:
+            print(f"   [stderr] Error: {e}", flush=True)
 
-    asyncio.create_task(stderr_loop())
+    threading.Thread(target=stderr_thread, daemon=True).start()
 
     print("⏳ Listening for audio... (join a voice channel and speak)", flush=True)
 

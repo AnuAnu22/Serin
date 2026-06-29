@@ -23,9 +23,11 @@ use serenity::async_trait;
 use serenity::client::{Client, Context, EventHandler};
 use serenity::model::gateway::Ready;
 use serenity::model::id::{ChannelId, GuildId};
+use serenity::model::voice::VoiceState;
 use serenity::prelude::GatewayIntents;
 use songbird::driver::DecodeMode;
 use songbird::Songbird;
+use songbird::packet::Packet as _;
 use songbird::{Config, CoreEvent, Event, EventContext, EventHandler as VoiceEventHandler, SerenityInit};
 
 // ---------------------------------------------------------------------------
@@ -104,7 +106,8 @@ impl VoiceEventHandler for Receiver {
                 for (ssrc, data) in &tick.speaking {
                     let user_id = match self.known_ssrcs.get(ssrc) {
                         Some(entry) => *entry,
-                        None => continue,
+                        // If no SpeakingStateUpdate received, use SSRC as placeholder
+                        None => *ssrc as u64,
                     };
 
                     // Announce user if first time seeing them
@@ -146,6 +149,28 @@ impl VoiceEventHandler for Receiver {
                 }
             }
 
+            Ctx::RtpPacket(packet) => {
+                let rtp = packet.rtp();
+                let payload = rtp.payload();
+                let len = payload.len();
+                // Check for DAVE magic marker [0xfa, 0xfa] at end
+                let has_marker = len >= 2 && payload[len - 2] == 0xfa && payload[len - 1] == 0xfa;
+                eprintln!(
+                    "RTP ssrc={} seq={} ts={} len={} marker={}",
+                    rtp.get_ssrc(),
+                    rtp.get_sequence().0,
+                    rtp.get_timestamp().0,
+                    len,
+                    has_marker,
+                );
+                if len >= 11 {
+                    eprintln!("  last11: {:?}", &payload[len - 11..]);
+                }
+                if len > 0 {
+                    eprintln!("  first8: {:?}", &payload[..len.min(8)]);
+                }
+            }
+
             Ctx::ClientDisconnect(disc) => {
                 let uid = disc.user_id.0;
                 self.known_ssrcs.retain(|_, v| *v != uid);
@@ -174,6 +199,8 @@ impl VoiceEventHandler for Receiver {
 
 struct Handler {
     songbird_holder: Arc<tokio::sync::Mutex<Option<Arc<Songbird>>>>,
+    tracked_channel_id: u64,
+    users_in_channel: Arc<std::sync::Mutex<Vec<(u64, String)>>>,
 }
 
 #[async_trait]
@@ -184,6 +211,34 @@ impl EventHandler for Handler {
             let mut lock = self.songbird_holder.lock().await;
             *lock = Some(manager);
             eprintln!("SONGBIRD_OK");
+        }
+    }
+
+    async fn voice_state_update(&self, _ctx: Context, _old: Option<VoiceState>, new: VoiceState) {
+        if new.channel_id.map(|c| c.get()) != Some(self.tracked_channel_id) {
+            return;
+        }
+        let mut users = self.users_in_channel.lock().unwrap();
+        if new.channel_id.is_some() {
+            // Joined/moved to our tracked channel
+            let username = new.member
+                .as_ref()
+                .map(|m| m.user.name.clone())
+                .unwrap_or_else(|| "unknown".to_string());
+            let uid = new.user_id.get();
+            if !users.iter().any(|(id, _)| *id == uid) {
+                users.push((uid, username.clone()));
+                eprintln!("VC_USER:{}:{}", uid, username);
+                let mut sorted = users.clone();
+                sorted.sort_by(|a, b| a.0.cmp(&b.0));
+                let names: Vec<&str> = sorted.iter().map(|(_, n)| n.as_str()).collect();
+                eprintln!("VC_MEMBERS:{}", names.join(","));
+            }
+        } else {
+            // Left the channel
+            let uid = new.user_id.get();
+            users.retain(|(id, _)| *id != uid);
+            eprintln!("VC_LEFT:{}", uid);
         }
     }
 }
@@ -210,13 +265,18 @@ async fn main() {
     let intents = GatewayIntents::GUILD_VOICE_STATES;
 
     let songbird_config = Config::default()
-        .decode_mode(DecodeMode::Decode(songbird::driver::DecodeConfig::default()));
+        .decode_mode(DecodeMode::Decode(songbird::driver::DecodeConfig::default()))
+        .driver_timeout(Some(std::time::Duration::from_secs(60)));
 
     let songbird_holder: Arc<tokio::sync::Mutex<Option<Arc<Songbird>>>> =
         Arc::new(tokio::sync::Mutex::new(None));
+    let users_in_channel: Arc<std::sync::Mutex<Vec<(u64, String)>>> =
+        Arc::new(std::sync::Mutex::new(Vec::new()));
 
     let handler = Handler {
         songbird_holder: songbird_holder.clone(),
+        tracked_channel_id: args.channel_id,
+        users_in_channel: users_in_channel.clone(),
     };
 
     let mut client = Client::builder(&args.token, intents)
@@ -254,6 +314,7 @@ async fn main() {
         let receiver = Receiver::new();
         handler.add_global_event(CoreEvent::SpeakingStateUpdate.into(), receiver.clone());
         handler.add_global_event(CoreEvent::VoiceTick.into(), receiver.clone());
+        handler.add_global_event(CoreEvent::RtpPacket.into(), receiver.clone());
         handler.add_global_event(CoreEvent::ClientDisconnect.into(), receiver.clone());
 
         eprintln!("EVENTS_REGISTERED");
@@ -272,37 +333,8 @@ async fn main() {
         }
     }
 
-    // Spawn stdin reader for commands (LEAVE)
-    let manager_for_stdin = manager.clone();
-    let stdin_handle = tokio::spawn(async move {
-        use tokio::io::{AsyncBufReadExt, BufReader};
-        let stdin = tokio::io::stdin();
-        let mut reader = BufReader::new(stdin);
-        let mut line = String::new();
-        loop {
-            line.clear();
-            match reader.read_line(&mut line).await {
-                Ok(0) => break,
-                Ok(_) if line.trim() == "LEAVE" => {
-                    eprintln!("LEAVING");
-                    let _ = manager_for_stdin.remove(guild_id).await;
-                    break;
-                }
-                Ok(_) => {}
-                Err(_) => break,
-            }
-        }
-    });
-
-    // Wait for Ctrl+C or stdin EOF
-    let ctrl_c = tokio::signal::ctrl_c();
-    tokio::select! {
-        _ = ctrl_c => {
-            eprintln!("SHUTDOWN");
-            let _ = manager.remove(guild_id).await;
-        }
-        _ = stdin_handle => {
-            eprintln!("SHUTDOWN");
-        }
-    }
+    // Wait for Ctrl+C (bridge kills the process directly)
+    tokio::signal::ctrl_c().await.ok();
+    eprintln!("SHUTDOWN");
+    let _ = manager.remove(guild_id).await;
 }
