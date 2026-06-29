@@ -710,6 +710,18 @@ async def emergency_stop():
     """Emergency stop alias"""
     return await abort_generation()
 
+@app.post("/api/bot/restart")
+async def restart_bot():
+    """Restart the bot process (hot-reloads code changes). The hot_reloader.py wrapper will auto-restart."""
+    try:
+        import os
+        open("/tmp/serin-restart.signal", "w").close()
+        logger.warning("🔄 Restart signal sent to hot-reloader")
+        return {'success': True, 'message': 'Restart signal sent'}
+    except Exception as e:
+        logger.error(f"Failed to send restart signal: {e}")
+        return {'success': False, 'error': str(e)}
+
 class MoodRequest(BaseModel):
     mood: str
 

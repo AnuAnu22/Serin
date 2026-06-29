@@ -167,6 +167,12 @@
                 <span
                     class="absolute left-14 bg-serin-border px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition pointer-events-none">Console</span>
             </button>
+            <button onclick="restartBot()"
+                class="nav-btn restart-btn text-red-500 hover:text-white text-xl p-2 relative group mt-auto">
+                <i class="fa-solid fa-rotate"></i>
+                <span
+                    class="absolute left-14 bg-serin-border px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition pointer-events-none">Restart</span>
+            </button>
         </nav>
 
         <!-- MAIN CONTENT AREA -->
@@ -751,6 +757,26 @@
             setInterval(() => serinBridge.checkHealth(), 5000);
         };
 
+        async function restartBot() {
+            if (!confirm('Restart bot? This will disconnect from Discord briefly.')) return;
+            const btn = document.querySelector('.restart-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            try {
+                const res = await fetch('/api/bot/restart', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    btn.innerHTML = '<i class="fa-solid fa-check" style="color:#00ff9d"></i>';
+                    setTimeout(() => {
+                        btn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
+                        btn.disabled = false;
+                    }, 3000);
+                }
+            } catch(e) {
+                btn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
+                btn.disabled = false;
+            }
+        }
     </script>
 </body>
 
