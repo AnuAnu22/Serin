@@ -37,6 +37,9 @@ class VoiceListener:
         self.transcription_enabled = True
         self.auto_join_on_mention = True
         
+        # Dedup guard for concurrent joins
+        self._join_in_progress: Set[int] = set()
+
         # Stats
         self.stats = {
             'connections': 0,
@@ -58,6 +61,10 @@ class VoiceListener:
         Returns:
             Success status
         """
+        if guild_id in self._join_in_progress:
+            logger.warning(f"⚠️ Join already in progress for guild {guild_id}, skipping")
+            return False
+        self._join_in_progress.add(guild_id)
         try:
             guild = self.client.get_guild(guild_id)
             if not guild:
@@ -75,14 +82,24 @@ class VoiceListener:
                 await self.voice_connections[guild_id].move_to(channel)
                 logger.info(f"🎤 Moved to {channel.name} in {guild.name}")
             else:
-                # Join new channel
-                voice_client = await channel.connect()
-                self.voice_connections[guild_id] = voice_client
-                
-                # Start listening
-                await self._start_listening(voice_client, guild_id, channel_id)
-                
-                logger.info(f"🎤 Joined {channel.name} in {guild.name}")
+                # Check if discord.py already has a voice client for this guild
+                existing = discord.utils.get(self.client.voice_clients, guild=guild)
+                if existing is not None:
+                    voice_client = existing
+                    self.voice_connections[guild_id] = voice_client
+                    if voice_client.channel.id != channel_id:
+                        await voice_client.move_to(channel)
+                    await self._start_listening(voice_client, guild_id, channel_id)
+                    logger.info(f"🎤 Reused existing connection in {guild.name}")
+                else:
+                    # Join new channel
+                    voice_client = await channel.connect()
+                    self.voice_connections[guild_id] = voice_client
+                    
+                    # Start listening
+                    await self._start_listening(voice_client, guild_id, channel_id)
+                    
+                    logger.info(f"🎤 Joined {channel.name} in {guild.name}")
             
             self.stats['connections'] += 1
             self.stats['active_channels'].add(str(channel_id))
@@ -93,6 +110,8 @@ class VoiceListener:
             logger.exception(f"❌ Error joining voice channel: {e}")
             self.stats['errors'] += 1
             return False
+        finally:
+            self._join_in_progress.discard(guild_id)
     
     async def leave_channel(self, guild_id: int) -> bool:
         """
@@ -121,6 +140,7 @@ class VoiceListener:
             channel_id = str(voice_client.channel.id)
             del self.voice_connections[guild_id]
             self.stats['active_channels'].discard(channel_id)
+            self._join_in_progress.discard(guild_id)
             
             logger.info(f"🎤 Left voice channel in guild {guild_id}")
             return True
@@ -142,8 +162,7 @@ class VoiceListener:
                 stats=self.stats
             )
             
-            # discord.py 2.x: Use listen() not start_recording()
-            voice_client.listen(sink)
+            voice_client.start_recording(sink, self._recording_callback, sink)
             logger.info(f"🎧 Started listening in channel {channel_id}")
         
         except Exception as e:
