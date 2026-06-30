@@ -9,9 +9,9 @@ Serin is a Discord AI companion with real-time voice, long-term memory, and mult
 | Package | Owns |
 |---|---|
 | `serin/core/` | Config, logging — imported by everything |
-| `serin/memory/` | Qdrant vector store, BM25 index, hybrid search |
+| `serin/memory/` | I/O: `store.py` (Qdrant + SQLite), `evidence.py` (FactStore), `beliefs.py` (BeliefStore), BM25, hybrid search |
 | `serin/messaging/` | Message pipeline — all text response logic |
-| `serin/messaging/stages/` | 9 independently testable pipeline stages |
+| `serin/messaging/stages/` | 10 independently testable pipeline stages |
 | `serin/personality/` | Personality traits, conversation mood |
 | `serin/models/` | LLM connectors (vLLM, LM Studio, SGLang) |
 | `serin/utils/` | Background jobs, passive monitor, database protector |
@@ -33,15 +33,16 @@ Serin is a Discord AI companion with real-time voice, long-term memory, and mult
        ▼
 3. MessagePipeline.process(ctx)     ← serin/messaging/pipeline.py
        │
-       ├── 1. ResponseDecisionStage   — Check mention, rate limit, DM rules
-       ├── 2. MemoryRetrievalStage    — Qdrant hybrid search
-       ├── 3. TemporalStage           — Resolve "yesterday", "next week"
-       ├── 4. PersonalityStage        — Inject tone modifier + traits
-       ├── 5. PromptAssemblyStage     — Build system + context + history
-       ├── 6. LLMCallStage            — Call model via factory
-       ├── 7. ResponseCleaningStage   — Filter thinking tags, naturalize
-       ├── 8. SendStage               — Typing indicator + channel.send()
-       └── 9. MemoryWriteStage        — Store interaction in Qdrant
+        ├── 1. ResponseDecisionStage   — Check mention, rate limit, DM rules
+        ├── 2. MemoryRetrievalStage    — Qdrant hybrid search + facts + beliefs
+        ├── 3. ResponsePlannerStage    — Read beliefs + intent → stance + constraints
+        ├── 4. TemporalStage           — Resolve "yesterday", "next week"
+        ├── 5. PersonalityStage        — Inject tone modifier + traits
+        ├── 6. PromptAssemblyStage     — Build system + context + history
+        ├── 7. LLMCallStage            — Call model via factory
+        ├── 8. ResponseCleaningStage   — Filter thinking tags, naturalize
+        ├── 9. SendStage               — Typing indicator + channel.send()
+        └── 10. MemoryWriteStage       — Store interaction + update facts/beliefs
        │
        ▼
 4. Discord Message Sent
@@ -89,6 +90,20 @@ Serin is a Discord AI companion with real-time voice, long-term memory, and mult
 10. TrackEvent::End → TTS_DONE → Python _release_lock()
 ```
 
+## Memory Decomposition
+
+The memory layer was split from a single 1,900-line monolith (`qdrant.py`) into three domain-separated modules:
+
+| Module | Owns |
+|---|---|
+| `memory/store.py` | Qdrant client, SQLite connection, BM25 index — I/O only. Owns schema creation, memory CRUD, hybrid search, user profiles, recent messages cache. |
+| `memory/evidence.py` | `FactStore` — atomic verifiable facts with auto-supersede (board states, game results). Keyword-based retrieval (not embedding). Source-type reliability tiers. |
+| `memory/beliefs.py` | `BeliefStore` — state machine (`PENDING` → `SUPPORTED` → `CONTESTED` → `SUPERSEDED` → `UNKNOWN`) with Bayesian confidence. Inference from facts. |
+
+The old `qdrant.py` survives as a 4-line re-export shim so all existing imports (`from serin.memory.qdrant import QdrantMemorySystem`) continue to work without changes.
+
+**Rule:** if you're adding logic about *beliefs* or *evidence*, it goes in `beliefs.py` or `evidence.py`, not in `store.py`. The store talks to databases; it doesn't know what a belief *means*.
+
 ## Key Design Decisions
 
 ### Why Rust for voice?
@@ -119,7 +134,7 @@ Add a `PipelineStage` subclass in `serin/messaging/stages/yourfeature.py`.
 Insert it into `MessagePipeline.build()` in the right position.
 
 ### New memory type:
-Add to `serin/memory/qdrant.py`. Follow existing `add_memory_enhanced()` pattern.
+Add to `serin/memory/store.py` (Qdrant/SQLite I/O) or `serin/memory/evidence.py` (facts) or `serin/memory/beliefs.py` (beliefs) depending on the domain. Follow existing patterns.
 
 ### New LLM provider:
 Add a connector in `models/`. Implement `ModelInterface`. Register in `models/factory.py`.
