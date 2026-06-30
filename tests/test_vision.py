@@ -1,12 +1,10 @@
 """
 Standalone vision test for SmolVLM-256M-Instruct via llama-swap.
-
-Usage:
-    uv run python tests/test_vision.py [image_url]
-
-If no image_url is provided, uses a test image from the web.
-Requires SmolVLM to be running in llama-swap on port 8080.
+Run with: uv run python tests/test_vision.py [image_url]
+Not a pytest test — excluded via __test__ flag.
 """
+__test__ = False
+
 import asyncio
 import base64
 import sys
@@ -25,7 +23,7 @@ os.environ["LLM_TEMPERATURE"] = "0.3"
 os.environ["LLM_TOP_P"] = "0.9"
 os.environ["LLM_MAX_TOKENS"] = "500"
 
-from models.vllm_connector import VLLMConnector
+from models.vllm import VLLMConnector
 
 
 async def test_vision(image_url: str):

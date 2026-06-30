@@ -39,7 +39,7 @@ async def initialize_llama():
     vision_model = os.environ.get("VISION_MODEL", "smolvlm256m")
     if supports_vision:
         try:
-            from models.vllm_connector import VLLMConnector
+            from models.vllm import VLLMConnector
             vision_llama = VLLMConnector(model_name=vision_model)
             vision_llama.load_model()
             logger.info(f" Vision LLM ready: {vision_model}")

@@ -26,6 +26,8 @@ from serin.messaging.response_generator import get_response_natural
 from serin.personality.bot_personality import BotPersonality
 from serin.personality.conversation_analyzer import ConversationAnalyzer
 from serin.messaging.correction_handler import CorrectionDetector, MemoryCorrector, get_correction_acknowledgment
+from serin.active_search import ActiveSearch
+from serin.messaging.context_builder import ConversationContextBuilder
 from serin.messaging.mention_translator import MentionTranslator
 from serin.utils.debug_logger import log_message, log_context, log_correction, log_response
 from models.factory import get_model_connector
@@ -76,7 +78,7 @@ class EnhancedMessageManagerV3:
         vision_model = os.environ.get("VISION_MODEL", "smolvlm256m")
         if supports_vision:
             try:
-                from models.vllm_connector import VLLMConnector
+                from models.vllm import VLLMConnector
                 self.vision_llm = VLLMConnector(model_name=vision_model)
                 self.vision_llm.load_model()
                 logger.info("Vision model loaded: %s", vision_model)
@@ -129,18 +131,6 @@ class EnhancedMessageManagerV3:
         else:
             self.visual_memory = None
             logger.warning("Visual Cortex disabled (requires Qdrant)")
-
-        # Active Search (Thinking Brain)
-        self.active_search_instance: Optional[ActiveSearch] = None
-        try:
-            from serin.active_search import ActiveSearch
-            search_connector = get_model_connector()
-            search_connector.load_model()
-            self.active_search_instance = ActiveSearch(search_connector)
-            logger.info("Active Search (Thinking) enabled")
-        except Exception as e:
-            self.active_search_instance = None
-            logger.error("Active Search disabled: %s", e)
 
         self.last_bot_response: Optional[str] = None
         self.last_bot_response_channel: Optional[str] = None

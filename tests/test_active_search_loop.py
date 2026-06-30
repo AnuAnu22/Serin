@@ -66,7 +66,7 @@ async def test_loop():
     
     # Now we can import the class safely
     from serin.messaging.manager import EnhancedMessageManagerV3
-    from active_search import ActiveSearch
+    from serin.active_search import ActiveSearch
 
     # Setup Mocks
     mock_client = MagicMock()
