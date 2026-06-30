@@ -1,7 +1,5 @@
-"""Serin voice subsystem — Rust bridge, VAD, transcription, TTS output."""
-from voice.bridge import RustVoiceBridge
-from voice.listener import VoiceListener
-from voice.output import VoiceOutputManager
-from voice.processor import AudioStreamProcessor
-
-__all__ = ["RustVoiceBridge", "VoiceListener", "VoiceOutputManager", "AudioStreamProcessor"]
+"""Redirect — moved. Update your imports."""
+from serin.gateway.voice_system.bridge import RustVoiceBridge
+from serin.gateway.voice_system.listener import VoiceListener
+from serin.gateway.voice_system.output import VoiceOutputManager
+from serin.gateway.voice_system.processor import AudioStreamProcessor

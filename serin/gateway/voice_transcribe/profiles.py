@@ -3,7 +3,7 @@ Voice Profiles - Manage TTS Voice Profiles
 Different voice characteristics for different contexts/moods.
 """
 from typing import Dict, Optional
-from serin.core.logger import logger
+from serin.config.logger import logger
 
 
 class VoiceProfile:
@@ -17,7 +17,7 @@ class VoiceProfile:
         length_penalty: float = 1.0,
         repetition_penalty: float = 5.0,
         description: str = ""
-    ):
+    ) -> None:
         self.name = name
         self.speed = speed
         self.temperature = temperature
@@ -36,14 +36,14 @@ class VoiceProfile:
             'description': self.description
         }
     
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"VoiceProfile(name='{self.name}', speed={self.speed})"
 
 
 class VoiceProfileManager:
     """Manage multiple voice profiles"""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.profiles: Dict[str, VoiceProfile] = {}
         self.active_profile = 'default'
         
@@ -136,7 +136,7 @@ class VoiceProfileManager:
             description='Tired, slower, less variation'
         ))
     
-    def add_profile(self, profile: VoiceProfile):
+    def add_profile(self, profile: VoiceProfile) -> None:
         """Add or update a profile"""
         self.profiles[profile.name] = profile
         logger.debug(f" Added profile: {profile.name}")

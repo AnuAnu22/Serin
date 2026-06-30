@@ -1,5 +1,3 @@
-"""Serin model layer — LLM connectors, adapter, factory."""
-from models.factory import get_model_connector
-from models.model_interface import ModelInterface
-
-__all__ = ["get_model_connector", "ModelInterface"]
+"""Redirect — moved. Update your imports."""
+from serin.state.model_system.interface import ModelInterface
+from serin.state.model_system.factory import get_model_connector
