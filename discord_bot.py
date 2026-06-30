@@ -49,12 +49,20 @@ from serin.memory.qdrant import QdrantMemorySystem
 from serin.memory.sync_monitor import MemorySyncMonitor
 
 # TIER 6: Import voice and control panel components
-from voice.listener import VoiceListener
-from voice.processor import AudioStreamProcessor
-from voice.transcriber import WhisperTranscriber
-from voice.pipeline import VoiceMemoryPipeline
-from voice.output import VoiceOutputManager
-from voice.behavior import VoiceBehaviorManager
+voice_available = False
+try:
+    from voice.listener import VoiceListener
+    from voice.processor import AudioStreamProcessor
+    from voice.transcriber import WhisperTranscriber
+    from voice.pipeline import VoiceMemoryPipeline
+    from voice.output import VoiceOutputManager
+    from voice.behavior import VoiceBehaviorManager
+    voice_available = True
+except Exception:
+    VoiceListener = AudioStreamProcessor = WhisperTranscriber = None
+    VoiceMemoryPipeline = VoiceOutputManager = VoiceBehaviorManager = None
+    logger.warning("Voice dependencies not available. Voice features disabled.")
+
 from serin.control_panel.server import init_bot_state, start_server
 
 # TIER 7: TTS preparation
@@ -285,7 +293,7 @@ async def on_ready():
             logger.error(f"Failed to start sync monitor: {e}")
 
         # TIER 6: Initialize voice components
-        if config.ENABLE_VOICE:
+        if config.ENABLE_VOICE and voice_available:
             logger.info("=" * 60)
             logger.info("INITIALIZING VOICE INPUT")
             logger.info("=" * 60)

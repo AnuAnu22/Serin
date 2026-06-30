@@ -29,7 +29,7 @@ from serin.messaging.correction_handler import CorrectionDetector, MemoryCorrect
 from serin.active_search import ActiveSearch
 from serin.messaging.context_builder import ConversationContextBuilder
 from serin.messaging.mention_translator import MentionTranslator
-from serin.utils.debug_logger import log_message, log_context, log_correction, log_response
+from serin.utils.debug_logger import log_message, log_correction
 from models.factory import get_model_connector
 
 
@@ -519,7 +519,7 @@ class EnhancedMessageManagerV3:
         interests = []
         content_lower = content.lower()
 
-        if any(w in content_lower for w in ["lol", "haha", "lmao", "😂"]):
+        if any(w in content_lower for w in [            "lol", "haha", "lmao"]):
             traits.append("humorous")
         if any(w in content_lower for w in ["thanks", "please", "sorry"]):
             traits.append("polite")

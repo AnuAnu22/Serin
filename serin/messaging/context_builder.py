@@ -74,7 +74,7 @@ class ConversationContextBuilder:
         if query_time_hint:
             time_range = get_time_range(query_time_hint)
             if time_range:
-                logger.info(f"⏰ Time range filter: {time_range[0]} to {time_range[1]}")
+                logger.info(f"[TIME] Time range filter: {time_range[0]} to {time_range[1]}")
         
         # Search semantic memories (with optional time filtering)
         if time_range:
@@ -160,7 +160,7 @@ class ConversationContextBuilder:
             except (ValueError, TypeError):
                 continue
         
-        logger.info(f"⏰ Filtered {len(all_memories)} → {len(filtered)} memories by time range")
+        logger.info(f"[TIME] Filtered {len(all_memories)} → {len(filtered)} memories by time range")
         
         return filtered[:5]  # Return top 5
     

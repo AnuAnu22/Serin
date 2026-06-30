@@ -15,7 +15,6 @@ from serin.core.logger import logger
 from serin.messaging.fillers import add_conversational_fillers
 from serin.messaging.typos import add_realistic_typos
 from serin.utils.thinking_filter import filter_thinking
-from serin.utils.debug_logger import log_llm_io
 
 # Global instance (single connector)
 llama: Optional[ModelInterface] = None
