@@ -5,7 +5,7 @@ import sys
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from serin.pipeline.remember.bm25_index import SQLiteBM25Index
+from serin.pipeline.remember.core.bm25_index import SQLiteBM25Index
 
 def test_fix():
     db_path = "test_fix_fts.db"

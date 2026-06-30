@@ -12,7 +12,7 @@ from serin.config.logger import logger
 
 if TYPE_CHECKING:
     from serin.ops.background import BackgroundProcessor
-    from serin.pipeline.ingest.mention_translator import MentionTranslator
+    from serin.state.mention_translator import MentionTranslator
 
 
 class PassiveMonitor:

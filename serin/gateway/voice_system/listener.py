@@ -283,3 +283,32 @@ class VoiceListener:
         if guild and guild.me.voice and guild.me.voice.channel:
             return str(guild.me.voice.channel.id)
         return None
+
+"""
+Voice Output Manager — Handles TTS Generation and Playback
+
+Manages a queue of text to speak, generates TTS audio via edge-tts, and
+sends it to the Rust bridge for voice channel playback.
+
+Key design:
+  - The full response text is queued as ONE item (no sentence splitting).
+    This avoids the Rust SPEAK command interrupting the previous track.
+  - TTS_DONE signal from Rust releases the processing lock so the next
+    user utterance can be processed immediately.
+  - Interrupt detection: if the user speaks while TTS is playing, the
+    processing lock prevents cascading and the interrupt stops playback.
+
+Sentence splitting is intentionally disabled because:
+  1. Rust's SPEAK handler calls handle.stop() before playing new audio
+  2. Sending multiple SPEAK commands → each sentence cuts off the previous
+  3. Edge-TTS handles multi-sentence text fine in one synthesis call
+  4. The TTS_DONE signal from Rust handles lock release precisely
+"""
+import asyncio
+import os
+from typing import Any, Dict, List, Optional, Tuple, Union
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from serin.config.logger import logger
+
+

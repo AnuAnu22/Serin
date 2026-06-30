@@ -1,7 +1,7 @@
 """Tests for ResponseDecisionStage."""
 import pytest
 from unittest.mock import MagicMock, AsyncMock
-from serin.pipeline.act.decision import ResponseDecisionStage
+from serin.pipeline.act.stages.decision_temporal import ResponseDecisionStage
 from serin.state.message_context import MessageContext
 
 

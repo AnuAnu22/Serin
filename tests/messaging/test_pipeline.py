@@ -2,10 +2,10 @@
 import pytest
 from unittest.mock import MagicMock, AsyncMock
 
-from serin.pipeline.act.pipeline import MessagePipeline
+from serin.pipeline.act.runners.pipeline import MessagePipeline
 from serin.state.message_context import MessageContext
-from serin.pipeline.act.llm_call import LLMCallStage
-from serin.pipeline.act.decision import ResponseDecisionStage
+from serin.pipeline.act.runners.llm_call import LLMCallStage
+from serin.pipeline.act.stages.decision_temporal import ResponseDecisionStage
 
 
 def _mock_controller():

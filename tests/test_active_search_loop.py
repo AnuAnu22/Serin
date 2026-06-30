@@ -65,7 +65,7 @@ async def test_loop():
     sys.modules['models.model_factory'] = MagicMock()
     
     # Now we can import the class safely
-    from serin.pipeline.ingest.manager import EnhancedMessageManagerV3
+    from serin.pipeline.ingest.core.manager import EnhancedMessageManagerV3
     from serin.active_search import ActiveSearch
 
     # Setup Mocks

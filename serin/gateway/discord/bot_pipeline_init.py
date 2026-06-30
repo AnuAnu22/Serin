@@ -2,7 +2,7 @@
 
         # Build the MessagePipeline and attach it to the manager
         logger.info("Building MessagePipeline...")
-        from serin.pipeline.act.pipeline import MessagePipeline
+        from serin.pipeline.act.runners.pipeline import MessagePipeline
         from serin.state.thinking_filter import get_thinking_filter
         from serin.pipeline.think.response_generator import get_response_natural
         pipeline = MessagePipeline.build(

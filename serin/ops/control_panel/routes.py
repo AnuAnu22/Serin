@@ -13,7 +13,7 @@ from serin.config.logger import logger
 
 # Import Qdrant memory system (for type checking if needed)
 try:
-    from serin.pipeline.remember.qdrant import QdrantMemorySystem
+    from serin.state.memory_store import QdrantMemorySystem
     QDRANT_AVAILABLE = True
 except ImportError:
     QDRANT_AVAILABLE = False

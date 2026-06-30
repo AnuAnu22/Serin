@@ -33,16 +33,16 @@ from serin.config.config import config
 # TIER 1: Core Message Processing
 from serin.pipeline.think.response_generator import initialize_llama
 import serin.pipeline.think.response_generator
-from serin.pipeline.ingest.manager import EnhancedMessageManagerV3
-from serin.pipeline.ingest.mention_translator import MentionTranslator
+from serin.pipeline.ingest.core.manager import EnhancedMessageManagerV3
+from serin.pipeline.ingest.context.mention_translator import MentionTranslator
 
 # TIER 3: Background Processing
 from serin.ops.passive_monitor import PassiveMonitor
 from serin.ops.background import BackgroundProcessor
-from serin.ops.database_protector import get_database_protector
+from serin.ops.validation.database_protector import get_database_protector
 
 # TIER 4: Message Crawler
-from serin.pipeline.ingest.crawler import MessageCrawler
+from serin.pipeline.ingest.sync.crawler import MessageCrawler
 
 # TIER 5: Memory System
 from serin.pipeline.remember.qdrant import QdrantMemorySystem
@@ -55,8 +55,8 @@ try:
     from serin.gateway.voice_system.processor import AudioStreamProcessor
     from serin.gateway.voice_transcribe.transcriber import WhisperTranscriber
     from serin.gateway.voice_transcribe.pipeline import VoiceMemoryPipeline
-    from serin.gateway.voice_system.output import VoiceOutputManager
-    from serin.gateway.voice_system.behavior import VoiceBehaviorManager
+    from serin.gateway.voice_system.listener import VoiceOutputManager
+    from serin.gateway.voice_system.processor import VoiceBehaviorManager
     voice_available = True
 except Exception:
     VoiceListener = AudioStreamProcessor = WhisperTranscriber = None
@@ -69,7 +69,7 @@ from serin.ops.control_panel.server import init_bot_state, start_server
 from serin.gateway.voice_system.tts_engine import TTSEngine
 
 # Database Protection
-from serin.ops.database_protector import DatabaseProtector, DatabaseValidationError, DatabaseRecoveryError
+from serin.ops.validation.database_protector import DatabaseProtector, DatabaseValidationError, DatabaseRecoveryError
 
 
 # Load environment variables

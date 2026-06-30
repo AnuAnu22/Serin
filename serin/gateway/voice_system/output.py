@@ -1,31 +1,3 @@
-"""
-Voice Output Manager — Handles TTS Generation and Playback
-
-Manages a queue of text to speak, generates TTS audio via edge-tts, and
-sends it to the Rust bridge for voice channel playback.
-
-Key design:
-  - The full response text is queued as ONE item (no sentence splitting).
-    This avoids the Rust SPEAK command interrupting the previous track.
-  - TTS_DONE signal from Rust releases the processing lock so the next
-    user utterance can be processed immediately.
-  - Interrupt detection: if the user speaks while TTS is playing, the
-    processing lock prevents cascading and the interrupt stops playback.
-
-Sentence splitting is intentionally disabled because:
-  1. Rust's SPEAK handler calls handle.stop() before playing new audio
-  2. Sending multiple SPEAK commands → each sentence cuts off the previous
-  3. Edge-TTS handles multi-sentence text fine in one synthesis call
-  4. The TTS_DONE signal from Rust handles lock release precisely
-"""
-import asyncio
-import os
-from typing import Any, Dict, List, Optional, Tuple, Union
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from serin.config.logger import logger
-
-
 class VoiceOutputManager:
     """
     Manages TTS generation, queuing, and playback via the Rust bridge.
@@ -238,3 +210,82 @@ class VoiceOutputManager:
         if current.strip():
             sentences.append(current.strip())
         return sentences
+"""
+Voice Behavior Manager - Auto Join/Leave Voice Channels based on PersonalityState mood.
+Bridges PersonalityState (energy/engagement/sass) with VoiceListener join/leave decisions.
+Serin decides when to join VC like a human would - based on mood, who's there, time of day.
+
+Join philosophy:
+- NEVER join instantly when someone enters VC. That's bot behavior.
+- Instead, log the event and after a random delay (45-90s), consider joining.
+- This makes Serin feel like it's "noticing" and "deciding" to come in.
+- Explicit invites to join VC are handled by the structured output pipeline (voice_action_decider.py).
+"""
+import asyncio
+import random
+from datetime import datetime
+from typing import Any, Dict, Optional, Set
+from serin.config.logger import logger
+
+
+"""
+TTS Engine - Text-to-Speech with multiple backends
+
+Backends (tried in order):
+1. edge-tts (default) - Microsoft Edge voices, free, no model download
+2. Coqui XTTS v2 (optional) - local neural TTS, needs GPU
+
+Features:
+- Multiple voice profiles
+- Voice cloning support (Coqui only)
+- Natural prosody
+"""
+import asyncio
+import io
+import wave
+from typing import Any, Dict, List, Optional, Tuple, Union
+import os
+from serin.config.logger import logger
+
+# Try importing backends
+EDGE_TTS_AVAILABLE = False
+COQUI_TTS_AVAILABLE = False
+
+try:
+    import edge_tts
+    EDGE_TTS_AVAILABLE = True
+except ImportError:
+    pass
+
+try:
+    from TTS.api import TTS
+    import numpy as np
+    import torch
+    COQUI_TTS_AVAILABLE = True
+except ImportError:
+    pass
+
+
+# edge-tts voice presets by mood/style
+EDGE_VOICE_PRESETS = {
+    'default': 'en-US-GuyNeural',
+    'energetic': 'en-US-ChristopherNeural',
+    'calm': 'en-US-AriaNeural',
+    'serious': 'en-US-DavisNeural',
+    'friendly': 'en-US-JennyNeural',
+    'fast': 'en-US-GuyNeural',
+    'slow': 'en-US-AriaNeural',
+}
+
+# Edge TTS rate modifiers per profile
+EDGE_RATE_MAP = {
+    'default': '+0%',
+    'fast': '+20%',
+    'slow': '-15%',
+    'calm': '-5%',
+    'energetic': '+10%',
+    'serious': '+0%',
+    'friendly': '+5%',
+}
+
+
