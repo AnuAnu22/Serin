@@ -70,48 +70,127 @@ The bot runs in a tmux-compatible hot-reload loop. Changes to `.py` files, `seri
 | `TRACE_MESSAGES` | Trace raw messages |
 | `ALLOWED_CHANNEL_IDS` | Restrict bot to specific channels |
 
+## Architecture
+
+Serin is organized as a message pipeline:
+
+```
+Discord Event
+     │
+     ▼
+MessagePipeline (serin/messaging/pipeline.py)
+     │
+     ├── ResponseDecisionStage   — should Serin respond?
+     ├── MemoryRetrievalStage    — fetch relevant memories from Qdrant
+     ├── TemporalStage           — resolve time references
+     ├── PersonalityStage        — inject tone + traits
+     ├── PromptAssemblyStage     — build LLM prompt
+     ├── LLMCallStage            — call the model
+     ├── ResponseCleaningStage   — filter + naturalize response
+     ├── SendStage               — type + send to Discord
+     └── MemoryWriteStage        — store interaction in Qdrant
+```
+
+Each stage is independently testable in `serin/messaging/stages/`. Adding behavior = adding one stage.
+
 ## Project Structure
 
 ```
 ├── discord_bot.py              # Main bot entry point
 ├── hot_reloader.py             # Auto-reload on file changes
-├── web_server.py               # Control panel Flask app
-├── config.py                   # Configuration from env
 ├── pyproject.toml              # Python dependencies
 ├── .env.example                # Config template
+│
+├── serin/                      # Main package
+│   ├── core/                   # Config, logging — imported by everything
+│   │   ├── config.py
+│   │   └── logger.py
+│   ├── memory/                 # Qdrant vector store, BM25 index, hybrid search
+│   │   ├── qdrant.py
+│   │   ├── retrieval.py
+│   │   ├── context.py
+│   │   ├── sync_monitor.py
+│   │   └── temporal.py
+│   ├── messaging/              # Message pipeline — all text response logic
+│   │   ├── pipeline.py         # MessagePipeline: runs 9 stages in order
+│   │   ├── context.py          # MessageContext: data envelope for stages
+│   │   ├── manager.py          # Pre-processing wrapper for backwards compat
+│   │   ├── stages/             # 9 pipeline stage files
+│   │   │   ├── decision.py, memory_retrieval.py, temporal.py,
+│   │   │   ├── personality.py, prompt_assembly.py, llm_call.py,
+│   │   │   ├── response_cleaning.py, send.py, memory_write.py
+│   │   ├── response_generator.py
+│   │   ├── response_controller.py
+│   │   ├── mention_translator.py
+│   │   ├── fillers.py, typos.py
+│   │   ├── correction_handler.py
+│   │   ├── long_message.py, crawler.py
+│   │   └── context_builder.py
+│   ├── personality/            # Personality traits, conversation mood
+│   │   ├── bot_personality.py
+│   │   ├── conversation_analyzer.py
+│   │   └── topic_fatigue.py
+│   ├── utils/                  # Support utilities
+│   │   ├── background.py, passive_monitor.py
+│   │   ├── thinking_filter.py, debug_logger.py
+│   │   └── database_protector.py
+│   └── control_panel/          # Web dashboard (Flask)
+│       ├── server.py
+│       └── routes.py
+│
 ├── voice/                      # Voice pipeline
-│   ├── audio_stream_processor.py  # VAD, silence detection, burst filter, processing lock
-│   ├── rust_voice_bridge.py       # stdin/stdout bridge to Rust binary
-│   ├── rust_receiver/src/main.rs  # DAVE-compatible Rust voice receiver
-│   ├── voice_output_manager.py    # TTS synthesis and queuing
-│   ├── voice_memory_pipeline.py   # Voice message processing
-│   ├── whisper_transcriber.py     # Speech-to-text via faster-whisper
-│   └── ...                      # Profiles, behavior, tracker, etc.
+│   ├── bridge.py               # stdin/stdout bridge to Rust binary
+│   ├── processor.py            # VAD, silence detection, burst filter, lock
+│   ├── pipeline.py             # Voice message processing
+│   ├── output.py               # TTS synthesis and queuing
+│   ├── transcriber.py          # Speech-to-text via faster-whisper
+│   ├── listener.py             # Voice connection listener
+│   ├── behavior.py             # Voice behavior rules
+│   ├── tracker.py, decider.py, profiles.py
+│   └── rust_receiver/src/main.rs  # DAVE-compatible Rust voice receiver
+│
+├── models/                     # LLM connectors
+│   ├── factory.py, interface.py, adapter.py
+│   ├── vllm.py, lm_studio.py, sglang.py
+│
 ├── serin_core/                 # PyO3 Rust module (optional)
 │   └── src/lib.rs              # FTS, thinking filter, contractions, etc.
-├── memory_system.py            # Qdrant vector memory
-├── enhanced_memory_retrieval.py # Hybrid search (BM25 + semantic)
-├── conversation_context_builder.py  # Context assembly
-├── natural_response_generator.py    # Response formatting
-└── tests/                      # Test suite
+│
+├── tts/                        # Text-to-speech engine
+│   └── tts_engine.py
+│
+├── tests/                      # Test suite (run with pytest)
+│   ├── messaging/stages/       # Pipeline stage unit tests
+│   ├── voice/                  # Voice processor smoke tests
+│   └── memory/                 # Memory system tests
+│
+└── docs/                       # Reference documentation
+    ├── LOGGING.md              # Structured logging convention
+    └── ARCHITECTURE.md         # Detailed architecture reference
 ```
 
-## Voice Pipeline
+## Data Flow
 
+### Text Message
+1. `discord_bot.py:on_message()` receives Discord event
+2. `MessagePipeline.process(ctx)` runs 9 stages in sequence
+3. Response sent to Discord; interaction stored in Qdrant
+
+### Voice Message
 1. User speaks → Discord sends encrypted Opus frames
-2. Rust receiver (DAVE-compatible) decrypts + decodes to PCM → stdout
-3. `audio_stream_processor.py` reads PCM chunks, runs VAD, buffers speech
-4. After 1.5s of consecutive silence (with burst filter: noises <0.5s ignored), audio is queued
-5. If model supports audio (Gemma), raw PCM is sent via `input_audio` field — skips STT
-6. Otherwise, Whisper transcribes audio to text
-7. LLM generates response → Edge-TTS synthesizes → Rust plays in voice channel
-8. Processing lock blocks new audio until `TTS_DONE` signal from Rust (track end event)
+2. Rust receiver decrypts + decodes to PCM → stdout
+3. `voice/processor.py` reads PCM chunks, runs VAD, buffers speech
+4. After 1.5s of consecutive silence (bursts <0.5s ignored), audio queued
+5. If Gemma (supports `input_audio`), raw PCM sent to LLM directly — skips STT
+6. Otherwise Whisper transcribes to text
+7. LLM generates → Edge-TTS synthesizes → Rust plays in voice channel
+8. Processing lock released on `TTS_DONE` from Rust
 
 ## Development
 
 ```bash
-# Run tests
-pytest tests/
+# Run tests (excludes integration tests requiring live services)
+pytest tests/ -m "not integration"
 
 # Build Rust components manually
 cd voice/rust_receiver && cargo build --release

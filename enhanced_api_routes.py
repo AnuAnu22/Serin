@@ -9,11 +9,11 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any
 from fastapi import FastAPI, HTTPException, Request, Body
 from pydantic import BaseModel
-from logger_config import logger
+from serin.core.logger import logger
 
 # Import Qdrant memory system (for type checking if needed)
 try:
-    from qdrant_memory_system import QdrantMemorySystem
+    from serin.memory.qdrant import QdrantMemorySystem
     QDRANT_AVAILABLE = True
 except ImportError:
     QDRANT_AVAILABLE = False

@@ -22,9 +22,9 @@ from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-from logger_config import logger
+from serin.core.logger import logger
+from serin.core.config import config
 from enhanced_api_routes import register_enhanced_routes
-from config import config
 
 def make_json_safe(obj: Any) -> Any:
     """
@@ -875,7 +875,7 @@ async def get_settings():
 async def update_setting(update: SettingsUpdate):
     """Update a setting (Legacy wrapper)"""
     try:
-        from config import config
+        from serin.core.config import config
         # Map legacy keys to config keys
         key_map = {
             'debug_mode': 'DEBUG_MODE',

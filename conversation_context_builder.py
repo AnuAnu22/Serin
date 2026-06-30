@@ -13,7 +13,7 @@ from logger_config import logger
 from temporal_context import TemporalFormatter, parse_time, get_time_range
 
 if TYPE_CHECKING:
-    from qdrant_memory_system import QdrantMemorySystem
+    from serin.memory.qdrant import QdrantMemorySystem
 
 _TIME_PATTERN_RE = re.compile(
     r'(last \w+day)|'

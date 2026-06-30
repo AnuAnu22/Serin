@@ -99,7 +99,7 @@ async def test_llm_chat():
 # ============================================================
 @test("Memory system SQLite operations (without Qdrant)")
 async def test_memory_sqlite():
-    from qdrant_memory_system import QdrantMemorySystem
+    from serin.memory.qdrant import QdrantMemorySystem
     import tempfile
     import shutil
     

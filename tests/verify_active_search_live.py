@@ -15,10 +15,10 @@ async def test_live_active_search():
     
     # 1. Initialize Real Components
     try:
-        from config import config
+        from serin.core.config import config
         from models.vllm_connector import VLLMConnector
         from active_search import ActiveSearch
-        from qdrant_memory_system import QdrantMemorySystem
+        from serin.memory.qdrant import QdrantMemorySystem
         
         # Initialize Memory (Qdrant)
         print("💾 Connecting to Qdrant...")
