@@ -16,7 +16,7 @@ PRODUCTION DATABASE PROTECTION:
 - Graceful shutdown handlers
 """
 import os
-from logger_config import logger
+from serin.core.logger import logger
 import asyncio
 import traceback
 import aiohttp
@@ -28,40 +28,40 @@ logger.info("Loading AI components...")
 from datetime import datetime, timedelta
 
 # Import centralized config
-from config import config
+from serin.core.config import config
 
 # TIER 1: Core Message Processing
-from natural_response_generator import initialize_llama
-import natural_response_generator
-from enhanced_message_manager import EnhancedMessageManagerV3
-from mention_translator import MentionTranslator
+from serin.messaging.response_generator import initialize_llama
+import serin.messaging.response_generator
+from serin.messaging.manager import EnhancedMessageManagerV3
+from serin.messaging.mention_translator import MentionTranslator
 
 # TIER 3: Background Processing
-from passive_monitor import PassiveMonitor
-from background_processor import BackgroundProcessor
-from database_protector import get_database_protector
+from serin.utils.passive_monitor import PassiveMonitor
+from serin.utils.background import BackgroundProcessor
+from serin.utils.database_protector import get_database_protector
 
 # TIER 4: Message Crawler
-from message_crawler import MessageCrawler
+from serin.messaging.crawler import MessageCrawler
 
 # TIER 5: Memory System
-from qdrant_memory_system import QdrantMemorySystem
-from memory_sync_monitor import MemorySyncMonitor
+from serin.memory.qdrant import QdrantMemorySystem
+from serin.memory.sync_monitor import MemorySyncMonitor
 
 # TIER 6: Import voice and control panel components
-from voice.voice_listener import VoiceListener
-from voice.audio_stream_processor import AudioStreamProcessor
-from voice.whisper_transcriber import WhisperTranscriber
-from voice.voice_memory_pipeline import VoiceMemoryPipeline
-from voice.voice_output_manager import VoiceOutputManager
-from voice.voice_behavior_manager import VoiceBehaviorManager
-from web_server import init_bot_state, start_server
+from voice.listener import VoiceListener
+from voice.processor import AudioStreamProcessor
+from voice.transcriber import WhisperTranscriber
+from voice.pipeline import VoiceMemoryPipeline
+from voice.output import VoiceOutputManager
+from voice.behavior import VoiceBehaviorManager
+from serin.control_panel.server import init_bot_state, start_server
 
 # TIER 7: TTS preparation
 from tts.tts_engine import TTSEngine
 
 # Database Protection
-from database_protector import DatabaseProtector, DatabaseValidationError, DatabaseRecoveryError
+from serin.utils.database_protector import DatabaseProtector, DatabaseValidationError, DatabaseRecoveryError
 
 
 # Load environment variables
@@ -295,7 +295,7 @@ async def on_ready():
                 whisper_transcriber=whisper_transcriber,
                 voice_pipeline=voice_pipeline,
                 silence_threshold=1.5,
-                llm_connector=natural_response_generator.llama
+                llm_connector=serin.messaging.response_generator.llama
             )
 
             # 4. Voice Listener
@@ -424,12 +424,12 @@ async def on_ready():
         )
 
         # Add voice behavior manager to control panel state
-        from web_server import bot_state
+        from serin.control_panel.server import bot_state
         bot_state['voice_behavior_manager'] = voice_behavior_manager
 
         # Inject Broadcaster into ResponseController (for Decision Feed)
         if message_manager and hasattr(message_manager, 'response_controller'):
-            from web_server import broadcast_event
+            from serin.control_panel.server import broadcast_event
             message_manager.response_controller.set_broadcaster(broadcast_event)
             logger.info("Decision broadcaster connected to ResponseController")
 
@@ -729,7 +729,7 @@ async def main():
         logger.info("=" * 60)
 
         # Set up discord client reference
-        natural_response_generator.discord_client = client
+        serin.messaging.response_generator.discord_client = client
         logger.debug("Discord client reference set")
 
         MAX_RETRIES = 5
