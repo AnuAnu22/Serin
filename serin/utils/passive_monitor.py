@@ -11,7 +11,7 @@ from typing import Set, Dict, Any, TYPE_CHECKING
 from serin.core.logger import logger
 
 if TYPE_CHECKING:
-    from background_processor import BackgroundProcessor
+    from serin.utils.background import BackgroundProcessor
     from serin.messaging.mention_translator import MentionTranslator
 
 

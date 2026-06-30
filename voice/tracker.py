@@ -7,7 +7,7 @@ UPDATED: Debug logging added
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 from serin.core.logger import logger
-from debug_logger import log_voice
+from serin.utils.debug_logger import log_voice
 
 
 class VoiceTracker:

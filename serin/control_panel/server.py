@@ -23,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 from serin.core.logger import logger
-from enhanced_api_routes import register_enhanced_routes
+from serin.control_panel.routes import register_enhanced_routes
 from serin.core.config import config
 
 def make_json_safe(obj: Any) -> Any:
@@ -1123,7 +1123,7 @@ async def get_active_speakers():
 async def list_voice_profiles():
     """List all voice profiles"""
     try:
-        from voice.voice_profiles import get_voice_profiles, get_active_profile_name
+        from voice.profiles import get_voice_profiles, get_active_profile_name
         profiles = get_voice_profiles()
         active = get_active_profile_name()
         return {
@@ -1145,7 +1145,7 @@ async def list_voice_profiles():
 async def create_voice_profile(data: Dict[str, Any]):
     """Create a new voice profile"""
     try:
-        from voice.voice_profiles import create_profile
+        from voice.profiles import create_profile
         name = data.get('name')
         if not name:
             return {'success': False, 'error': 'Profile name required'}
@@ -1166,7 +1166,7 @@ async def create_voice_profile(data: Dict[str, Any]):
 async def set_active_voice_profile(profile_name: str = 'default'):
     """Set active voice profile"""
     try:
-        from voice.voice_profiles import set_active_profile
+        from voice.profiles import set_active_profile
         success = set_active_profile(profile_name)
         if success:
             logger.info(" Active voice profile: %s", profile_name)
@@ -1179,7 +1179,7 @@ async def set_active_voice_profile(profile_name: str = 'default'):
 async def delete_voice_profile(profile_name: str):
     """Delete a voice profile"""
     try:
-        from voice.voice_profiles import delete_profile
+        from voice.profiles import delete_profile
         success = delete_profile(profile_name)
         if success:
             logger.info(" Deleted voice profile: %s", profile_name)

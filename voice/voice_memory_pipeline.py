@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Union
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from logger_config import logger
+from serin.core.logger import logger
 
 
 class VoiceMemoryPipeline:

@@ -13,7 +13,7 @@ import discord
 from typing import Any, Dict, Optional, Set
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from logger_config import logger
+from serin.core.logger import logger
 
 # Import VoiceProtocol from _types to avoid requiring py-cord[voice] deps
 from discord.voice._types import VoiceProtocol

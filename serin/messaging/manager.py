@@ -100,7 +100,7 @@ class EnhancedMessageManagerV3:
         # TIER 5: Correction + Voice systems
         self.correction_detector = CorrectionDetector()
         self.memory_corrector = MemoryCorrector(self.memory)
-        from voice.voice_tracker import VoiceTracker
+        from voice.tracker import VoiceTracker
         self.voice_tracker = VoiceTracker(self.memory)
 
         # Pipeline instance (set externally by discord_bot.py after building)
@@ -162,7 +162,7 @@ class EnhancedMessageManagerV3:
         self.voice_pipeline: Any = None
 
         # Voice Action Decider
-        from voice.voice_action_decider import VoiceActionDecider
+        from voice.decider import VoiceActionDecider
         try:
             va_connector = get_model_connector()
             va_connector.load_model()

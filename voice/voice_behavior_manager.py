@@ -13,7 +13,7 @@ import asyncio
 import random
 from datetime import datetime
 from typing import Any, Dict, Optional, Set
-from logger_config import logger
+from serin.core.logger import logger
 
 
 class VoiceBehaviorManager:

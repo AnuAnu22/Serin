@@ -11,7 +11,7 @@ Features:
 import os
 from pathlib import Path
 from typing import List, Dict, Optional
-from logger_config import logger
+from serin.core.logger import logger
 
 
 class TTSVoiceManager:

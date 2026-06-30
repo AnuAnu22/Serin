@@ -6,8 +6,8 @@ UPDATED: Debug logging added
 """
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
-from logger_config import logger
-from debug_logger import log_voice
+from serin.core.logger import logger
+from serin.utils.debug_logger import log_voice
 
 
 class VoiceTracker:

@@ -163,7 +163,7 @@ def filter_for_memory(content: str) -> str:
     Ensures no thinking tags pollute the memory database.
     
     Usage in memory_system.py:
-        from thinking_filter import filter_for_memory
+        from serin.utils.thinking_filter import filter_for_memory
         
         def add_memory(self, content, ...):
             content = filter_for_memory(content)  # Clean first!

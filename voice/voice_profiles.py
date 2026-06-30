@@ -3,7 +3,7 @@ Voice Profiles - Manage TTS Voice Profiles
 Different voice characteristics for different contexts/moods.
 """
 from typing import Dict, Optional
-from logger_config import logger
+from serin.core.logger import logger
 
 
 class VoiceProfile:

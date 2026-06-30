@@ -15,9 +15,9 @@ from typing import List, Dict, Optional, Any
 from collections import deque
 from models.model_interface import ModelInterface
 from models.factory import get_model_connector
-from thinking_filter import filter_thinking
+from serin.utils.thinking_filter import filter_thinking
 from serin.core.logger import logger
-from debug_logger import log_summary
+from serin.utils.debug_logger import log_summary
 
 class BackgroundProcessor:
     def __init__(self, memory_system: Any, max_queue_size: int = 1000) -> None:

@@ -38,7 +38,7 @@ from typing import Any, Dict, List, Optional, Set, Union
 from collections import deque
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from logger_config import logger
+from serin.core.logger import logger
 
 
 class AudioStreamProcessor:

@@ -5,7 +5,7 @@ These root-level files have moved to the `serin/` package or been renamed:
 | Old location | New location |
 |---|---|
 | config.py | serin/core/config.py |
-| logger_config.py | serin/core/logger.py (kept as shim at root) |
+| logger_config.py | serin/core/logger.py (shim deleted in Phase 7) |
 | qdrant_memory_system.py | serin/memory/qdrant.py |
 | enhanced_memory_retrieval.py | serin/memory/retrieval.py |
 | enhanced_memory_context.py | serin/memory/context.py |
@@ -47,3 +47,47 @@ These root-level files have moved to the `serin/` package or been renamed:
 | models/vllm_connector.py | models/vllm.py |
 | models/lm_studio_connector.py | models/lm_studio.py |
 | models/sglang_connector.py | models/sglang.py |
+
+## Deleted Files (root originals removed after confirming zero production imports)
+
+The following root-level files were deleted in Phase 7 cleanup. All code
+had been moved to `serin/` and all production imports updated:
+
+- `active_search.py`
+- `background_processor.py`
+- `bot_personality.py`
+- `conversation_analyzer.py`
+- `conversation_context_builder.py`
+- `conversational_fillers.py`
+- `correction_handler.py`
+- `database_protector.py`
+- `debug_logger.py`
+- `enhanced_api_routes.py`
+- `enhanced_memory_context.py`
+- `enhanced_memory_retrieval.py`
+- `logger_config.py` (was shim)
+- `long_message_handler.py`
+- `memory_diagnostic_tool.py`
+- `memory_sync_monitor.py`
+- `memory_system.py`
+- `memory_system_enhancer.py`
+- `mention_translator.py`
+- `message_crawler.py`
+- `natural_response_generator.py`
+- `passive_monitor.py`
+- `pipeline_stages.py`
+- `realistic_typos.py`
+- `response_controller.py`
+- `self_healing_database.py`
+- `temporal_context.py`
+- `thinking_filter.py`
+- `topic_fatigue.py`
+- `visual_memory_system.py`
+- `web_server.py`
+
+## Remaining at Root (not moved)
+
+- `discord_bot.py` — main entry point
+- `hot_reloader.py` — dev launcher with Rust support
+- `dev.py` — deprecated launcher (kept for backwards compat)
+- `tts_voice_manager.py` — TTS voice file management

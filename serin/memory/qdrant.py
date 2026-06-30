@@ -13,9 +13,9 @@ import asyncio
 import numpy as np
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple, Any
-from thinking_filter import filter_for_memory
+from serin.utils.thinking_filter import filter_for_memory
 from serin.core.logger import logger
-from debug_logger import log_memory
+from serin.utils.debug_logger import log_memory
 
 # Qdrant imports
 try:
