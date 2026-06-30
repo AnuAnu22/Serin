@@ -43,6 +43,7 @@ class MessagePipeline:
         """
         from serin.messaging.stages.decision import ResponseDecisionStage
         from serin.messaging.stages.memory_retrieval import MemoryRetrievalStage
+        from serin.messaging.stages.response_planner import ResponsePlannerStage
         from serin.messaging.stages.temporal import TemporalStage
         from serin.messaging.stages.personality import PersonalityStage
         from serin.messaging.stages.prompt_assembly import PromptAssemblyStage
@@ -54,6 +55,7 @@ class MessagePipeline:
         return cls(stages=[
             ResponseDecisionStage(response_controller),
             MemoryRetrievalStage(memory_system, retrieval),
+            ResponsePlannerStage(),
             TemporalStage(temporal_context),
             PersonalityStage(personality, mood_state=mood_state),
             PromptAssemblyStage(mention_translator),

@@ -69,6 +69,46 @@ class PromptAssemblyStage(PipelineStage):
         if ctx.tone_modifier:
             ctx.system_prompt += f"\n\nCurrent mood: {ctx.tone_modifier}"
 
+        # ── Binding constraints from Response Planner ────────────────────
+        plan = ctx.response_plan or {}
+        if plan.get("constraints"):
+            constraint_lines = []
+            for c in plan["constraints"]:
+                constraint_lines.append(f"- {c}")
+            ctx.system_prompt += (
+                "\n\nResponse constraints (these are important — "
+                "don't ignore them):\n" + "\n".join(constraint_lines)
+            )
+
+        if plan.get("forbidden_moves"):
+            forbid_lines = []
+            for f in plan["forbidden_moves"]:
+                forbid_lines.append(f"- Don't {f}")
+            ctx.system_prompt += (
+                "\n\nForbidden:\n" + "\n".join(forbid_lines)
+            )
+
+        if plan.get("stance") == "uncertain":
+            ctx.system_prompt += (
+                "\n\nYou're uncertain about something in this conversation. "
+                "It's fine to say you're not sure."
+            )
+        elif plan.get("stance") == "disagree_gently":
+            ctx.system_prompt += (
+                "\n\nThe evidence supports a different conclusion than what "
+                "was just said. You can disagree, but be natural about it."
+            )
+        elif plan.get("stance") == "disagree_firmly":
+            ctx.system_prompt += (
+                "\n\nThe evidence strongly supports a different conclusion. "
+                "State what you know confidently, using the evidence you have."
+            )
+        elif plan.get("stance") == "agree":
+            ctx.system_prompt += (
+                "\n\nThe evidence agrees with what was just said. "
+                "Affirm and add relevant details."
+            )
+
         # Build typed context sections
         context_parts = []
 

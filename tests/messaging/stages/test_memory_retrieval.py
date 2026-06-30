@@ -11,6 +11,8 @@ async def test_populates_memories(base_context):
     memory_system.get_user_profile.return_value = {}
     retrieval = MagicMock()
     retrieval.build_context.return_value = {
+        "facts": [],
+        "beliefs": [],
         "evidence_memories": [
             {"content": "Evidence memory", "score": 0.9},
         ],
@@ -34,6 +36,8 @@ async def test_handles_empty_results(base_context):
     memory_system.get_user_profile.return_value = {}
     retrieval = MagicMock()
     retrieval.build_context.return_value = {
+        "facts": [],
+        "beliefs": [],
         "evidence_memories": [],
         "episode_memories": [],
         "utterance_memories": [],
@@ -52,6 +56,8 @@ async def test_stage_timing_recorded(base_context):
     memory_system.get_user_profile.return_value = {}
     retrieval = MagicMock()
     retrieval.build_context.return_value = {
+        "facts": [],
+        "beliefs": [],
         "evidence_memories": [],
         "episode_memories": [],
         "utterance_memories": [],

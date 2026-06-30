@@ -49,7 +49,9 @@ class PerceptionResult:
     """
     speech_act: str  # assertion | question | joke | sarcasm | agreement | disagreement | evidence | statement | instruction
     is_objective: bool  # primarily factual/verifiable?
-    evidence_blocks: List[Dict] = field(default_factory=list)  # [{type, content, metadata}]
+    evidence_class: str = 'conversation'  # world | conversation | social | system
+    intent: str = 'statement'  # seek_validation | seek_explanation | seek_argument | seek_joke | social | question | command | statement
+    evidence_blocks: List[Dict] = field(default_factory=list)  # [{type, content, metadata, evidence_class}]
     claims: List[Dict] = field(default_factory=list)  # [{claimant, content, category}]
     observations: List[str] = field(default_factory=list)  # verifiable observations extracted
     extracted_facts: List[Dict] = field(default_factory=list)  # [{content, category, confidence, source_type}]
@@ -459,6 +461,7 @@ class EnhancedMessageManagerV3:
                     source_message_id=str(message.id),
                     speech_act=perception.speech_act,
                     is_objective=perception.is_objective,
+                    evidence_class=perception.evidence_class,
                     extracted_facts=[
                         f['content'] for f in perception.extracted_facts
                     ],
@@ -675,13 +678,14 @@ class EnhancedMessageManagerV3:
         if re.search(r'^(?:tell|show|explain|describe|list|give|do|say)\b', content_lower):
             result.speech_act = 'instruction'
 
-        # ── 2. Extract evidence blocks ────────────────────────────────────
+        # ── 2. Extract evidence blocks with class ─────────────────────────
         # Board states: |...|...|...| across multiple lines
         board_match = re.search(r'(\|.*?\|.*?\|[^\n]*(\n\|.*?\|.*?\|[^\n]*)*)', content, re.DOTALL)
         if board_match:
             result.evidence_blocks.append({
                 'type': 'board',
                 'content': board_match.group(1).strip(),
+                'evidence_class': 'world',
                 'metadata': {},
             })
 
@@ -691,6 +695,7 @@ class EnhancedMessageManagerV3:
             result.evidence_blocks.append({
                 'type': 'url',
                 'content': url,
+                'evidence_class': 'world',
                 'metadata': {},
             })
 
@@ -700,6 +705,7 @@ class EnhancedMessageManagerV3:
             result.evidence_blocks.append({
                 'type': 'code',
                 'content': code_match.group(2).strip(),
+                'evidence_class': 'world',
                 'metadata': {'language': code_match.group(1)},
             })
 
@@ -709,6 +715,7 @@ class EnhancedMessageManagerV3:
             result.evidence_blocks.append({
                 'type': 'quote',
                 'content': quote,
+                'evidence_class': 'world',
                 'metadata': {},
             })
 
@@ -797,8 +804,34 @@ class EnhancedMessageManagerV3:
                         f"Derived: {fact['content']}"
                     )
 
-        # ── 6. Determine objectivity ──────────────────────────────────────
-        # Objective if: evidence blocks exist, or message is short factual statement
+        # ── 7. Determine evidence_class ──────────────────────────────────
+        if result.evidence_blocks:
+            result.evidence_class = 'world'
+        elif result.claims:
+            result.evidence_class = 'conversation'
+        else:
+            # Check for highly emotional content
+            sentiment = self.analyzer.polarity_scores(content)
+            if abs(sentiment['compound']) > 0.7:
+                result.evidence_class = 'social'
+
+        # ── 8. Determine intent ───────────────────────────────────────────
+        if result.speech_act == 'question':
+            result.intent = 'question'
+        elif any(m in content_lower for m in ['why', 'how', 'explain', 'what']):
+            result.intent = 'seek_explanation'
+        elif any(m in content_lower for m in ['am i right', 'did i', 'check', 'rate']):
+            result.intent = 'seek_validation'
+        elif result.speech_act == 'joke':
+            result.intent = 'seek_joke'
+        elif result.speech_act == 'disagreement':
+            result.intent = 'seek_argument'
+        elif result.speech_act == 'instruction':
+            result.intent = 'command'
+        elif result.speech_act in ('agreement', 'statement'):
+            result.intent = 'social'
+
+        # ── 9. Determine objectivity ──────────────────────────────────────
         if result.evidence_blocks:
             result.is_objective = True
         elif result.claims:

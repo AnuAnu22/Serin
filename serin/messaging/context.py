@@ -26,6 +26,8 @@ class MessageContext:
     # ── Decision ──────────────────────────────────────────────────────────────
     should_respond: bool = False
     halt_reason: str = ""  # non-empty = pipeline halted early
+    intent: str = "statement"  # from PerceptionResult
+    response_plan: dict = field(default_factory=dict)  # from ResponsePlannerStage
 
     # ── Memory retrieval ──────────────────────────────────────────────────────
     memories: list[dict] = field(default_factory=list)

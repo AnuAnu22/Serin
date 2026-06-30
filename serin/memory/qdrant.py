@@ -310,6 +310,7 @@ class QdrantMemorySystem:
                 id TEXT PRIMARY KEY,
                 content TEXT NOT NULL,
                 category TEXT NOT NULL DEFAULT 'inference',
+                state TEXT NOT NULL DEFAULT 'PENDING',
                 confidence REAL DEFAULT 0.5,
                 supporting_fact_ids TEXT DEFAULT '[]',
                 contradicting_fact_ids TEXT DEFAULT '[]',
@@ -317,6 +318,8 @@ class QdrantMemorySystem:
                 claim_count INTEGER DEFAULT 0,
                 timestamp TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
+                last_contradicted_at TEXT DEFAULT '',
+                contradiction_resolved_at TEXT DEFAULT '',
                 is_active INTEGER DEFAULT 1
             )
         """)
@@ -324,6 +327,24 @@ class QdrantMemorySystem:
             CREATE INDEX IF NOT EXISTS idx_beliefs_confidence
             ON beliefs(confidence DESC)
         """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_beliefs_state
+            ON beliefs(state, is_active)
+        """)
+
+        # Migration: add state column if table exists without it
+        try:
+            cursor.execute("ALTER TABLE beliefs ADD COLUMN state TEXT NOT NULL DEFAULT 'PENDING'")
+        except Exception:
+            pass
+        try:
+            cursor.execute("ALTER TABLE beliefs ADD COLUMN last_contradicted_at TEXT DEFAULT ''")
+        except Exception:
+            pass
+        try:
+            cursor.execute("ALTER TABLE beliefs ADD COLUMN contradiction_resolved_at TEXT DEFAULT ''")
+        except Exception:
+            pass
         
         self.conn.commit()
         logger.debug(" SQLite schema initialized")
@@ -438,6 +459,7 @@ class QdrantMemorySystem:
             "conversation_id": kwargs.get('conversation_id', ''),
             "source_message_id": kwargs.get('source_message_id', ''),
             "memory_type": kwargs.get('memory_type', 'utterance'),
+            "evidence_class": kwargs.get('evidence_class', 'conversation'),
             "speech_act": kwargs.get('speech_act', 'statement'),
             "is_objective": kwargs.get('is_objective', False),
             "extracted_facts": kwargs.get('extracted_facts', []),
@@ -1557,9 +1579,16 @@ class QdrantMemorySystem:
                              claim_count: int = 0) -> str:
         """Store or update a belief (a conclusion inferred from facts).
 
-        If a belief with the same content already exists, its confidence is
-        updated via Bayesian averaging — new supporting evidence raises
-        confidence, new contradicting evidence lowers it.
+        State machine:
+          PENDING    → first evidence arrives
+          SUPPORTED  → evidence supports, no strong counter-evidence
+          CONTESTED  → contradicting evidence found
+          SUPERSEDED → overwhelming counter-evidence, original retracted
+
+        Confidence and state are managed together. New supporting evidence
+        raises confidence. New claims (counter-claims) lower it. When
+        contradicting evidence first appears, state → CONTESTED. When it
+        overwhelms, state → SUPERSEDED.
         """
         now = datetime.now().isoformat()
         cursor = self.conn.cursor()
@@ -1569,7 +1598,8 @@ class QdrantMemorySystem:
 
         # Check existing belief with same content
         existing = cursor.execute("""
-            SELECT id, confidence, evidence_count, claim_count
+            SELECT id, confidence, evidence_count, claim_count, state,
+                   last_contradicted_at
             FROM beliefs
             WHERE content = ? AND is_active = 1
         """, (content,)).fetchone()
@@ -1579,42 +1609,80 @@ class QdrantMemorySystem:
             old_conf = existing[1]
             old_evidence = existing[2]
             old_claims = existing[3]
+            old_state = existing[4]
+            old_contradicted_at = existing[5] or ''
 
-            # Bayesian-inspired update: new evidence pulls confidence up,
-            # new claims pull it down, weighted by relative counts
             total_evidence = old_evidence + evidence_count
             total_claims = old_claims + claim_count
             total = total_evidence + total_claims
+
+            # ── Determine new state ───────────────────────────────────────
+            # If new claims > new evidence and this is a first contradiction
+            new_state = old_state
+            last_contradicted_at = old_contradicted_at
+            resolved_at = ''
+
+            has_new_contradiction = (
+                claim_count > evidence_count and old_state in ('PENDING', 'SUPPORTED')
+            )
+            if has_new_contradiction:
+                new_state = 'CONTESTED'
+                last_contradicted_at = now
+            elif claim_count > evidence_count * 2:
+                # Overwhelming counter-evidence
+                new_state = 'SUPERSEDED'
+                resolved_at = now
+            elif old_state == 'CONTESTED' and evidence_count > claim_count:
+                # Resolved in favor of original
+                new_state = 'SUPPORTED'
+                resolved_at = now
+            elif old_state in ('PENDING', '') and total_evidence >= 1:
+                new_state = 'SUPPORTED'
+            elif total_evidence == 0 and total_claims > 0:
+                new_state = 'UNKNOWN'
+
+            # ── Compute confidence ────────────────────────────────────────
             evidence_ratio = total_evidence / max(total, 1)
-            updated_conf = 0.3 + 0.7 * evidence_ratio  # Maps 0-1 evidence ratio to 0.3-1.0
+            new_conf = 0.3 + 0.7 * evidence_ratio
 
             cursor.execute("""
                 UPDATE beliefs
-                SET confidence = ?, evidence_count = ?,
+                SET state = ?, confidence = ?, evidence_count = ?,
                     claim_count = ?,
                     supporting_fact_ids = ?,
                     contradicting_fact_ids = ?,
+                    last_contradicted_at = ?,
+                    contradiction_resolved_at = ?,
                     updated_at = ?
                 WHERE id = ?
-            """, (updated_conf, total_evidence, total_claims,
-                  supporting_ids, contradicting_ids, now, belief_id))
+            """, (new_state, new_conf, total_evidence, total_claims,
+                  supporting_ids, contradicting_ids,
+                  last_contradicted_at, resolved_at, now, belief_id))
             logger.debug(
-                f"Belief updated: [{category}] {content[:60]}... "
-                f"conf {old_conf:.2f} → {updated_conf:.2f}"
+                f"Belief updated: [{new_state}] {content[:60]}... "
+                f"conf {old_conf:.2f} → {new_conf:.2f} "
+                f"ev {total_evidence} cl {total_claims}"
             )
         else:
             belief_id = str(uuid.uuid4())
+            # Initial state: PENDING (no evidence yet)
+            initial_state = 'PENDING'
+            if evidence_count >= 1 and claim_count == 0:
+                initial_state = 'SUPPORTED'
+            elif evidence_count == 0 and claim_count > 0:
+                initial_state = 'UNKNOWN'
+
             cursor.execute("""
-                INSERT INTO beliefs (id, content, category, confidence,
+                INSERT INTO beliefs (id, content, category, state, confidence,
                                      supporting_fact_ids, contradicting_fact_ids,
                                      evidence_count, claim_count,
                                      timestamp, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (belief_id, content, category, confidence,
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (belief_id, content, category, initial_state, confidence,
                   supporting_ids, contradicting_ids,
                   evidence_count, claim_count, now, now))
             logger.debug(
-                f"Belief created: [{category}] {content[:60]}... "
+                f"Belief created: [{initial_state}] {content[:60]}... "
                 f"conf {confidence:.2f}"
             )
 
@@ -1622,13 +1690,13 @@ class QdrantMemorySystem:
         return belief_id
 
     def infer_beliefs_from_facts(self, query: str = '') -> list[Dict]:
-        """Scan active facts and infer/update beliefs.
+        """Scan active facts and infer/update beliefs with state.
 
-        Looks for patterns in facts to derive meta-conclusions:
-          - If evidence says board shows a win and a claim denies it,
-            belief weights toward evidence
-          - If multiple evidence facts agree, belief confidence increases
-          - Returns list of inferred beliefs
+        State machine applied to each inferred belief:
+          PENDING → SUPPORTED if evidence ≥ 1
+          SUPPORTED → CONTESTED if contradicting claims appear
+          CONTESTED → SUPPORTED if evidence outweighs claims 2:1
+          CONTESTED → SUPERSEDED if claims outweigh evidence 2:1
         """
         cursor = self.conn.cursor()
         facts = cursor.execute("""
@@ -1641,40 +1709,58 @@ class QdrantMemorySystem:
         beliefs = []
         fact_rows = [dict(f) for f in facts]
 
-        # Group related facts by category and content similarity
+        # Group related facts by category
         board_facts = [f for f in fact_rows if f['category'] == 'board_state']
+        game_facts = [f for f in fact_rows if f['category'] == 'game_result']
         claim_facts = [f for f in fact_rows if f['category'] == 'speech_claim'
                        or f['category'].endswith('_claim')]
 
         # Check for board-state wins
-        for bf in board_facts:
-            if '4' in bf['content'] or 'win' in bf['content'].lower():
-                # Evidence indicates a win
-                evidence_conf = bf['confidence']
-                supporting_ids = [bf['id']]
-                contradicting_ids = []
-                claim_count = 0
+        all_win_evidence = board_facts + game_facts
+        for bf in all_win_evidence:
+            if not any(kw in bf['content'].lower()
+                       for kw in ['4', 'win', 'row', 'diagonal']):
+                continue
 
-                for cf in claim_facts:
-                    if 'won' in cf['content'].lower() or 'win' in cf['content'].lower():
-                        if cf['source_type'] == 'user_claim':
-                            contradicting_ids.append(cf['id'])
-                            claim_count += 1
+            evidence_conf = bf['confidence']
+            supporting_ids = [bf['id']]
+            contradicting_ids = []
+            claim_count = 0
 
-                belief_conf = 0.3 + 0.7 * (
-                    evidence_conf * (1 + len(supporting_ids)) /
-                    (1 + len(supporting_ids) + claim_count)
-                )
-                belief_content = f"Evidence suggests a win condition was met"
-                beliefs.append({
-                    'content': belief_content,
-                    'confidence': belief_conf,
-                    'category': 'game_outcome',
-                    'supporting_fact_ids': supporting_ids,
-                    'contradicting_fact_ids': contradicting_ids,
-                    'evidence_count': len(supporting_ids),
-                    'claim_count': claim_count,
-                })
+            for cf in claim_facts:
+                if 'won' in cf['content'].lower() or 'win' in cf['content'].lower():
+                    if cf['source_type'] == 'user_claim':
+                        contradicting_ids.append(cf['id'])
+                        claim_count += 1
+
+            total = len(supporting_ids) + claim_count
+            evidence_ratio = len(supporting_ids) / max(total, 1)
+            belief_conf = 0.3 + 0.7 * (
+                evidence_conf * (1 + len(supporting_ids)) /
+                (1 + len(supporting_ids) + claim_count)
+            )
+
+            # ── Determine state ───────────────────────────────────────────
+            if claim_count == 0:
+                state = 'SUPPORTED'
+            elif evidence_ratio >= 0.66:
+                state = 'SUPPORTED'  # evidence 2:1 over claims
+            elif evidence_ratio >= 0.33:
+                state = 'CONTESTED'
+            else:
+                state = 'SUPERSEDED'
+
+            belief_content = f"Evidence suggests a win condition was met"
+            beliefs.append({
+                'content': belief_content,
+                'state': state,
+                'confidence': belief_conf,
+                'category': 'game_outcome',
+                'supporting_fact_ids': supporting_ids,
+                'contradicting_fact_ids': contradicting_ids,
+                'evidence_count': len(supporting_ids),
+                'claim_count': claim_count,
+            })
 
         return beliefs
 

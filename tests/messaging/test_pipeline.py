@@ -24,6 +24,8 @@ def _mock_memory_system():
 def _mock_retrieval():
     r = MagicMock()
     r.build_context.return_value = {
+        "facts": [],
+        "beliefs": [],
         "evidence_memories": [],
         "episode_memories": [],
         "utterance_memories": [],
@@ -66,7 +68,7 @@ def test_build_returns_pipeline():
         mention_translator=MagicMock(),
     )
     assert isinstance(pipeline, MessagePipeline)
-    assert len(pipeline.stages) == 9
+    assert len(pipeline.stages) == 10
 
 
 def test_build_stages_in_order():
@@ -85,6 +87,7 @@ def test_build_stages_in_order():
     expected = [
         "ResponseDecisionStage",
         "MemoryRetrievalStage",
+        "ResponsePlannerStage",
         "TemporalStage",
         "PersonalityStage",
         "PromptAssemblyStage",
@@ -98,7 +101,7 @@ def test_build_stages_in_order():
 
 @pytest.mark.asyncio
 async def test_process_runs_all_stages(base_context):
-    """Full pipeline process should run all 9 stages and return a complete context."""
+    """Full pipeline process should run all 10 stages and return a complete context."""
     pipeline = MessagePipeline.build(
         response_controller=_mock_controller(),
         memory_system=_mock_memory_system(),
@@ -112,4 +115,4 @@ async def test_process_runs_all_stages(base_context):
     ctx = await pipeline.process(base_context)
     assert isinstance(ctx, MessageContext)
     assert ctx.should_respond is not None
-    assert len(ctx.stage_timings) == 9
+    assert len(ctx.stage_timings) == 10
