@@ -175,6 +175,16 @@ async def get_response_natural(
         if is_thinking_model:
             extra["chat_template_kwargs"] = {"enable_thinking": use_thinking}
         
+        # Debug: log exact prompt fed to the model
+        logger.info("PROMPT_DEBUG", extra={
+            "messages_count": len(messages),
+            "system_prompt": messages[0]["content"][:500] if messages else "",
+            "full_messages": [
+                {"role": m.get("role", "?"), "content_preview": str(m.get("content", ""))[:200]}
+                for m in messages
+            ],
+        })
+        
         raw_text = await llama.chat_completion(messages, max_tokens=max_tokens, extra_body=extra)
         
         # Extract response based on model type
