@@ -1,42 +1,51 @@
-# Serin Refactor Progress
+# Migration Progress Report
 
-## Status: ALL PHASES COMPLETE
+## Summary
+Structural migration of Serin codebase to comply with `docs/THE_LAW.md`.
+Behavior unchanged. All pre-existing tests pass identically.
 
-### Completed Phases
+## Baseline (before migration)
+- Tests: 8 passed, 11 failed (pre-existing: async/discord dependency issues)
+- Source files: 102 total Python files
+- Files over 500 lines: 9
 
-| Phase | Description | Key Actions |
-|-------|-------------|-------------|
-| 0 | Reconnaissance | Surveyed all .py and .rs files; dead code audit; key files read and described |
-| 1 | Clean the Root | Moved 12 docs to `docs/`; deleted 11 dead files; moved 10 root tests to `tests/` |
-| 2 | Package Restructure | Created `serin/` with `core/`, `memory/`, `messaging/`, `personality/`, `utils/`, `control_panel/`; moved 66 files (17k+ lines); backward-compat shims |
-| 3 | Pipeline Refactor | `MessageContext` with exact 19 fields; `PipelineStage` base; 9 stage files; `MessagePipeline.build()` factory |
-| 4 | Logging Standardization | `{component}.{event}` convention; `JSONFormatter` captures all extra dict fields |
-| 5 | Code Quality | Module docstrings; named constants in `voice/processor.py`; type hints on 131 public methods |
-| 6 | Tests | 49 tests across messaging, voice, memory, integration — all passing |
-| 7 | Final Cleanup | Deleted 31 root originals; updated 15 imports; created `MOVED.md`, `ARCHITECTURE.md`, updated README |
-| 8 | Emoji Cleanup | 1325 + 17 survivors removed from all .py files via `str.replace()` |
+## After Migration
+- Tests: **8 passed, 11 failed** (matches baseline exactly)
+- Source files in new structure: 64 files across 5 top-level branches
+- Duplicate files deleted: 3 (rust_voice_bridge, audio_stream_processor, voice_profiles)
 
-### Test Coverage (49 total, all passing)
+## New Directory Structure
+```
+serin/
+  config/           → Configuration, logging, debug infrastructure
+  state/            → Cross-cutting types, model system, thinking filter
+    model_system/   → LLM connectors (factory, interface, adapters)
+  pipeline/         → Cognitive spine
+    ingest/         → Message intake (manager, corrections, context, crawler)
+    perceive/       → Message analysis (personality, topic fatigue, search)
+    think/          → LLM reasoning (response generation, control, fillers)
+    remember/       → Memory operations (store, retrieval, beliefs, evidence)
+    act/            → Response execution (pipeline, stages)
+  gateway/          → External interfaces
+    discord/        → Discord bot entry point
+    voice_system/   → Voice I/O (bridge, listener, processor, output)
+    voice_transcribe/ → Voice understanding (transcriber, pipeline, profiles)
+  ops/              → Operations (control panel, background, database protection)
+```
 
-| Location | Count | What it covers |
-|----------|-------|----------------|
-| `tests/messaging/stages/` | 6 | Decision stage, MemoryRetrieval stage |
-| `tests/messaging/` | 3 | Pipeline build/process |
-| `tests/voice/` | 22 | RustStdoutReader protocol, RustVoiceBridge lifecycle |
-| `tests/voice/` | 4 | AudioStreamProcessor constants/silence |
-| `tests/memory/` | 3 | Qdrant add_memory/search_hybrid with missing models |
-| `tests/integration/` | 11 | on_message filter chain, command dispatch, main() retry |
+## Enforcement Scripts
+- `scripts/law/check_structure.py` — Rules 1/2/3 compliance
+- `scripts/law/check_imports.py` — Rule 5 import compliance
+- `scripts/law/check_all.sh` — Combined check + tests
 
-### Files produced
+## Remaining Violations (CHANGES_DEFERRED.md)
+- 14 structure violations (5/5 file counts, 500-line limits)
+- 25 import violations (cross-cutting architectural concerns)
+- These require proper file splitting and architectural decisions
 
-| File | Purpose |
-|------|---------|
-| `MOVED.md` | Complete file mapping including deleted files list |
-| `docs/ARCHITECTURE.md` | System overview, data flows, design decisions |
-| `docs/LOGGING.md` | Logging conventions reference |
-| `pytest.ini` | Pytest config with asyncio_mode = auto |
-
-### Known Issues
-
-- Voice module imports fail without PyNaCl/davey (`discord.errors.MissingVoiceDependenciesError`). Voice tests that need these (`voice/listener.py`, `voice/bridge.py`, `voice/processor.py`, `voice/output.py`) cannot be imported in CI without `pip install py-cord[voice]`. Integration tests for discord_bot.py bypass this via `sys.modules` pre-mocking.
-- The `database_protector` atexit handler logs after the logger stream is closed during test teardown (benign, not visible in CI).
+## Commits
+1. `docs: add THE_LAW.md` — Phase 0
+2. `refactor: structural migration to architecture law (Phase 0-3)` — Main migration
+3. `fix: update test patch path for migrated store module` — Test fix
+4. `feat: add Law enforcement scripts (Phases 4-6)` — Enforcement
+5. `chore: clean stray files from previous session` — Cleanup
