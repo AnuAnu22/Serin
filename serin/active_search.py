@@ -6,7 +6,7 @@ import json
 import re
 from typing import Any, Dict, List, Optional, Tuple, Union
 from serin.core.logger import logger
-from models.model_interface import ModelInterface
+from models.interface import ModelInterface
 
 class ActiveSearch:
     def __init__(self, model_connector: ModelInterface) -> None:

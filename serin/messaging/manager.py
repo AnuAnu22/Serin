@@ -25,11 +25,9 @@ from serin.messaging.response_generator import get_response_natural
 from serin.messaging.long_message import analyze_message_length, get_length_handler
 from serin.personality.topic_fatigue import get_fatigue_tracker
 from serin.messaging.correction_handler import CorrectionDetector, MemoryCorrector, get_correction_acknowledgment
-from voice.voice_tracker import VoiceTracker, get_voice_join_reaction, get_voice_duration_reaction
 from serin.utils.debug_logger import log_message, log_context, log_correction, log_response
 from serin.visual_memory_system import VisualMemorySystem
 from serin.active_search import ActiveSearch
-from voice.voice_action_decider import VoiceActionDecider
 from models.factory import get_model_connector
 import random
 from serin.messaging.mention_translator import MentionTranslator
@@ -101,6 +99,7 @@ class EnhancedMessageManagerV3:
         # TIER 5: New systems
         self.correction_detector = CorrectionDetector()
         self.memory_corrector = MemoryCorrector(self.memory)
+        from voice.voice_tracker import VoiceTracker
         self.voice_tracker = VoiceTracker(self.memory)
         
         # TIER 7: Active Search (Thinking Brain)
@@ -146,6 +145,7 @@ class EnhancedMessageManagerV3:
         self.voice_pipeline: Any = None
 
         # TIER 7b: Voice Action Decider (structured output for join/leave decisions)
+        from voice.voice_action_decider import VoiceActionDecider
         self.voice_action_decider: Optional[VoiceActionDecider] = None
         self.voice_action_callback: Any = None  # Set by discord_bot.py
         try:
@@ -512,15 +512,14 @@ class EnhancedMessageManagerV3:
         channel = batch[0].channel
 
         try:
+            from serin.messaging.context import MessageContext, PipelineDeps
+            from serin.messaging.pipeline import MessagePipeline
             from serin.messaging.stages import (
                 ActiveSearchStage,
                 ContextAssemblyStage,
                 ConversationUpdateStage,
                 GenerationStage,
                 MemoryRetrievalStage,
-                MessageContext,
-                MessagePipeline,
-                PipelineDeps,
                 MessagePreparationStage,
                 ResponseDecisionStage,
                 VoiceActionStage,
