@@ -36,24 +36,24 @@ class MemorySyncMonitor:
         self.snapshot_stats: Dict[str, Any] = {}
         self.operation_times: defaultdict[str, List[float]] = defaultdict(list)
         
-        logger.info("🔍 Memory Sync Monitor initialized")
+        logger.info(" Memory Sync Monitor initialized")
     
     async def start_monitoring(self) -> None:
         """Start continuous synchronization monitoring"""
         if self.is_monitoring:
-            logger.warning("⚠️ Monitor already running")
+            logger.warning(" Monitor already running")
             return
         
         self.is_monitoring = True
         self.monitor_task = asyncio.create_task(self._monitoring_loop())
-        logger.info("🔍 Memory synchronization monitoring started")
+        logger.info(" Memory synchronization monitoring started")
     
     async def stop_monitoring(self) -> None:
         """Stop monitoring"""
         self.is_monitoring = False
         if self.monitor_task:
             self.monitor_task.cancel()
-        logger.info("🛑 Memory synchronization monitoring stopped")
+        logger.info(" Memory synchronization monitoring stopped")
     
     async def _monitoring_loop(self) -> None:
         """Main monitoring loop"""
@@ -64,7 +64,7 @@ class MemorySyncMonitor:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"❌ Error in monitoring loop: {e}")
+                logger.error(f" Error in monitoring loop: {e}")
                 await asyncio.sleep(60)
     
     async def _run_diagnostics(self) -> None:
@@ -103,7 +103,7 @@ class MemorySyncMonitor:
             if 'message_id' in expected_params:
                 api_errors.append("BackgroundProcessor.queue_message has 'message_id' but shouldn't")
             else:
-                logger.debug("✅ BackgroundProcessor.queue_message signature correct")
+                logger.debug(" BackgroundProcessor.queue_message signature correct")
         except Exception as e:
             api_errors.append(f"Error checking queue_message signature: {e}")
         
@@ -343,7 +343,7 @@ class MemorySyncMonitor:
     
     async def force_sync_check(self) -> Dict[str, Any]:
         """Force a comprehensive synchronization check"""
-        logger.info("🔍 Running forced synchronization check...")
+        logger.info(" Running forced synchronization check...")
         
         # Create a temporary detailed snapshot
         snapshot = {
@@ -383,7 +383,7 @@ class MemorySyncMonitor:
             
         except Exception as e:
             snapshot['errors'].append(f"Snapshot creation failed: {e}")
-            logger.error(f"❌ Failed to create sync snapshot: {e}")
+            logger.error(f" Failed to create sync snapshot: {e}")
         
-        logger.info("✅ Forced synchronization check complete")
+        logger.info(" Forced synchronization check complete")
         return snapshot

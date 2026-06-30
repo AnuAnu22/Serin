@@ -16,13 +16,13 @@ class MockThinkingLLM:
     async def send_input(self, prompt, **kwargs):
         self.step += 1
         if self.step == 1:
-            logger.info("🤖 LLM Step 1: Deciding to search for 'context'")
+            logger.info(" LLM Step 1: Deciding to search for 'context'")
             return '{"search_needed": true, "query": "context", "reason": "need info"}'
         elif self.step == 2:
-            logger.info("🤖 LLM Step 2: Deciding to search for 'more context'")
+            logger.info(" LLM Step 2: Deciding to search for 'more context'")
             return '{"search_needed": true, "query": "more context", "reason": "need more info"}'
         else:
-            logger.info("🤖 LLM Step 3: Deciding to stop")
+            logger.info(" LLM Step 3: Deciding to stop")
             return '{"search_needed": false, "reason": "enough info"}'
 
 class MockMemory:
@@ -30,7 +30,7 @@ class MockMemory:
         self.qdrant_client = MagicMock()
         
     def search_memories(self, query, **kwargs):
-        logger.info(f"💾 Memory System searching for: '{query}'")
+        logger.info(f" Memory System searching for: '{query}'")
         return [{'content': f"Memory about {query}", 'timestamp': '2023-01-01T12:00:00'}]
 
     # Mock all other methods used by EnhancedMessageManager
@@ -100,7 +100,7 @@ async def test_loop():
     manager.current_batch = [mock_msg]
     await manager._flush_batch_with_enhanced_context(immediate=True)
     
-    print("\n✅ Test Complete. Check logs above for 'LLM Step 1' and 'LLM Step 2'.")
+    print("\n Test Complete. Check logs above for 'LLM Step 1' and 'LLM Step 2'.")
 
 if __name__ == "__main__":
     asyncio.run(test_loop())

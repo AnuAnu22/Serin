@@ -69,7 +69,7 @@ class PersonalityConsistencyAnalyzer:
             }
             
         except Exception as e:
-            logger.error(f"❌ Personality analysis failed: {e}")
+            logger.error(f" Personality analysis failed: {e}")
             return {"traits": [], "interests": [], "communication_style": "neutral"}
 
 class HumanLikeMemoryRetriever:
@@ -91,7 +91,7 @@ class HumanLikeMemoryRetriever:
         """
         Enhanced memory search optimized for human-like behavior patterns
         """
-        logger.debug(f"🔍 Human-like memory search for user {query.user_id}: {query.query[:50]}...")
+        logger.debug(f" Human-like memory search for user {query.user_id}: {query.query[:50]}...")
         
         try:
             # Analyze user's personality for this search
@@ -120,11 +120,11 @@ class HumanLikeMemoryRetriever:
                 personality_filtered, query
             )
             
-            logger.info(f"✅ Human-like search: {len(final_memories)} memories selected")
+            logger.info(f" Human-like search: {len(final_memories)} memories selected")
             return final_memories
             
         except Exception as e:
-            logger.error(f"❌ Human-like memory search failed: {e}")
+            logger.error(f" Human-like memory search failed: {e}")
             return []
     
     def _get_memory_candidates(self, query: HumanLikeMemoryQuery) -> List[Dict]:
@@ -216,7 +216,7 @@ class HumanLikeMemoryRetriever:
             return temporal_candidates
             
         except Exception as e:
-            logger.error(f"❌ Temporal candidate search failed: {e}")
+            logger.error(f" Temporal candidate search failed: {e}")
             return []
     
     def _apply_human_like_scoring(
@@ -517,7 +517,7 @@ class MemoryQualityAssessor:
             }
             
         except Exception as e:
-            logger.error(f"❌ Memory quality assessment failed: {e}")
+            logger.error(f" Memory quality assessment failed: {e}")
             return {'overall_quality': 0.5, 'quality_category': 'acceptable', 'error': str(e)}
     
     def _assess_content_clarity(self, content: str) -> float:

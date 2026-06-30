@@ -450,7 +450,7 @@ async def get_model_info():
             connector.load_model()
         return connector.get_model_info()
     except Exception as e:
-        logger.error(f"❌ Error getting model info: {e}")
+        logger.error(f" Error getting model info: {e}")
         return {'error': str(e)}
 
 
@@ -514,7 +514,7 @@ async def update_allowed_channels(control: ChannelControl):
         else:
             return {'success': False, 'error': 'Invalid action'}
         
-        logger.info(f"📋 Channel {control.action}: {channel_id}")
+        logger.info(f" Channel {control.action}: {channel_id}")
         return {
             'success': True,
             'channels': [str(cid) for cid in discord_bot.ALLOWED_CHANNEL_IDS]
@@ -566,7 +566,7 @@ async def join_voice_channel(control: VoiceChannelControl):
         )
         
         if success:
-            logger.info(f"🎤 Joined voice channel: {control.channel_id}")
+            logger.info(f" Joined voice channel: {control.channel_id}")
             await broadcast_event('voice_joined', {
                 'guild_id': control.guild_id,
                 'channel_id': control.channel_id
@@ -589,7 +589,7 @@ async def leave_voice_channel(control: VoiceChannelControl):
         success = await voice_listener.leave_channel(int(control.guild_id))
         
         if success:
-            logger.info(f"🎤 Left voice channel in guild: {control.guild_id}")
+            logger.info(f" Left voice channel in guild: {control.guild_id}")
             await broadcast_event('voice_left', {
                 'guild_id': control.guild_id
             })
@@ -757,7 +757,7 @@ async def restart_bot():
     try:
         import os
         open("/tmp/serin-restart.signal", "w").close()
-        logger.warning("🔄 Restart signal sent to hot-reloader")
+        logger.warning(" Restart signal sent to hot-reloader")
         return {'success': True, 'message': 'Restart signal sent'}
     except Exception as e:
         logger.error(f"Failed to send restart signal: {e}")
@@ -805,7 +805,7 @@ async def sever_context(request: ContextSeverRequest):
         rc = manager.response_controller
         if request.channel_id in rc.active_conversations:
             del rc.active_conversations[request.channel_id]
-            logger.info(f"✂️ Severed context for {request.channel_id}")
+            logger.info(f"✂ Severed context for {request.channel_id}")
             return {'success': True}
             
         return {'success': False, 'error': 'Context not found'}
@@ -936,7 +936,7 @@ async def trigger_manual_sync():
 async def _run_manual_sync(crawler):
     """Background task for manual sync"""
     try:
-        logger.info("🔄 Manual sync triggered from control panel")
+        logger.info(" Manual sync triggered from control panel")
         client = bot_state['discord_client']
         
         synced_count = 0
@@ -948,7 +948,7 @@ async def _run_manual_sync(crawler):
                 except:
                     pass
         
-        logger.info(f"✅ Manual sync complete: {synced_count} messages")
+        logger.info(f" Manual sync complete: {synced_count} messages")
         await broadcast_event('sync_complete', {'count': synced_count})
     except Exception as e:
         logger.error(f"Error in manual sync: {e}")
@@ -1075,7 +1075,7 @@ async def update_audio_settings(data: Dict[str, Any]):
             ap.silence_threshold = float(data['silence_threshold'])
         if 'transcription_enabled' in data:
             listener.transcription_enabled = bool(data['transcription_enabled'])
-        logger.info("🎙️ Audio settings updated from web panel")
+        logger.info(" Audio settings updated from web panel")
         return {'success': True}
     except Exception as e:
         return {'success': False, 'error': str(e)}
@@ -1156,7 +1156,7 @@ async def create_voice_profile(data: Dict[str, Any]):
             description=data.get('description', ''),
         )
         if profile:
-            logger.info("📋 Voice profile created: %s", name)
+            logger.info(" Voice profile created: %s", name)
             return {'success': True}
         return {'success': False, 'error': 'Failed to create profile'}
     except Exception as e:
@@ -1169,7 +1169,7 @@ async def set_active_voice_profile(profile_name: str = 'default'):
         from voice.voice_profiles import set_active_profile
         success = set_active_profile(profile_name)
         if success:
-            logger.info("🎙️ Active voice profile: %s", profile_name)
+            logger.info(" Active voice profile: %s", profile_name)
             return {'success': True}
         return {'success': False, 'error': 'Profile not found'}
     except Exception as e:
@@ -1182,7 +1182,7 @@ async def delete_voice_profile(profile_name: str):
         from voice.voice_profiles import delete_profile
         success = delete_profile(profile_name)
         if success:
-            logger.info("🗑️ Deleted voice profile: %s", profile_name)
+            logger.info(" Deleted voice profile: %s", profile_name)
             return {'success': True}
         return {'success': False, 'error': 'Profile not found or protected'}
     except Exception as e:
@@ -1226,7 +1226,7 @@ async def clear_background_queue():
                         q.get_nowait()
                     except:
                         break
-        logger.info("🗑️ Cleared %d background tasks", cleared)
+        logger.info(" Cleared %d background tasks", cleared)
         return {'success': True, 'cleared': cleared}
     except Exception as e:
         return {'success': False, 'error': str(e)}
@@ -1302,7 +1302,7 @@ def init_bot_state(
     bot_state['tts_engine'] = tts_engine
     bot_state['voice_manager'] = voice_manager
     
-    logger.info("✅ Control panel state initialized")
+    logger.info(" Control panel state initialized")
 
 
 async def start_server(host: str = "127.0.0.1", port: int = 8080):
@@ -1329,21 +1329,21 @@ async def start_server(host: str = "127.0.0.1", port: int = 8080):
             
         except OSError as e:
             if e.errno == 98:  # Address already in use
-                logger.warning(f"⚠️ Port {current_port} is busy, trying {current_port + 1}...")
+                logger.warning(f" Port {current_port} is busy, trying {current_port + 1}...")
                 current_port += 1
             else:
                 raise e
         except SystemExit:
              # Uvicorn raises SystemExit on startup failure
-             logger.warning(f"⚠️ Port {current_port} failed to bind, trying {current_port + 1}...")
+             logger.warning(f" Port {current_port} failed to bind, trying {current_port + 1}...")
              current_port += 1
         except Exception as e:
             # Catch generic startup errors that might be port related
             if "address already in use" in str(e).lower() or "[errno 98]" in str(e).lower():
-                logger.warning(f"⚠️ Port {current_port} is busy (error: {e}), trying {current_port + 1}...")
+                logger.warning(f" Port {current_port} is busy (error: {e}), trying {current_port + 1}...")
                 current_port += 1
             else:
-                logger.error(f"❌ Failed to start web server: {e}")
+                logger.error(f" Failed to start web server: {e}")
                 raise e
 
 

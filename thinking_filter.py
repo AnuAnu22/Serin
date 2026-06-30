@@ -48,7 +48,7 @@ class ThinkingFilter:
             re.compile(pattern, re.IGNORECASE | re.DOTALL)
             for pattern in self.THINKING_PATTERNS
         ]
-        logger.info("✅ Thinking filter initialized")
+        logger.info(" Thinking filter initialized")
     
     def filter(self, text: str) -> str:
         """
@@ -79,7 +79,7 @@ class ThinkingFilter:
 
             if len(cleaned) < original_length:
                 removed = original_length - len(cleaned)
-                logger.debug(f"🧹 Filtered {removed} chars of thinking tags")
+                logger.debug(f" Filtered {removed} chars of thinking tags")
 
             return cleaned
     

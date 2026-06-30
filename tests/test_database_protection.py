@@ -43,7 +43,7 @@ class DatabaseProtectionTester:
             await self.test_integration()
             
         except Exception as e:
-            logger.error(f"❌ Test suite failed: {e}")
+            logger.error(f" Test suite failed: {e}")
             raise
         finally:
             # Cleanup
@@ -54,7 +54,7 @@ class DatabaseProtectionTester:
     
     async def test_database_validation(self):
         """Test database validation system"""
-        logger.info("🔍 Testing Database Validation System...")
+        logger.info(" Testing Database Validation System...")
         
         test_name = "Database Validation"
         result = {"test": test_name, "status": "passed", "details": []}
@@ -86,13 +86,13 @@ class DatabaseProtectionTester:
             result["details"].append(f"Exception: {e}")
         
         self.test_results.append(result)
-        logger.info(f"✅ {test_name}: {result['status'].upper()}")
+        logger.info(f" {test_name}: {result['status'].upper()}")
         for detail in result["details"]:
-            logger.info(f"   📋 {detail}")
+            logger.info(f"    {detail}")
     
     async def test_backup_system(self):
         """Test backup creation and management"""
-        logger.info("💾 Testing Backup System...")
+        logger.info(" Testing Backup System...")
         
         test_name = "Backup System"
         result = {"test": test_name, "status": "passed", "details": []}
@@ -132,22 +132,22 @@ class DatabaseProtectionTester:
             
             backups_after_cleanup = self.protector.list_backups()
             if len(backups_after_cleanup) <= 50:
-                result["details"].append("✅ Backup cleanup working (kept under limit)")
+                result["details"].append(" Backup cleanup working (kept under limit)")
             else:
-                result["details"].append(f"⚠️ Backup cleanup issue (got {len(backups_after_cleanup)} backups)")
+                result["details"].append(f" Backup cleanup issue (got {len(backups_after_cleanup)} backups)")
             
         except Exception as e:
             result["status"] = "failed"
             result["details"].append(f"Exception: {e}")
         
         self.test_results.append(result)
-        logger.info(f"✅ {test_name}: {result['status'].upper()}")
+        logger.info(f" {test_name}: {result['status'].upper()}")
         for detail in result["details"]:
-            logger.info(f"   📋 {detail}")
+            logger.info(f"    {detail}")
     
     async def test_corruption_recovery(self):
         """Test corruption detection and recovery"""
-        logger.info("🛠️ Testing Corruption Recovery...")
+        logger.info("🛠 Testing Corruption Recovery...")
         
         test_name = "Corruption Recovery"
         result = {"test": test_name, "status": "passed", "details": []}
@@ -194,13 +194,13 @@ class DatabaseProtectionTester:
             result["details"].append(f"Exception: {e}")
         
         self.test_results.append(result)
-        logger.info(f"✅ {test_name}: {result['status'].upper()}")
+        logger.info(f" {test_name}: {result['status'].upper()}")
         for detail in result["details"]:
-            logger.info(f"   📋 {detail}")
+            logger.info(f"    {detail}")
     
     async def test_graceful_shutdown(self):
         """Test graceful shutdown handling"""
-        logger.info("🛑 Testing Graceful Shutdown...")
+        logger.info(" Testing Graceful Shutdown...")
         
         test_name = "Graceful Shutdown"
         result = {"test": test_name, "status": "passed", "details": []}
@@ -219,9 +219,9 @@ class DatabaseProtectionTester:
             result["details"].append(f"Exception: {e}")
         
         self.test_results.append(result)
-        logger.info(f"✅ {test_name}: {result['status'].upper()}")
+        logger.info(f" {test_name}: {result['status'].upper()}")
         for detail in result["details"]:
-            logger.info(f"   📋 {detail}")
+            logger.info(f"    {detail}")
     
     async def test_integration(self):
         """Test full integration scenario"""
@@ -251,9 +251,9 @@ class DatabaseProtectionTester:
                     elif step == "Create startup backup":
                         backup_path = self.protector.create_backup("startup")
                         if backup_path:
-                            result["details"].append(f"Step {i}: ✅ {step}")
+                            result["details"].append(f"Step {i}:  {step}")
                         else:
-                            result["details"].append(f"Step {i}: ❌ {step}")
+                            result["details"].append(f"Step {i}:  {step}")
                             result["status"] = "failed"
                     
                     elif step == "Simulate usage (add data)":
@@ -264,47 +264,47 @@ class DatabaseProtectionTester:
                                      ("test_user", "Test User"))
                         conn.commit()
                         conn.close()
-                        result["details"].append(f"Step {i}: ✅ {step}")
+                        result["details"].append(f"Step {i}:  {step}")
                     
                     elif step == "Create maintenance backup":
                         backup_path = self.protector.create_backup("maintenance")
                         if backup_path:
-                            result["details"].append(f"Step {i}: ✅ {step}")
+                            result["details"].append(f"Step {i}:  {step}")
                         else:
-                            result["details"].append(f"Step {i}: ❌ {step}")
+                            result["details"].append(f"Step {i}:  {step}")
                     
                     elif step == "Validate integrity":
                         validation_results = self.protector.validate_all_databases()
                         if validation_results['overall_status'] == 'valid':
-                            result["details"].append(f"Step {i}: ✅ {step}")
+                            result["details"].append(f"Step {i}:  {step}")
                         else:
-                            result["details"].append(f"Step {i}: ❌ {step}")
+                            result["details"].append(f"Step {i}:  {step}")
                     
                     elif step == "Simulate corruption":
                         # Corrupt a file
                         link_lists_file = list(Path(self.protector.chroma_dir).rglob("link_lists.bin"))[0]
                         link_lists_file.unlink()
-                        result["details"].append(f"Step {i}: ✅ {step}")
+                        result["details"].append(f"Step {i}:  {step}")
                     
                     elif step == "Attempt recovery":
                         validation_results = self.protector.validate_all_databases()
                         recovery_success = self.protector.recover_from_corruption(validation_results)
                         if recovery_success:
-                            result["details"].append(f"Step {i}: ✅ {step}")
+                            result["details"].append(f"Step {i}:  {step}")
                         else:
-                            result["details"].append(f"Step {i}: ❌ {step}")
+                            result["details"].append(f"Step {i}:  {step}")
                             result["status"] = "failed"
                     
                     elif step == "Final validation":
                         validation_results = self.protector.validate_all_databases()
                         if validation_results['overall_status'] in ['valid', 'recoverable']:
-                            result["details"].append(f"Step {i}: ✅ {step}")
+                            result["details"].append(f"Step {i}:  {step}")
                         else:
-                            result["details"].append(f"Step {i}: ❌ {step}")
+                            result["details"].append(f"Step {i}:  {step}")
                             result["status"] = "failed"
                     
                 except Exception as e:
-                    result["details"].append(f"Step {i}: ❌ {step} - {e}")
+                    result["details"].append(f"Step {i}:  {step} - {e}")
                     result["status"] = "failed"
             
         except Exception as e:
@@ -312,9 +312,9 @@ class DatabaseProtectionTester:
             result["details"].append(f"Integration test exception: {e}")
         
         self.test_results.append(result)
-        logger.info(f"✅ {test_name}: {result['status'].upper()}")
+        logger.info(f" {test_name}: {result['status'].upper()}")
         for detail in result["details"]:
-            logger.info(f"   📋 {detail}")
+            logger.info(f"    {detail}")
     
     async def create_valid_test_databases(self):
         """Create valid test databases for testing"""
@@ -368,10 +368,10 @@ class DatabaseProtectionTester:
             (collection_dir / "link_lists.bin").write_bytes(b"test link data")
             (collection_dir / "data_level0.bin").write_bytes(b"test data content")
             
-            logger.debug("✅ Valid test databases created")
+            logger.debug(" Valid test databases created")
             
         except Exception as e:
-            logger.error(f"❌ Failed to create test databases: {e}")
+            logger.error(f" Failed to create test databases: {e}")
             raise
     
     def cleanup_test_environment(self):
@@ -379,9 +379,9 @@ class DatabaseProtectionTester:
         try:
             if self.test_dir.exists():
                 shutil.rmtree(self.test_dir)
-                logger.debug("✅ Test environment cleaned up")
+                logger.debug(" Test environment cleaned up")
         except Exception as e:
-            logger.warning(f"⚠️ Failed to cleanup test environment: {e}")
+            logger.warning(f" Failed to cleanup test environment: {e}")
     
     def print_test_results(self):
         """Print comprehensive test results"""
@@ -393,7 +393,7 @@ class DatabaseProtectionTester:
         failed = 0
         
         for result in self.test_results:
-            status_icon = "✅" if result["status"] == "passed" else "❌"
+            status_icon = "" if result["status"] == "passed" else ""
             logger.info(f"{status_icon} {result['test']}: {result['status'].upper()}")
             
             if result["status"] == "passed":
@@ -405,12 +405,12 @@ class DatabaseProtectionTester:
                 logger.info(f"   {detail}")
         
         logger.info("=" * 80)
-        logger.info(f"📊 SUMMARY: {passed} passed, {failed} failed")
+        logger.info(f" SUMMARY: {passed} passed, {failed} failed")
         
         if failed == 0:
-            logger.info("🎉 ALL TESTS PASSED! Database Protection System is production-ready.")
+            logger.info(" ALL TESTS PASSED! Database Protection System is production-ready.")
         else:
-            logger.error("⚠️ Some tests failed. Review and fix issues before production use.")
+            logger.error(" Some tests failed. Review and fix issues before production use.")
         
         logger.info("=" * 80)
 
@@ -425,7 +425,7 @@ async def main():
         exit(0 if failed_tests == 0 else 1)
         
     except Exception as e:
-        logger.error(f"❌ Test suite crashed: {e}")
+        logger.error(f" Test suite crashed: {e}")
         exit(1)
 
 if __name__ == "__main__":

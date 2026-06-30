@@ -125,18 +125,18 @@ class LlamaConnector:
 
             if self._model_selection_mode == "__SMALLEST__" and env_smallest:
                 self.model_name = env_smallest
-                logger.info(f"🎯 Using SMALLEST model from ENV: {self.model_name}")
+                logger.info(f" Using SMALLEST model from ENV: {self.model_name}")
             elif self._model_selection_mode == "__LARGEST__" and env_largest:
                 self.model_name = env_largest
-                logger.info(f"🎯 Using LARGEST model from ENV: {self.model_name}")
+                logger.info(f" Using LARGEST model from ENV: {self.model_name}")
             else:
                 sorted_models = self.get_available_models_sorted()
                 if self._model_selection_mode == "__SMALLEST__":
                     self.model_name = sorted_models['smallest']
-                    logger.info(f"🎯 Selected SMALLEST model: {self.model_name}")
+                    logger.info(f" Selected SMALLEST model: {self.model_name}")
                 elif self._model_selection_mode == "__LARGEST__":
                     self.model_name = sorted_models['largest']
-                    logger.info(f"🎯 Selected LARGEST model: {self.model_name}")
+                    logger.info(f" Selected LARGEST model: {self.model_name}")
                 logger.info(f"Available models by size: {sorted_models['all']}")    
 
         # Auto-detect model if not specified (useful for LM Studio)

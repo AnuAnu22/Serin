@@ -43,7 +43,7 @@ class LongMessageHandler:
     
     def __init__(self):
         self.reaction_chance = 0.15  # 15% chance to react to long messages
-        logger.info("✅ Long message handler initialized")
+        logger.info(" Long message handler initialized")
     
     def analyze_message_length(self, content: str) -> Dict[str, Any]:
         """
@@ -130,7 +130,7 @@ class LongMessageHandler:
             return None
         
         reaction = random.choice(self.REACTIONS[reaction_type])
-        logger.debug(f"📚 Length reaction: '{reaction}'")
+        logger.debug(f" Length reaction: '{reaction}'")
         return reaction
     
     def should_add_length_note_to_context(self, message_analysis: dict) -> bool:

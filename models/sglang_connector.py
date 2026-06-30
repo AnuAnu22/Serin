@@ -63,7 +63,7 @@ class SGLangConnector(ModelInterface):
             # Test connection
             self.client.models.list()
         except Exception as e:
-            logger.error(f"❌ Failed to connect to SGLang API: {e}")
+            logger.error(f" Failed to connect to SGLang API: {e}")
             raise RuntimeError(f"Could not connect to SGLang at {self.base_url}. Is it running?")
 
         try:
@@ -72,7 +72,7 @@ class SGLangConnector(ModelInterface):
             available_models = [model.id for model in models.data]
 
             if not available_models:
-                raise RuntimeError("❌ No models available on SGLang endpoint. Please load a model first.")
+                raise RuntimeError(" No models available on SGLang endpoint. Please load a model first.")
 
             # Validate configured model or auto-detect
             if self.model_name:
@@ -80,39 +80,39 @@ class SGLangConnector(ModelInterface):
                 if self.model_name not in available_models:
                     # Check for placeholder patterns
                     if self.model_name.startswith('__') and self.model_name.endswith('__'):
-                        logger.warning(f"⚠️ Placeholder model '{self.model_name}' detected. Auto-selecting from available models.")
+                        logger.warning(f" Placeholder model '{self.model_name}' detected. Auto-selecting from available models.")
                         self.model_name = available_models[0]
-                        logger.info(f"🔍 Auto-selected model: {self.model_name}")
+                        logger.info(f" Auto-selected model: {self.model_name}")
                     else:
                         # Provide helpful error with available models
                         raise ValueError(
-                            f"❌ Configured model '{self.model_name}' not found on SGLang server.\n"
+                            f" Configured model '{self.model_name}' not found on SGLang server.\n"
                             f"Available models: {', '.join(available_models)}\n"
                             f"Update LLM_MODEL in .env file or remove the setting for auto-selection."
                         )
                 else:
-                    logger.info(f"✅ Using configured model: {self.model_name}")
+                    logger.info(f" Using configured model: {self.model_name}")
             else:
                 # Auto-detect model if not specified
                 self.model_name = available_models[0]
-                logger.info(f"🔍 Auto-detected model: {self.model_name}")
+                logger.info(f" Auto-detected model: {self.model_name}")
                 
             # Show all available models
             if len(available_models) > 1:
-                logger.info(f"📚 Available models: {', '.join(available_models)}")
+                logger.info(f" Available models: {', '.join(available_models)}")
 
         except ValueError:
             # Re-raise ValueError (our custom error)
             raise
         except Exception as e:
-            logger.error(f"❌ Failed to detect/select model: {e}")
+            logger.error(f" Failed to detect/select model: {e}")
             raise RuntimeError(f"Could not communicate with SGLang server at {self.base_url}. Is it running and accessible?")
 
         # Initialize model adapter
         self.adapter = ModelAdapter(self.model_name)
 
         logger.info(
-            f"✅ SGLang ready - Model: {self.model_name} ({self.adapter.get_model_type()}), "
+            f" SGLang ready - Model: {self.model_name} ({self.adapter.get_model_type()}), "
             f"Temp: {self.temperature}, Top-P: {self.top_p}"
         )
 
@@ -151,7 +151,7 @@ class SGLangConnector(ModelInterface):
             raw_text = response.choices[0].message.content
             return self.adapter.clean_response(raw_text)
         except Exception as e:
-            logger.error(f"❌ Error during chat completion: {e}")
+            logger.error(f" Error during chat completion: {e}")
             raise
 
     async def chat_completion(
@@ -202,7 +202,7 @@ class SGLangConnector(ModelInterface):
             raw_text = response.choices[0].text
             return self.adapter.clean_response(raw_text)
         except Exception as e:
-            logger.error(f"❌ Error during completion: {e}")
+            logger.error(f" Error during completion: {e}")
             raise
 
     async def send_input(

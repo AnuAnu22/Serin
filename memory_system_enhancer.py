@@ -43,7 +43,7 @@ class MemorySystemEnhancer:
         try:
             # Initialize main memory system
             self.memory_system = UnifiedMemorySystem(self.data_dir)
-            self.log("✅ Memory system initialized")
+            self.log(" Memory system initialized")
             
             # Initialize enhancement components
             if not self.test_mode:
@@ -53,12 +53,12 @@ class MemorySystemEnhancer:
                 self.database_healer = create_database_healer(self.memory_system)
                 self.testing_framework = create_memory_system_tester(self.memory_system)
                 
-                self.log("✅ All enhancement components initialized")
+                self.log(" All enhancement components initialized")
             else:
-                self.log("ℹ️ Test mode - limited component initialization")
+                self.log("ℹ Test mode - limited component initialization")
                 
         except Exception as e:
-            self.log(f"❌ Component initialization failed: {e}", "error")
+            self.log(f" Component initialization failed: {e}", "error")
             raise
     
     def log(self, message: str, level: str = "info"):
@@ -83,7 +83,7 @@ class MemorySystemEnhancer:
     
     def run_system_assessment(self) -> Dict:
         """Run comprehensive system assessment"""
-        self.log("🔍 Starting comprehensive system assessment...")
+        self.log(" Starting comprehensive system assessment...")
         
         assessment_report = {
             "timestamp": datetime.now().isoformat(),
@@ -97,7 +97,7 @@ class MemorySystemEnhancer:
         
         try:
             # 1. Basic system statistics
-            self.log("📊 Collecting system baseline...")
+            self.log(" Collecting system baseline...")
             stats = self.memory_system.get_stats()
             assessment_report["system_baseline"] = stats
             
@@ -122,23 +122,23 @@ class MemorySystemEnhancer:
                 assessment_report["performance_baseline"] = benchmark_results
             
             # 4. Quick personality analysis
-            self.log("🧠 Analyzing personality consistency...")
+            self.log(" Analyzing personality consistency...")
             personality_results = self._analyze_personality_consistency()
             assessment_report["personality_analysis"] = personality_results
             
             # 5. Database health check
             if self.database_healer:
-                self.log("🗄️ Checking database health...")
+                self.log("🗄 Checking database health...")
                 db_health = self.database_healer.run_comprehensive_health_check()
                 assessment_report["database_health"] = db_health
             
             # 6. Generate comprehensive recommendations
             assessment_report["recommendations"] = self._generate_comprehensive_recommendations(assessment_report)
             
-            self.log("✅ System assessment completed")
+            self.log(" System assessment completed")
             
         except Exception as e:
-            self.log(f"❌ System assessment failed: {e}", "error")
+            self.log(f" System assessment failed: {e}", "error")
             assessment_report["error"] = str(e)
         
         # Save assessment report
@@ -148,7 +148,7 @@ class MemorySystemEnhancer:
     
     def apply_enhancements(self, enhancement_config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Apply memory system enhancements"""
-        self.log("🚀 Applying memory system enhancements...")
+        self.log(" Applying memory system enhancements...")
         
         if enhancement_config is None:
             enhancement_config = {
@@ -175,19 +175,19 @@ class MemorySystemEnhancer:
             
             # 1. Database optimization
             if enhancement_config.get("optimize_database") and self.database_healer:
-                self.log("🔧 Optimizing database...")
+                self.log(" Optimizing database...")
                 db_optimization = self._optimize_database()
                 enhancement_results["applied_enhancements"].append(db_optimization)
             
             # 2. Memory retrieval improvements
             if enhancement_config.get("improve_retrieval"):
-                self.log("🎯 Improving memory retrieval...")
+                self.log(" Improving memory retrieval...")
                 retrieval_improvements = self._improve_retrieval_algorithms()
                 enhancement_results["applied_enhancements"].append(retrieval_improvements)
             
             # 3. Personality consistency enhancements
             if enhancement_config.get("enhance_personality"):
-                self.log("🧠 Enhancing personality consistency...")
+                self.log(" Enhancing personality consistency...")
                 personality_improvements = self._enhance_personality_consistency()
                 enhancement_results["applied_enhancements"].append(personality_improvements)
             
@@ -211,14 +211,14 @@ class MemorySystemEnhancer:
                     )
             
             # 6. Final validation
-            self.log("🔍 Running final validation...")
+            self.log(" Running final validation...")
             validation_results = self._run_enhancement_validation()
             enhancement_results["validation_results"] = validation_results
             
-            self.log("✅ Memory system enhancements applied successfully")
+            self.log(" Memory system enhancements applied successfully")
             
         except Exception as e:
-            self.log(f"❌ Enhancement application failed: {e}", "error")
+            self.log(f" Enhancement application failed: {e}", "error")
             enhancement_results["errors"].append(str(e))
         
         # Save enhancement results
@@ -231,7 +231,7 @@ class MemorySystemEnhancer:
         self.log("🧪 Running enhanced testing suite...")
         
         if not self.testing_framework:
-            self.log("❌ Testing framework not available", "error")
+            self.log(" Testing framework not available", "error")
             return {"error": "Testing framework not initialized"}
         
         try:
@@ -243,16 +243,16 @@ class MemorySystemEnhancer:
             test_results["human_behavior_assessment"] = self._assess_human_behavior_characteristics(test_results)
             test_results["conversational_quality_metrics"] = self._calculate_conversational_quality_metrics(test_results)
             
-            self.log("✅ Enhanced testing suite completed")
+            self.log(" Enhanced testing suite completed")
             return test_results
             
         except Exception as e:
-            self.log(f"❌ Enhanced testing failed: {e}", "error")
+            self.log(f" Enhanced testing failed: {e}", "error")
             return {"error": str(e)}
     
     def enable_continuous_monitoring(self, monitoring_config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Enable continuous monitoring and optimization"""
-        self.log("📊 Enabling continuous monitoring...")
+        self.log(" Enabling continuous monitoring...")
         
         if monitoring_config is None:
             monitoring_config = {
@@ -311,11 +311,11 @@ class MemorySystemEnhancer:
             # Create monitoring scripts
             self._create_monitoring_scripts(monitoring_setup)
             
-            self.log("✅ Continuous monitoring enabled")
+            self.log(" Continuous monitoring enabled")
             return monitoring_setup
             
         except Exception as e:
-            self.log(f"❌ Continuous monitoring setup failed: {e}", "error")
+            self.log(f" Continuous monitoring setup failed: {e}", "error")
             return {"error": str(e)}
     
     def export_system_configuration(self, export_path: Optional[str] = None) -> str:
@@ -323,7 +323,7 @@ class MemorySystemEnhancer:
         if export_path is None:
             export_path = f"memory_system_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         
-        self.log(f"💾 Exporting system configuration to {export_path}...")
+        self.log(f" Exporting system configuration to {export_path}...")
         
         export_data = {
             "timestamp": datetime.now().isoformat(),
@@ -356,11 +356,11 @@ class MemorySystemEnhancer:
             with open(export_path, 'w') as f:
                 json.dump(export_data, f, indent=2, default=str)
             
-            self.log(f"✅ System configuration exported to {export_path}")
+            self.log(f" System configuration exported to {export_path}")
             return export_path
             
         except Exception as e:
-            self.log(f"❌ Configuration export failed: {e}", "error")
+            self.log(f" Configuration export failed: {e}", "error")
             raise
     
     def _analyze_personality_consistency(self) -> Dict:
@@ -446,7 +446,7 @@ class MemorySystemEnhancer:
             return analysis_results
             
         except Exception as e:
-            self.log(f"❌ Personality analysis failed: {e}", "error")
+            self.log(f" Personality analysis failed: {e}", "error")
             return {"error": str(e)}
     
     def _generate_comprehensive_recommendations(self, assessment_report: Dict) -> List[str]:
@@ -456,7 +456,7 @@ class MemorySystemEnhancer:
         # Database health recommendations
         db_health = assessment_report.get("database_health", {})
         if db_health.get("overall_health_score", 100) < 80:
-            recommendations.append("🔧 Database health needs improvement - run optimization and repair procedures")
+            recommendations.append(" Database health needs improvement - run optimization and repair procedures")
         
         # Performance recommendations
         performance = assessment_report.get("performance_baseline", {})
@@ -464,7 +464,7 @@ class MemorySystemEnhancer:
         if avg_response_time > 1.0:
             recommendations.append("⚡ Performance optimization needed - response times are too high")
         elif avg_response_time < 0.1:
-            recommendations.append("✅ Excellent performance - system is running efficiently")
+            recommendations.append(" Excellent performance - system is running efficiently")
         
         # Retrieval accuracy recommendations
         retrieval_analysis = assessment_report.get("diagnostic_results", {}).get("retrieval_analysis", {})
@@ -472,7 +472,7 @@ class MemorySystemEnhancer:
         low_precision_scenarios = [s for s in test_scenarios if s.get("precision", 1) < 0.5]
         
         if low_precision_scenarios:
-            recommendations.append(f"🎯 Improve retrieval precision for {len(low_precision_scenarios)} test scenarios")
+            recommendations.append(f" Improve retrieval precision for {len(low_precision_scenarios)} test scenarios")
         
         # Personality consistency recommendations
         personality_analysis = assessment_report.get("personality_analysis", {})
@@ -480,16 +480,16 @@ class MemorySystemEnhancer:
         avg_consistency = consistency_metrics.get("average_consistency", 1.0)
         
         if avg_consistency < 0.6:
-            recommendations.append("🧠 Enhance personality consistency across user memories")
+            recommendations.append(" Enhance personality consistency across user memories")
         elif avg_consistency > 0.8:
-            recommendations.append("✅ Good personality consistency maintained")
+            recommendations.append(" Good personality consistency maintained")
         
         # Memory statistics recommendations
         memory_stats = assessment_report.get("system_baseline", {})
         total_memories = memory_stats.get("total_memories", 0)
         
         if total_memories > 100000:
-            recommendations.append("📚 Consider memory archival strategy for large memory sets")
+            recommendations.append(" Consider memory archival strategy for large memory sets")
         elif total_memories < 1000:
             recommendations.append("💭 Memory system may need more training data for better responses")
         
@@ -498,10 +498,10 @@ class MemorySystemEnhancer:
         critical_issues = diagnostic_results.get("critical_issues", [])
         
         if critical_issues:
-            recommendations.append(f"🚨 Address {len(critical_issues)} critical issues immediately")
+            recommendations.append(f" Address {len(critical_issues)} critical issues immediately")
         
         if not recommendations:
-            recommendations.append("🎉 System is performing well - maintain current configuration")
+            recommendations.append(" System is performing well - maintain current configuration")
         
         return recommendations
     
@@ -557,10 +557,10 @@ class MemorySystemEnhancer:
             optimization_results["health_after"] = post_health.get("overall_health_score", 0)
             optimization_results["health_improvement"] = optimization_results["health_after"] - optimization_results["health_before"]
             
-            self.log(f"✅ Database optimization completed - Health improved by {optimization_results['health_improvement']}")
+            self.log(f" Database optimization completed - Health improved by {optimization_results['health_improvement']}")
             
         except Exception as e:
-            self.log(f"❌ Database optimization failed: {e}", "error")
+            self.log(f" Database optimization failed: {e}", "error")
             optimization_results["errors"].append(str(e))
         
         return optimization_results
@@ -587,10 +587,10 @@ class MemorySystemEnhancer:
             if self.quality_assessor:
                 improvement_results["improvements_applied"].append("Memory quality assessment system active")
             
-            self.log("✅ Retrieval algorithm improvements applied")
+            self.log(" Retrieval algorithm improvements applied")
             
         except Exception as e:
-            self.log(f"❌ Retrieval improvements failed: {e}", "error")
+            self.log(f" Retrieval improvements failed: {e}", "error")
             improvement_results["errors"].append(str(e))
         
         return improvement_results
@@ -655,10 +655,10 @@ class MemorySystemEnhancer:
                 )
             }
             
-            self.log(f"✅ Personality consistency enhancement completed for {len(users)} users")
+            self.log(f" Personality consistency enhancement completed for {len(users)} users")
             
         except Exception as e:
-            self.log(f"❌ Personality enhancement failed: {e}", "error")
+            self.log(f" Personality enhancement failed: {e}", "error")
             enhancement_results["errors"].append(str(e))
         
         return enhancement_results
@@ -707,10 +707,10 @@ class MemorySystemEnhancer:
             if cleaned_count > 0:
                 quality_results["cleanup_actions"].append(f"Cleaned {cleaned_count} low-quality memories")
             
-            self.log(f"✅ Memory quality improvement completed")
+            self.log(f" Memory quality improvement completed")
             
         except Exception as e:
-            self.log(f"❌ Memory quality improvement failed: {e}", "error")
+            self.log(f" Memory quality improvement failed: {e}", "error")
             quality_results["errors"].append(str(e))
         
         return quality_results
@@ -759,7 +759,7 @@ class MemorySystemEnhancer:
                 comparison["overall_improvement"] = "no_improvement"
             
         except Exception as e:
-            self.log(f"❌ Performance comparison failed: {e}", "error")
+            self.log(f" Performance comparison failed: {e}", "error")
             comparison["error"] = str(e)
         
         return comparison
@@ -848,10 +848,10 @@ class MemorySystemEnhancer:
             else:
                 validation_results["overall_status"] = "failed"
             
-            self.log(f"✅ Enhancement validation completed - Status: {validation_results['overall_status']}")
+            self.log(f" Enhancement validation completed - Status: {validation_results['overall_status']}")
             
         except Exception as e:
-            self.log(f"❌ Enhancement validation failed: {e}", "error")
+            self.log(f" Enhancement validation failed: {e}", "error")
             validation_results["overall_status"] = "failed"
             validation_results["error"] = str(e)
         
@@ -916,7 +916,7 @@ class MemorySystemEnhancer:
             enhanced_analysis["human_behavior_score"] = round(sum(human_behavior_factors) / len(human_behavior_factors), 3)
             
         except Exception as e:
-            self.log(f"❌ Enhanced test analysis failed: {e}", "error")
+            self.log(f" Enhanced test analysis failed: {e}", "error")
             enhanced_analysis["error"] = str(e)
         
         return enhanced_analysis
@@ -972,7 +972,7 @@ class MemorySystemEnhancer:
             human_assessment["overall_human_score"] = round(overall_score, 3)
             
         except Exception as e:
-            self.log(f"❌ Human behavior assessment failed: {e}", "error")
+            self.log(f" Human behavior assessment failed: {e}", "error")
             human_assessment["error"] = str(e)
         
         return human_assessment
@@ -1023,7 +1023,7 @@ class MemorySystemEnhancer:
             quality_metrics["user_engagement_potential"] = round(sum(engagement_factors) / len(engagement_factors), 3)
             
         except Exception as e:
-            self.log(f"❌ Conversational quality calculation failed: {e}", "error")
+            self.log(f" Conversational quality calculation failed: {e}", "error")
             quality_metrics["error"] = str(e)
         
         return quality_metrics
@@ -1101,7 +1101,7 @@ if __name__ == "__main__":
         os.chmod(health_script, 0o755)
         os.chmod(performance_script, 0o755)
         
-        self.log("✅ Monitoring scripts created")
+        self.log(" Monitoring scripts created")
     
     def _get_enhancement_status(self) -> Dict:
         """Get current status of applied enhancements"""
@@ -1119,9 +1119,9 @@ if __name__ == "__main__":
             report_file = f"system_assessment_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             with open(report_file, 'w') as f:
                 json.dump(report, f, indent=2, default=str)
-            self.log(f"💾 Assessment report saved: {report_file}")
+            self.log(f" Assessment report saved: {report_file}")
         except Exception as e:
-            self.log(f"❌ Failed to save assessment report: {e}", "error")
+            self.log(f" Failed to save assessment report: {e}", "error")
     
     def _save_enhancement_results(self, results: Dict):
         """Save enhancement results to file"""
@@ -1129,9 +1129,9 @@ if __name__ == "__main__":
             results_file = f"enhancement_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             with open(results_file, 'w') as f:
                 json.dump(results, f, indent=2, default=str)
-            self.log(f"💾 Enhancement results saved: {results_file}")
+            self.log(f" Enhancement results saved: {results_file}")
         except Exception as e:
-            self.log(f"❌ Failed to save enhancement results: {e}", "error")
+            self.log(f" Failed to save enhancement results: {e}", "error")
 
 def main():
     """Main function for command-line interface"""
@@ -1155,32 +1155,32 @@ def main():
     
     try:
         if args.action == "assess":
-            print("🔍 Running system assessment...")
+            print(" Running system assessment...")
             report = enhancer.run_system_assessment()
-            print(f"✅ Assessment completed. Overall recommendations: {len(report['recommendations'])}")
+            print(f" Assessment completed. Overall recommendations: {len(report['recommendations'])}")
             
         elif args.action == "enhance":
-            print("🚀 Applying enhancements...")
+            print(" Applying enhancements...")
             results = enhancer.apply_enhancements(config)
-            print(f"✅ Enhancements applied. Performance improvement: {results.get('performance_comparison', {}).get('overall_improvement', 'unknown')}")
+            print(f" Enhancements applied. Performance improvement: {results.get('performance_comparison', {}).get('overall_improvement', 'unknown')}")
             
         elif args.action == "test":
             print("🧪 Running comprehensive tests...")
             test_results = enhancer.run_enhanced_testing_suite()
-            print(f"✅ Testing completed. Success rate: {test_results.get('success_rate', 0):.2%}")
+            print(f" Testing completed. Success rate: {test_results.get('success_rate', 0):.2%}")
             
         elif args.action == "monitor":
-            print("📊 Setting up monitoring...")
+            print(" Setting up monitoring...")
             monitoring_setup = enhancer.enable_continuous_monitoring(config)
-            print(f"✅ Monitoring enabled with {len(monitoring_setup.get('monitoring_components', []))} components")
+            print(f" Monitoring enabled with {len(monitoring_setup.get('monitoring_components', []))} components")
             
         elif args.action == "export":
-            print("💾 Exporting system configuration...")
+            print(" Exporting system configuration...")
             export_path = enhancer.export_system_configuration()
-            print(f"✅ Configuration exported to {export_path}")
+            print(f" Configuration exported to {export_path}")
             
     except Exception as e:
-        print(f"❌ Operation failed: {e}")
+        print(f" Operation failed: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

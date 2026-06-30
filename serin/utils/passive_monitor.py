@@ -44,7 +44,7 @@ class PassiveMonitor:
             'channels_monitored': set()
         }
         
-        logger.info("✅ Passive monitor initialized")
+        logger.info(" Passive monitor initialized")
     
     async def process_message(self, message: discord.Message, is_allowed_channel: bool) -> None:
         """
@@ -97,12 +97,12 @@ class PassiveMonitor:
             
             # Log based on channel type
             if is_allowed_channel:
-                logger.debug(f"👁️ Active: {username} in #{message.channel.name}")
+                logger.debug(f" Active: {username} in #{message.channel.name}")
             else:
-                logger.debug(f"👁️ Passive: {username} in #{message.channel.name} (monitoring only)")
+                logger.debug(f" Passive: {username} in #{message.channel.name} (monitoring only)")
             
         except Exception as e:
-            logger.error(f"❌ Error in passive monitor: {e}")
+            logger.error(f" Error in passive monitor: {e}")
     
     def get_stats(self) -> Dict[str, Any]:
         """Get monitoring statistics"""

@@ -47,7 +47,7 @@ except ImportError:
 class QdrantMemorySystem:
     def __init__(self, data_dir: str = "./bot_data", qdrant_host: str = "localhost", qdrant_port: int = 6333):
         """Initialize Qdrant-based memory system with hybrid search capabilities"""
-        logger.info("🚀 Initializing Qdrant Memory System")
+        logger.info(" Initializing Qdrant Memory System")
         
         self.data_dir = data_dir
         os.makedirs(data_dir, exist_ok=True)
@@ -59,15 +59,15 @@ class QdrantMemorySystem:
                     self.qdrant_client = QdrantClient(host=qdrant_host, port=qdrant_port, timeout=5.0)
                     # Test connection
                     self.qdrant_client.get_collections()
-                    logger.info(f"✅ Qdrant client connected to {qdrant_host}:{qdrant_port}")
+                    logger.info(f" Qdrant client connected to {qdrant_host}:{qdrant_port}")
                     break
                 except Exception as e:
                     if attempt < 2:
-                        logger.warning(f"⚠️ Qdrant connection failed (attempt {attempt+1}/3): {e}. Retrying...")
+                        logger.warning(f" Qdrant connection failed (attempt {attempt+1}/3): {e}. Retrying...")
                         import time
                         time.sleep(2)
                     else:
-                        logger.error(f"❌ Failed to connect to Qdrant after 3 attempts: {e}")
+                        logger.error(f" Failed to connect to Qdrant after 3 attempts: {e}")
                         self.qdrant_client = None
         else:
             self.qdrant_client = None
@@ -78,9 +78,9 @@ class QdrantMemorySystem:
                 # Upgrade to Nomic Embed v1.5 for state-of-the-art performance
                 self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
                 self.embedding_dim = 384  # MiniLM dimension
-                logger.info("✅ Embedding model loaded (all-MiniLM-L6-v2)")
+                logger.info(" Embedding model loaded (all-MiniLM-L6-v2)")
             except Exception as e:
-                logger.error(f"❌ Failed to load embedding model: {e}")
+                logger.error(f" Failed to load embedding model: {e}")
                 self.embedding_model = None
                 self.embedding_dim = 384
         else:
@@ -91,9 +91,9 @@ class QdrantMemorySystem:
         if BM25_AVAILABLE:
             try:
                 self.bm25_index = SQLiteBM25Index(os.path.join(data_dir, "memory_fts.db"))
-                logger.info("✅ BM25 index initialized")
+                logger.info(" BM25 index initialized")
             except Exception as e:
-                logger.error(f"❌ Failed to initialize BM25: {e}")
+                logger.error(f" Failed to initialize BM25: {e}")
                 self.bm25_index = None
         else:
             self.bm25_index = None
@@ -110,14 +110,14 @@ class QdrantMemorySystem:
         # Background job queue (simplified implementation)
         self.background_jobs = []
         
-        logger.info("✅ Qdrant Memory System ready")
+        logger.info(" Qdrant Memory System ready")
     
     def _init_sqlite_robust(self):
         """Initialize SQLite with corruption handling"""
         try:
             self._connect_and_init_schema()
         except sqlite3.DatabaseError as e:
-            logger.error(f"❌ SQLite corruption detected: {e}")
+            logger.error(f" SQLite corruption detected: {e}")
             self._handle_corruption()
             # Try again with fresh DB
             self._connect_and_init_schema()
@@ -143,7 +143,7 @@ class QdrantMemorySystem:
         if os.path.exists(self.db_path):
             timestamp = int(time.time())
             backup_path = f"{self.db_path}.corrupt.{timestamp}"
-            logger.warning(f"⚠️ Moving corrupt database to {backup_path}")
+            logger.warning(f" Moving corrupt database to {backup_path}")
             try:
                 if self.conn:
                     try:
@@ -156,7 +156,7 @@ class QdrantMemorySystem:
                     if os.path.exists(self.db_path + ext):
                         shutil.move(self.db_path + ext, backup_path + ext)
             except Exception as e:
-                logger.error(f"❌ Error moving corrupt DB: {e}")
+                logger.error(f" Error moving corrupt DB: {e}")
     
     def _init_sqlite_schema(self):
         """Initialize SQLite tables for structured data"""
@@ -279,7 +279,7 @@ class QdrantMemorySystem:
         """)
         
         self.conn.commit()
-        logger.debug("✅ SQLite schema initialized")
+        logger.debug(" SQLite schema initialized")
     
     def _setup_collection(self):
         """Setup Qdrant collection with optimized configuration"""
@@ -292,7 +292,7 @@ class QdrantMemorySystem:
             # Check if collection exists
             try:
                 self.qdrant_client.get_collection("memories")
-                logger.info("✅ Existing memories collection found")
+                logger.info(" Existing memories collection found")
                 logger.debug("Collection already exists")
                 return
             except Exception as e:
@@ -320,11 +320,11 @@ class QdrantMemorySystem:
             """, ("memories", self.embedding_dim, "cosine", "active"))
             self.conn.commit()
             
-            logger.info("✅ Qdrant collection 'memories' created with optimized settings")
+            logger.info(" Qdrant collection 'memories' created with optimized settings")
             logger.debug("Collection created successfully")
             
         except Exception as e:
-            logger.error(f"❌ Failed to setup Qdrant collection: {e}")
+            logger.error(f" Failed to setup Qdrant collection: {e}")
             import traceback
             traceback.print_exc()
     
@@ -435,7 +435,7 @@ class QdrantMemorySystem:
                     return True
                     
             except Exception as e:
-                logger.warning(f"⚠️ Error checking duplicates in Qdrant: {e}")
+                logger.warning(f" Error checking duplicates in Qdrant: {e}")
         
         return False
     
@@ -478,7 +478,7 @@ class QdrantMemorySystem:
             return None
             
         except Exception as e:
-            logger.error(f"❌ Error checking existing memory ID: {e}")
+            logger.error(f" Error checking existing memory ID: {e}")
             return None
     
     def _queue_background_jobs(self, memory_ids: List[str], kwargs: Dict):
@@ -554,14 +554,14 @@ class QdrantMemorySystem:
                             )]
                         )
                     except Exception as e:
-                        logger.error(f"❌ Error upserting to Qdrant: {e}")
+                        logger.error(f" Error upserting to Qdrant: {e}")
                 
                 # Add to BM25 index
                 if self.bm25_index:
                     try:
                         self.bm25_index.add_document(memory_id, chunk, user_id, kwargs.get('channel_id'))
                     except Exception as e:
-                        logger.error(f"❌ Error adding to BM25: {e}")
+                        logger.error(f" Error adding to BM25: {e}")
                 
                 memory_ids.append(memory_id)
             
@@ -899,7 +899,7 @@ class QdrantMemorySystem:
             return []
             
         except Exception as e:
-            logger.error(f"❌ Error getting recent conversation: {e}")
+            logger.error(f" Error getting recent conversation: {e}")
             return []
     
     # ========================================================================
@@ -920,7 +920,7 @@ class QdrantMemorySystem:
             """, (user_id, username, display_name or username))
             self.conn.commit()
         except Exception as e:
-            logger.error(f"❌ Error upserting user: {e}")
+            logger.error(f" Error upserting user: {e}")
     
     def update_user_activity(self, user_id: str, message_length: int):
         """Update user activity metrics"""
@@ -946,7 +946,7 @@ class QdrantMemorySystem:
                 """, (new_total, new_avg, user_id))
                 self.conn.commit()
         except Exception as e:
-            logger.error(f"❌ Error updating user activity: {e}")
+            logger.error(f" Error updating user activity: {e}")
     
     def get_user_profile(self, user_id: str) -> Optional[Dict]:
         """Get user profile"""
@@ -990,7 +990,7 @@ class QdrantMemorySystem:
                 ))
                 self.conn.commit()
         except Exception as e:
-            logger.error(f"❌ Error updating traits: {e}")
+            logger.error(f" Error updating traits: {e}")
     
     def log_activity(self, user_id: str, channel_id: str, message_length: int, sentiment: float):
         """Log user activity for pattern analysis"""
@@ -1004,7 +1004,7 @@ class QdrantMemorySystem:
             """, (user_id, channel_id, message_length, sentiment, now.hour, now.weekday()))
             self.conn.commit()
         except Exception as e:
-            logger.error(f"❌ Error logging activity: {e}")
+            logger.error(f" Error logging activity: {e}")
     
     def update_relationship(self, user_a_id: str, user_b_id: str, interaction_type: str = 'message'):
         """Update relationship between two users"""
@@ -1040,7 +1040,7 @@ class QdrantMemorySystem:
             
             self.conn.commit()
         except Exception as e:
-            logger.error(f"❌ Error updating relationship: {e}")
+            logger.error(f" Error updating relationship: {e}")
     
     def get_user_relationships(self, user_id: str, min_strength: float = 0.1) -> List[Dict]:
         """Get all relationships for a user"""
@@ -1088,7 +1088,7 @@ class QdrantMemorySystem:
                 'strong_relationships': strong_relationships
             }
         except Exception as e:
-            logger.error(f"❌ Error getting stats: {e}")
+            logger.error(f" Error getting stats: {e}")
             return {}
 
     # ========================================================================
@@ -1129,7 +1129,7 @@ class QdrantMemorySystem:
             
             self.conn.commit()
         except Exception as e:
-            logger.error(f"❌ Error storing recent message: {e}")
+            logger.error(f" Error storing recent message: {e}")
 
     def get_latest_message(self, channel_id: str) -> Optional[Dict]:
         """Get most recent message from a channel"""
@@ -1261,12 +1261,12 @@ class QdrantMemorySystem:
                     if self.bm25_index:
                         self.bm25_index.delete_documents(memory_ids)
                     
-                    logger.info(f"🗑️ Cleaned up {len(memory_ids)} old memories")
+                    logger.info(f" Cleaned up {len(memory_ids)} old memories")
                     return len(memory_ids)
             
             return 0
         except Exception as e:
-            logger.error(f"❌ Error cleaning memories: {e}")
+            logger.error(f" Error cleaning memories: {e}")
             return 0
     
     def __del__(self):

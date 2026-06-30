@@ -29,9 +29,9 @@ async def initialize_llama():
         llama = get_model_connector()
         llama.load_model()
         info = llama.get_model_info()
-        logger.info(f"✅ LLM ready: {info.get('model_name')} ({info.get('provider')})")
+        logger.info(f" LLM ready: {info.get('model_name')} ({info.get('provider')})")
     except Exception as e:
-        logger.error(f"❌ Failed to initialize LLM: {e}")
+        logger.error(f" Failed to initialize LLM: {e}")
         raise
     
     # Initialize vision model (SmolVLM) if enabled
@@ -42,9 +42,9 @@ async def initialize_llama():
             from models.vllm_connector import VLLMConnector
             vision_llama = VLLMConnector(model_name=vision_model)
             vision_llama.load_model()
-            logger.info(f"👁️ Vision LLM ready: {vision_model}")
+            logger.info(f" Vision LLM ready: {vision_model}")
         except Exception as e:
-            logger.warning(f"⚠️ Vision model '{vision_model}' not available: {e}")
+            logger.warning(f" Vision model '{vision_model}' not available: {e}")
             vision_llama = None
 
 
@@ -130,7 +130,7 @@ async def get_response_natural(
                     image_desc = await vision_llama.chat_completion(desc_prompt, max_tokens=150)
                     content_str = f"{msg['user_name']}: {msg['content']}\n[Image: {image_desc}]"
                 except Exception as e:
-                    logger.warning(f"⚠️ Vision description failed: {e}")
+                    logger.warning(f" Vision description failed: {e}")
                     content_str = f"{msg['user_name']}: {msg['content']}\n[Image: (could not analyze)]"
                 messages.append({"role": "user", "content": content_str})
             else:
@@ -192,7 +192,7 @@ async def get_response_natural(
         return cleaned
         
     except Exception as e:
-        logger.exception(f"❌ Generation error: {e}")
+        logger.exception(f" Generation error: {e}")
         
         # Fallback
         return random.choice([
@@ -290,7 +290,7 @@ def clean_response(response: str) -> str:
         return cleaned.strip()
         
     except Exception as e:
-        logger.error(f"❌ Error cleaning response: {e}")
+        logger.error(f" Error cleaning response: {e}")
         return response.strip() if response else ""
 
 def apply_natural_variations(text: str, tone_modifier: Optional[str] = None) -> str:

@@ -36,7 +36,7 @@ class DebugLogger:
             return
         
         logger.info("=" * 80)
-        logger.info("🧠 CONTEXT BUILT FOR LLM")
+        logger.info(" CONTEXT BUILT FOR LLM")
         logger.info("=" * 80)
         logger.info(f"Recent messages: {len(context.get('recent_conversation', []))}")
         logger.info(f"Relevant memories: {len(context.get('relevant_memories', []))}")
@@ -96,13 +96,13 @@ class DebugLogger:
             return
         
         logger.info("=" * 80)
-        logger.info("📥 LLM OUTPUT")
+        logger.info(" LLM OUTPUT")
         logger.info("=" * 80)
         logger.info(f"\n🔴 RAW OUTPUT ({len(raw_response)} chars):")
         logger.info("-" * 40)
         logger.info(raw_response[:500] if len(raw_response) > 500 else raw_response)
         
-        logger.info(f"\n✅ CLEANED OUTPUT ({len(cleaned_response)} chars):")
+        logger.info(f"\n CLEANED OUTPUT ({len(cleaned_response)} chars):")
         logger.info("-" * 40)
         logger.info(cleaned_response)
         logger.info("=" * 80)
@@ -113,7 +113,7 @@ class DebugLogger:
             return
         
         logger.info("=" * 80)
-        logger.info("💾 MEMORY STORED")
+        logger.info(" MEMORY STORED")
         logger.info("=" * 80)
         logger.info(f"Content: '{content}'")
         logger.info(f"User: {metadata.get('username')} ({metadata.get('user_id')})")
@@ -130,12 +130,12 @@ class DebugLogger:
             return
         
         logger.info("=" * 80)
-        logger.info("🔄 BACKGROUND SUMMARY CREATED")
+        logger.info(" BACKGROUND SUMMARY CREATED")
         logger.info("=" * 80)
         logger.info(f"From {len(messages)} message(s):")
         for msg in messages:
             logger.info(f"  {msg['username']}: {msg['content'][:80]}")
-        logger.info(f"\n📝 Summary created:")
+        logger.info(f"\n Summary created:")
         logger.info(f"  '{summary}'")
         logger.info("=" * 80)
     
@@ -145,7 +145,7 @@ class DebugLogger:
             return
         
         logger.info("=" * 80)
-        logger.info("🔧 CORRECTION DETECTED")
+        logger.info(" CORRECTION DETECTED")
         logger.info("=" * 80)
         logger.info(f"User: {user}")
         logger.info(f"Confidence: {correction.get('confidence', 0):.2f}")
@@ -159,7 +159,7 @@ class DebugLogger:
         if not self.debug_mode:
             return
         
-        status = "✅ RESPONDING" if should_respond else "🤐 SKIPPING"
+        status = " RESPONDING" if should_respond else "🤐 SKIPPING"
         logger.info("=" * 80)
         logger.info(f"{status}")
         logger.info("=" * 80)
@@ -173,7 +173,7 @@ class DebugLogger:
             return
         
         logger.info("=" * 80)
-        logger.info("🎤 VOICE EVENT")
+        logger.info(" VOICE EVENT")
         logger.info("=" * 80)
         logger.info(f"Event: {event_type}")
         logger.info(f"User: {user}")

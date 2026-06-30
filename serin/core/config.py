@@ -75,7 +75,7 @@ class BotConfig:
             try:
                 self.ALLOWED_CHANNEL_IDS = {int(x.strip()) for x in allowed_ids_str.split(',') if x.strip()}
             except ValueError:
-                logger.warning("⚠️ Invalid ALLOWED_CHANNEL_IDS in .env")
+                logger.warning(" Invalid ALLOWED_CHANNEL_IDS in .env")
         
         # --- Personality Settings (Runtime only for now) ---
         self.PERSONALITY: Dict[str, float] = {
@@ -84,7 +84,7 @@ class BotConfig:
             'engagement': 0.5
         }
         
-        logger.info("✅ BotConfig initialized")
+        logger.info(" BotConfig initialized")
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert config to dictionary for API"""
@@ -120,7 +120,7 @@ class BotConfig:
         if 'PERSONALITY' in data:
             self.PERSONALITY.update(data['PERSONALITY'])
 
-        logger.info("⚙️ BotConfig updated")
+        logger.info(" BotConfig updated")
 
 # Global instance
 config = BotConfig()

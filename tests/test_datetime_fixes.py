@@ -33,9 +33,9 @@ def test_safe_datetime_convert():
     for i, test_case in enumerate(test_cases):
         try:
             result = safe_datetime_convert(test_case)
-            print(f"   ✅ Test {i+1}: {type(test_case).__name__} → {type(result).__name__} (Success)")
+            print(f"    Test {i+1}: {type(test_case).__name__} → {type(result).__name__} (Success)")
         except Exception as e:
-            print(f"   ❌ Test {i+1}: {type(test_case).__name__} → Error: {e}")
+            print(f"    Test {i+1}: {type(test_case).__name__} → Error: {e}")
             return False
     
     return True
@@ -60,16 +60,16 @@ def test_datetime_comparisons():
         
         # Test comparison
         comparison_result = dt2 > dt1
-        print(f"   ✅ Comparison test: {type(timestamp1).__name__} vs {type(timestamp2).__name__} = {comparison_result} (Success)")
+        print(f"    Comparison test: {type(timestamp1).__name__} vs {type(timestamp2).__name__} = {comparison_result} (Success)")
         
         # Test time difference
         time_diff = (dt2 - dt1).total_seconds()
-        print(f"   ✅ Time difference test: {time_diff:.2f} seconds (Success)")
+        print(f"    Time difference test: {time_diff:.2f} seconds (Success)")
         
         return True
         
     except Exception as e:
-        print(f"   ❌ Comparison test failed: {e}")
+        print(f"    Comparison test failed: {e}")
         return False
 
 def test_message_grouping_logic():
@@ -116,7 +116,7 @@ def test_message_grouping_logic():
             return timestamp
         
         sorted_messages = sorted(messages, key=get_sort_key)
-        print(f"   ✅ Sorting test: {len(messages)} messages sorted successfully")
+        print(f"    Sorting test: {len(messages)} messages sorted successfully")
         
         # Test grouping logic (similar to background_processor)
         sorted_batch = sorted(messages, key=lambda x: safe_datetime_convert(x['timestamp']))
@@ -145,11 +145,11 @@ def test_message_grouping_logic():
         if current_group:
             groups.append(current_group)
         
-        print(f"   ✅ Grouping test: Created {len(groups)} conversation groups")
+        print(f"    Grouping test: Created {len(groups)} conversation groups")
         return True
         
     except Exception as e:
-        print(f"   ❌ Grouping test failed: {e}")
+        print(f"    Grouping test failed: {e}")
         return False
 
 def test_temporal_filtering():
@@ -191,16 +191,16 @@ def test_temporal_filtering():
             if safe_datetime_convert(mem['timestamp']) >= cutoff_date
         ]
         
-        print(f"   ✅ Temporal filtering: {len(memories)} → {len(filtered)} memories (Success)")
+        print(f"    Temporal filtering: {len(memories)} → {len(filtered)} memories (Success)")
         return True
         
     except Exception as e:
-        print(f"   ❌ Temporal filtering failed: {e}")
+        print(f"    Temporal filtering failed: {e}")
         return False
 
 def run_all_tests():
     """Run all datetime fix tests"""
-    print("🚀 Starting datetime fixes verification...\n")
+    print(" Starting datetime fixes verification...\n")
     
     tests = [
         test_safe_datetime_convert,
@@ -218,15 +218,15 @@ def run_all_tests():
                 passed += 1
             print()  # Add spacing between tests
         except Exception as e:
-            print(f"   ❌ Test failed with exception: {e}\n")
+            print(f"    Test failed with exception: {e}\n")
     
-    print(f"📊 Test Results: {passed}/{total} tests passed")
+    print(f" Test Results: {passed}/{total} tests passed")
     
     if passed == total:
-        print("✅ All datetime fixes are working correctly!")
+        print(" All datetime fixes are working correctly!")
         return True
     else:
-        print("❌ Some tests failed. Please review the fixes.")
+        print(" Some tests failed. Please review the fixes.")
         return False
 
 if __name__ == "__main__":

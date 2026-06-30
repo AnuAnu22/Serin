@@ -194,7 +194,7 @@ class MemorySystemTester:
                     test_report["success_rate"] += 1
                 
             except Exception as e:
-                logger.error(f"❌ Test scenario {scenario.name} failed: {e}")
+                logger.error(f" Test scenario {scenario.name} failed: {e}")
                 error_result = TestResult(
                     scenario_name=scenario.name,
                     timestamp=datetime.now().isoformat(),
@@ -220,7 +220,7 @@ class MemorySystemTester:
         # Save test report
         self._save_test_report(test_report)
         
-        logger.info(f"✅ Test suite completed - Success rate: {test_report['success_rate']:.2%}")
+        logger.info(f" Test suite completed - Success rate: {test_report['success_rate']:.2%}")
         return test_report
     
     def _run_single_test_scenario(self, scenario: TestScenario) -> TestResult:
@@ -254,7 +254,7 @@ class MemorySystemTester:
             success = precision > 0.3 and len(memories) > 0  # Basic success criteria
             
         except Exception as e:
-            logger.error(f"❌ Test scenario execution failed: {e}")
+            logger.error(f" Test scenario execution failed: {e}")
             memories = []
             relevant_memories = 0
             precision = 0.0
@@ -518,7 +518,7 @@ class MemorySystemTester:
     
     def _test_personality_consistency(self) -> Dict:
         """Test personality consistency across users"""
-        logger.debug("🧠 Testing personality consistency...")
+        logger.debug(" Testing personality consistency...")
         
         try:
             cursor = self.memory.conn.cursor()
@@ -597,7 +597,7 @@ class MemorySystemTester:
             }
             
         except Exception as e:
-            logger.error(f"❌ Personality consistency testing failed: {e}")
+            logger.error(f" Personality consistency testing failed: {e}")
             return {"error": str(e)}
     
     def _generate_test_recommendations(self, test_report: Dict) -> List[str]:
@@ -613,39 +613,39 @@ class MemorySystemTester:
         recall = avg_metrics.get("average_recall", 0)
         
         if precision < 0.5:
-            recommendations.append("🎯 Improve memory retrieval precision - too many irrelevant memories being returned")
+            recommendations.append(" Improve memory retrieval precision - too many irrelevant memories being returned")
         elif precision > 0.8:
-            recommendations.append("✅ Excellent precision - retrieval is highly relevant")
+            recommendations.append(" Excellent precision - retrieval is highly relevant")
         
         if recall < 0.4:
-            recommendations.append("🔍 Increase memory retrieval recall - missing relevant memories")
+            recommendations.append(" Increase memory retrieval recall - missing relevant memories")
         elif recall > 0.7:
-            recommendations.append("✅ Good recall - finding most relevant memories")
+            recommendations.append(" Good recall - finding most relevant memories")
         
         # Performance recommendations
         avg_response_time = performance.get("average_response_time", 0)
         if avg_response_time > 1.0:
             recommendations.append("⚡ Optimize memory retrieval performance - response time too slow")
         elif avg_response_time < 0.1:
-            recommendations.append("✅ Excellent performance - fast retrieval times")
+            recommendations.append(" Excellent performance - fast retrieval times")
         
         # Personality consistency recommendations
         personality_metrics = personality.get("aggregate_metrics", {})
         avg_consistency = personality_metrics.get("average_consistency_score", 0)
         if avg_consistency < 0.5:
-            recommendations.append("🧠 Improve personality consistency - user traits not well reflected in memories")
+            recommendations.append(" Improve personality consistency - user traits not well reflected in memories")
         elif avg_consistency > 0.7:
-            recommendations.append("✅ Good personality consistency - user traits well represented")
+            recommendations.append(" Good personality consistency - user traits well represented")
         
         # Context appropriateness
         context_appropriateness = avg_metrics.get("average_context_appropriateness", 0)
         if context_appropriateness < 0.6:
-            recommendations.append("📝 Improve context appropriateness - memories don't match conversation context well")
+            recommendations.append(" Improve context appropriateness - memories don't match conversation context well")
         
         # Emotional consistency
         emotional_consistency = avg_metrics.get("average_emotional_consistency", 0)
         if emotional_consistency < 0.6:
-            recommendations.append("😊 Enhance emotional consistency - tone doesn't match conversation mood")
+            recommendations.append(" Enhance emotional consistency - tone doesn't match conversation mood")
         
         # Temporal relevance
         temporal_relevance = avg_metrics.get("average_temporal_relevance", 0)
@@ -655,12 +655,12 @@ class MemorySystemTester:
         # Overall system health
         success_rate = performance.get("success_rate", 0)
         if success_rate < 0.7:
-            recommendations.append("🔧 System health needs attention - low test success rate")
+            recommendations.append(" System health needs attention - low test success rate")
         elif success_rate > 0.9:
-            recommendations.append("✅ System is healthy - high test success rate")
+            recommendations.append(" System is healthy - high test success rate")
         
         if not recommendations:
-            recommendations.append("🎉 Memory system is performing well - no major issues detected")
+            recommendations.append(" Memory system is performing well - no major issues detected")
         
         return recommendations
     
@@ -672,10 +672,10 @@ class MemorySystemTester:
             with open(report_file, 'w') as f:
                 json.dump(test_report, f, indent=2, default=str)
             
-            logger.info(f"💾 Test report saved: {report_file}")
+            logger.info(f" Test report saved: {report_file}")
             
         except Exception as e:
-            logger.error(f"❌ Failed to save test report: {e}")
+            logger.error(f" Failed to save test report: {e}")
     
     def run_performance_benchmark(self, iterations: int = 100) -> Dict:
         """Run performance benchmark test"""
@@ -708,7 +708,7 @@ class MemorySystemTester:
                 response_times.append(response_time)
                 
             except Exception as e:
-                logger.error(f"❌ Benchmark iteration {i} failed: {e}")
+                logger.error(f" Benchmark iteration {i} failed: {e}")
                 error_count += 1
         
         # Calculate performance statistics
@@ -734,9 +734,9 @@ class MemorySystemTester:
             benchmark_file = f"{self.test_data_dir}/performance_benchmark_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             with open(benchmark_file, 'w') as f:
                 json.dump(benchmark_results, f, indent=2)
-            logger.info(f"💾 Benchmark results saved: {benchmark_file}")
+            logger.info(f" Benchmark results saved: {benchmark_file}")
         except Exception as e:
-            logger.error(f"❌ Failed to save benchmark results: {e}")
+            logger.error(f" Failed to save benchmark results: {e}")
         
         return benchmark_results
 

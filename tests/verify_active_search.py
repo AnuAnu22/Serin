@@ -26,7 +26,7 @@ async def test_active_search():
     print(f"Result: Search={needs_search}, Reason={reason}")
     assert needs_search is False
     assert reason == "heuristic_skip"
-    print("✅ Passed")
+    print(" Passed")
 
     # Test 2: Slow Path (LLM Decision - Search Needed)
     print("\nTest 2: Slow Path (Search Needed)")
@@ -34,7 +34,7 @@ async def test_active_search():
     print(f"Result: Search={needs_search}, Query='{query}', Reason={reason}")
     assert needs_search is True
     assert query == "database migration"
-    print("✅ Passed")
+    print(" Passed")
 
     # Test 3: Slow Path (LLM Decision - No Search)
     print("\nTest 3: Slow Path (No Search Needed)")
@@ -43,7 +43,7 @@ async def test_active_search():
     needs_search, query, reason = await active_search.analyze_need_to_search(long_message, "")
     print(f"Result: Search={needs_search}, Reason={reason}")
     assert needs_search is False
-    print("✅ Passed")
+    print(" Passed")
 
 if __name__ == "__main__":
     asyncio.run(test_active_search())

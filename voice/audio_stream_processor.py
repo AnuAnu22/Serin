@@ -142,11 +142,11 @@ class AudioStreamProcessor:
             'errors': 0
         }
 
-        logger.info("✅ Audio stream processor initialized")
-        logger.info(f"   🔊 VAD threshold: {self.VAD_THRESHOLD}")
-        logger.info(f"   ⏱️ Silence threshold: {silence_threshold}s")
+        logger.info(" Audio stream processor initialized")
+        logger.info(f"    VAD threshold: {self.VAD_THRESHOLD}")
+        logger.info(f"    Silence threshold: {silence_threshold}s")
         if self.llm_connector and self.supports_audio:
-            logger.info("   🎵 Direct audio support enabled (gemma12b input_audio)")
+            logger.info("    Direct audio support enabled (gemma12b input_audio)")
 
     @staticmethod
     def _pcm_to_wav_base64(audio_data: bytes, sample_rate: int = 16000) -> str:
@@ -224,7 +224,7 @@ class AudioStreamProcessor:
             # 48kHz × 2ch × 2bytes × 30s = 5,760,000 bytes
             MAX_AUDIO_BYTES = 5_760_000
             if len(audio_data) > MAX_AUDIO_BYTES:
-                logger.info(f"⏱️ Truncating audio from {len(audio_data)} to {MAX_AUDIO_BYTES} bytes (30s limit)")
+                logger.info(f" Truncating audio from {len(audio_data)} to {MAX_AUDIO_BYTES} bytes (30s limit)")
                 audio_data = audio_data[:MAX_AUDIO_BYTES]
             wav_b64 = self._pcm_to_wav_base64(audio_data)
 
@@ -250,30 +250,30 @@ class AudioStreamProcessor:
             transcription = transcription.strip().strip('"\'')
 
             if transcription:
-                logger.info(f"✅ Gemma audio transcription: '{transcription}'")
+                logger.info(f" Gemma audio transcription: '{transcription}'")
                 return transcription
             return None
 
         except Exception as e:
-            logger.error(f"❌ Gemma audio transcription error: {e}")
+            logger.error(f" Gemma audio transcription error: {e}")
             return None
 
     async def start(self) -> None:
         """Start the background transcription queue processor."""
         if self.is_running:
-            logger.warning("⚠️ Audio processor already running")
+            logger.warning(" Audio processor already running")
             return
 
         self.is_running = True
         self.processing_task = asyncio.create_task(self._process_queue())
-        logger.info("▶️ Audio stream processor started")
+        logger.info(" Audio stream processor started")
 
     async def stop(self) -> None:
         """Stop the background transcription queue processor."""
         self.is_running = False
         if self.processing_task:
             self.processing_task.cancel()
-        logger.info("⏹️ Audio stream processor stopped")
+        logger.info(" Audio stream processor stopped")
 
     def process_audio_chunk(
         self,
@@ -388,7 +388,7 @@ class AudioStreamProcessor:
                 if user_id not in self.currently_speaking:
                     self.currently_speaking.add(user_id)
                     self.stats['vad_detections'] += 1
-                    logger.debug(f"🎤 {username} started speaking")
+                    logger.debug(f" {username} started speaking")
 
                     # INTERRUPT: If the bot is speaking, stop it immediately so the
                     # user can interject. This creates a natural conversational flow
@@ -433,7 +433,7 @@ class AudioStreamProcessor:
             self._schedule_silence_timer(user_id, username, guild_id, channel_id)
 
         except Exception as e:
-            logger.error(f"❌ Error processing audio chunk: {e}")
+            logger.error(f" Error processing audio chunk: {e}")
             self.stats['errors'] += 1
 
     def _detect_voice_activity(self, audio_data: bytes) -> bool:
@@ -461,7 +461,7 @@ class AudioStreamProcessor:
             rms = np.sqrt(np.mean(audio_array.astype(np.float32) ** 2))
             return rms > self.VAD_THRESHOLD
         except Exception as e:
-            logger.error(f"❌ Error in VAD: {e}")
+            logger.error(f" Error in VAD: {e}")
             return False
 
     def _queue_for_transcription(
@@ -500,7 +500,7 @@ class AudioStreamProcessor:
             # This prevents the bot from responding to brief sounds.
             # Formula: 48000 samples/s × 2ch × 2bytes × 1.0s = 192,000 bytes
             if not buffer or len(buffer) < 192000:
-                logger.debug(f"⏭️ Skipping empty/short buffer for {username}")
+                logger.debug(f" Skipping empty/short buffer for {username}")
                 if user_id in self.user_buffers:
                     self.user_buffers[user_id] = bytearray()
                 return
@@ -534,13 +534,13 @@ class AudioStreamProcessor:
                 })
 
                 self.stats['transcriptions_queued'] += 1
-                logger.debug(f"📋 Queued {len(audio_data)} bytes for transcription: {username}")
+                logger.debug(f" Queued {len(audio_data)} bytes for transcription: {username}")
 
             except asyncio.QueueFull:
-                logger.warning(f"⚠️ Transcription queue full, dropping audio from {username}")
+                logger.warning(f" Transcription queue full, dropping audio from {username}")
 
         except Exception as e:
-            logger.error(f"❌ Error queueing transcription: {e}")
+            logger.error(f" Error queueing transcription: {e}")
             self.stats['errors'] += 1
 
     def _cancel_silence_timer(self, user_id: str) -> None:
@@ -620,7 +620,7 @@ class AudioStreamProcessor:
         If there's no lock for this guild (already expired or never set), this is a no-op.
         """
         self._processing_lock_until.pop(guild_id, None)
-        logger.debug(f"🔓 Processing lock released for guild {guild_id}")
+        logger.debug(f" Processing lock released for guild {guild_id}")
 
     def _set_lock(self, guild_id: str, duration: float = 20.0) -> None:
         """
@@ -640,11 +640,11 @@ class AudioStreamProcessor:
             duration: Lock duration in seconds (default 20.0, overridden to 30.0 in _queue_for_transcription)
         """
         self._processing_lock_until[guild_id] = time.time() + duration
-        logger.debug(f"🔒 Processing lock set for guild {guild_id} ({duration}s)")
+        logger.debug(f" Processing lock set for guild {guild_id} ({duration}s)")
 
     async def _process_queue(self) -> None:
         """Background task to process transcription queue — one item at a time."""
-        logger.info("🔄 Started transcription queue processor")
+        logger.info(" Started transcription queue processor")
 
         while self.is_running:
             try:
@@ -664,14 +664,14 @@ class AudioStreamProcessor:
                 self.stats['chunks_processed'] += 1
 
             except asyncio.CancelledError:
-                logger.info("🛑 Transcription queue processor cancelled")
+                logger.info(" Transcription queue processor cancelled")
                 break
             except Exception as e:
-                logger.error(f"❌ Error in transcription queue: {e}")
+                logger.error(f" Error in transcription queue: {e}")
                 self.stats['errors'] += 1
                 await asyncio.sleep(0.5)
 
-        logger.info("🛑 Transcription queue processor stopped")
+        logger.info(" Transcription queue processor stopped")
 
     async def _transcribe_and_store(self, item: Dict[str, Any]) -> None:
         """
@@ -701,7 +701,7 @@ class AudioStreamProcessor:
             audio_data = item['audio_data']
             timestamp = item['timestamp']
 
-            logger.info(f"🎤 Transcribing audio from {username} ({len(audio_data)} bytes)...")
+            logger.info(f" Transcribing audio from {username} ({len(audio_data)} bytes)...")
 
             if self.llm_connector and self.supports_audio:
                 # Check if the model actually supports direct audio.
@@ -724,7 +724,7 @@ class AudioStreamProcessor:
                     MAX_AUDIO_BYTES = 5_760_000  # 48kHz stereo 16-bit × 30s
                     truncated = False
                     if len(audio_data) > MAX_AUDIO_BYTES:
-                        logger.info(f"⏱️ Audio truncated from {len(audio_data)} to {MAX_AUDIO_BYTES} bytes (30s limit)")
+                        logger.info(f" Audio truncated from {len(audio_data)} to {MAX_AUDIO_BYTES} bytes (30s limit)")
                         audio_data = audio_data[:MAX_AUDIO_BYTES]
                         truncated = True
 
@@ -750,7 +750,7 @@ class AudioStreamProcessor:
                     # ── Whisper STT Path (Non-Gemma with supports_audio flag) ──
                     transcription = await self.transcriber.transcribe(audio_data, language="en")
                     if transcription and len(transcription.strip()) > 0:
-                        logger.info(f"✅ Transcribed: '{transcription}'")
+                        logger.info(f" Transcribed: '{transcription}'")
                         await self.voice_pipeline.process_voice_message(
                             user_id=user_id,
                             username=username,
@@ -764,7 +764,7 @@ class AudioStreamProcessor:
                 # ── Whisper STT Path (No LLM connector or audio not supported) ──
                 transcription = await self.transcriber.transcribe(audio_data, language="en")
                 if transcription and len(transcription.strip()) > 0:
-                    logger.info(f"✅ Transcribed: '{transcription}'")
+                    logger.info(f" Transcribed: '{transcription}'")
                     await self.voice_pipeline.process_voice_message(
                         user_id=user_id,
                         username=username,
@@ -775,10 +775,10 @@ class AudioStreamProcessor:
                     )
                     self.stats['transcriptions_completed'] += 1
                 else:
-                    logger.debug(f"⭐ Empty transcription from {username}")
+                    logger.debug(f" Empty transcription from {username}")
 
         except Exception as e:
-            logger.exception(f"❌ Error transcribing audio: {e}")
+            logger.exception(f" Error transcribing audio: {e}")
             self.stats['errors'] += 1
 
     def check_interrupt(self, user_id: str) -> bool:

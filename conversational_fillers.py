@@ -33,7 +33,7 @@ class ConversationalFillers:
     
     def __init__(self):
         self.injection_rate = 0.08  # 8% base chance per message
-        logger.info("✅ Conversational fillers initialized")
+        logger.info(" Conversational fillers initialized")
     
     def add_fillers(
         self,

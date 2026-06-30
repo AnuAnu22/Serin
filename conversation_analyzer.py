@@ -71,12 +71,12 @@ class ConversationAnalyzer:
                 'summary': self._generate_summary(messages, current_topic)
             }
             
-            logger.debug(f"📊 Conversation analysis: topic='{current_topic}', type={conv_type}")
+            logger.debug(f" Conversation analysis: topic='{current_topic}', type={conv_type}")
             
             return result
             
         except Exception as e:
-            logger.error(f"❌ Error analyzing conversation: {e}")
+            logger.error(f" Error analyzing conversation: {e}")
             return self._empty_analysis()
     
     def _detect_topic(self, messages: List[Dict]) -> Optional[str]:

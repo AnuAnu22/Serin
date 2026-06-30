@@ -43,7 +43,7 @@ def get_model_connector(
     provider = provider or os.getenv("LLM_PROVIDER", "vllm")
     provider = provider.lower().strip()
     
-    logger.info(f"🏭 Model factory: Creating connector for provider '{provider}'")
+    logger.info(f" Model factory: Creating connector for provider '{provider}'")
     
     # vLLM (default)
     if provider in ("vllm", "openai", "custom"):
@@ -130,7 +130,7 @@ def load_model_if_needed(model_name: str, temperature: Optional[float] = None, t
     connector = get_model_connector(model_name=model_name)
     connector.load_model(temperature=temperature, top_p=top_p)
     loaded_models[model_name] = connector
-    logger.info(f"✅ Model loaded and cached: {model_name}")
+    logger.info(f" Model loaded and cached: {model_name}")
     
     return connector
 
@@ -156,10 +156,10 @@ def unload_model(model_name: str) -> bool:
         connector.client = None
         connector.adapter = None
         del loaded_models[model_name]
-        logger.info(f"🗑️ Model unloaded from cache: {model_name}")
+        logger.info(f" Model unloaded from cache: {model_name}")
         return True
     except Exception as e:
-        logger.error(f"❌ Error unloading model {model_name}: {e}")
+        logger.error(f" Error unloading model {model_name}: {e}")
         return False
 
 
@@ -171,7 +171,7 @@ def unload_all_models() -> None:
         unload_model(model_name)
     
     loaded_models.clear()
-    logger.info("🧹 All models unloaded from cache")
+    logger.info(" All models unloaded from cache")
 
 # def get_available_models_sorted(timeout_seconds: int = 5) -> Dict[str, Optional[List[str]]]:
 #     """
@@ -225,11 +225,11 @@ def unload_all_models() -> None:
 #         # Auto-detect if not configured
 #         if not smallest and sorted_models:
 #             smallest = sorted_models[0]
-#             logger.info(f"🎯 Auto-detected smallest: {smallest}")
+#             logger.info(f" Auto-detected smallest: {smallest}")
         
 #         if not largest and sorted_models:
 #             largest = sorted_models[-1]
-#             logger.info(f"🎯 Auto-detected largest: {largest}")
+#             logger.info(f" Auto-detected largest: {largest}")
         
 #         return {
 #             'all': sorted_models,
@@ -238,7 +238,7 @@ def unload_all_models() -> None:
 #         }
     
 #     except Exception as e:
-#         logger.error(f"❌ Error getting models: {e}")
+#         logger.error(f" Error getting models: {e}")
 #         import traceback
 #         logger.error(traceback.format_exc())
 #         return {

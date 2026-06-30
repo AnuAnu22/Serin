@@ -49,17 +49,17 @@ class BackgroundProcessor:
         # Timer for idle processing
         self.last_message_time: Optional[datetime] = None
         
-        logger.info("✅ Background processor initialized")
+        logger.info(" Background processor initialized")
     
     async def start(self) -> None:
         """Start the background processing task"""
         if self.is_running:
-            logger.warning("⚠️ Background processor already running")
+            logger.warning(" Background processor already running")
             return
         
         # Initialize background LLM for summarization
         # Uses the same model as the main bot (SGLang supports concurrent generation)
-        logger.info("🧠 Initializing background LLM via factory...")
+        logger.info(" Initializing background LLM via factory...")
         try:
             self.extractor_llm = get_model_connector()
             await asyncio.to_thread(
@@ -70,16 +70,16 @@ class BackgroundProcessor:
             
             # Log model info
             model_info = self.extractor_llm.get_model_info()
-            logger.info(f"✅ Background LLM ready: {model_info['model_name']} ({model_info['model_type']})")
+            logger.info(f" Background LLM ready: {model_info['model_name']} ({model_info['model_type']})")
             
         except Exception as e:
-            logger.exception(f"❌ Failed to initialize background LLM: {e}")
-            logger.error("⚠️ Background processing will be disabled")
+            logger.exception(f" Failed to initialize background LLM: {e}")
+            logger.error(" Background processing will be disabled")
             return
         
         self.is_running = True
         self.task = asyncio.create_task(self._processing_loop())
-        logger.info("✅ Background processor started")
+        logger.info(" Background processor started")
     
     async def stop(self) -> None:
         """Stop the background processing task"""
@@ -90,7 +90,7 @@ class BackgroundProcessor:
                 await self.task
             except asyncio.CancelledError:
                 pass
-        logger.info("🛑 Background processor stopped")
+        logger.info(" Background processor stopped")
     
     def queue_message(
         self,
@@ -120,7 +120,7 @@ class BackgroundProcessor:
         # VALIDATE CONTENT - Skip empty or meaningless messages
         content = content.strip()
         if not content or len(content) < 10:
-            logger.debug(f"⚠️ Skipping empty/short message from {username}: '{content[:30]}...'")
+            logger.debug(f" Skipping empty/short message from {username}: '{content[:30]}...'")
             return
         
         # Filter out common empty patterns
@@ -136,14 +136,14 @@ class BackgroundProcessor:
         ]
         content_lower = content.lower()
         if any(pattern in content_lower for pattern in empty_patterns):
-            logger.debug(f"⚠️ Skipping empty pattern message from {username}: '{content[:30]}...'")
+            logger.debug(f" Skipping empty pattern message from {username}: '{content[:30]}...'")
             return
         
         # Use threading lock to prevent race conditions
         with self._queue_lock:
             if len(self.processing_queue) >= self.processing_queue.maxlen:
                 self.stats['queue_drops'] += 1
-                logger.debug("⚠️ Processing queue full, dropping oldest message")
+                logger.debug(" Processing queue full, dropping oldest message")
             
             self.processing_queue.append({
                 'content': content,  # RAW message content
@@ -156,7 +156,7 @@ class BackgroundProcessor:
             
             self.stats['total_queued'] += 1
             self.last_message_time = datetime.now()
-            logger.debug(f"📥 Queued RAW message from {username}: '{content[:50]}...' (queue: {len(self.processing_queue)})")
+            logger.debug(f" Queued RAW message from {username}: '{content[:50]}...' (queue: {len(self.processing_queue)})")
     
     async def _processing_loop(self) -> None:
         """
@@ -166,7 +166,7 @@ class BackgroundProcessor:
         - 3+ messages available (batch of 3)
         - 1-2 messages and idle for 10s
         """
-        logger.info("🔄 Background processing loop started")
+        logger.info(" Background processing loop started")
         
         last_stats_log = time.time()
         stats_log_interval = 300  # 5 minutes
@@ -179,7 +179,7 @@ class BackgroundProcessor:
                 current_time = time.time()
                 if current_time - last_stats_log > stats_log_interval:
                     logger.info("=" * 60)
-                    logger.info("📊 BACKGROUND PROCESSOR STATS")
+                    logger.info(" BACKGROUND PROCESSOR STATS")
                     logger.info("=" * 60)
                     logger.info(f"Queue size: {queue_size}")
                     logger.info(f"Total queued: {self.stats['total_queued']}")
@@ -222,10 +222,10 @@ class BackgroundProcessor:
                     await asyncio.sleep(5)
                     
             except asyncio.CancelledError:
-                logger.info("🛑 Background processing loop cancelled")
+                logger.info(" Background processing loop cancelled")
                 break
             except Exception as e:
-                logger.error(f"❌ Error in background processing loop: {e}")
+                logger.error(f" Error in background processing loop: {e}")
                 self.stats['errors'] += 1
                 await asyncio.sleep(5)
     
@@ -243,7 +243,7 @@ class BackgroundProcessor:
                 self.stats['total_processed'] += len(conversation_batch)
                 
         except Exception as e:
-            logger.error(f"❌ Error processing batch: {e}")
+            logger.error(f" Error processing batch: {e}")
             self.stats['errors'] += 1
     
     def _group_by_conversation(self, batch: List[Dict]) -> List[List[Dict]]:
@@ -304,7 +304,7 @@ class BackgroundProcessor:
             
             conversation_text = "\n".join(conversation_lines)
             
-            logger.debug(f"📝 Creating summary from conversation:\n{conversation_text[:200]}...")
+            logger.debug(f" Creating summary from conversation:\n{conversation_text[:200]}...")
             
             # Check if this is a thinking model
             model_info = self.extractor_llm.get_model_info()
@@ -373,14 +373,14 @@ Summary:"""
                 # Store as natural memory
                 await self._store_summary(summary, messages)
                 self.stats['summaries_created'] += 1
-                logger.info(f"💾 Created summary: {summary[:80]}...")
+                logger.info(f" Created summary: {summary[:80]}...")
             else:
-                logger.warning(f"⚠️ Summary rejected (garbage or invalid): '{summary[:50]}...'")
+                logger.warning(f" Summary rejected (garbage or invalid): '{summary[:50]}...'")
 
             log_summary(messages, summary)
             
         except Exception as e:
-            logger.exception(f"❌ Error creating summary: {e}")
+            logger.exception(f" Error creating summary: {e}")
             self.stats['errors'] += 1
     
     
@@ -411,10 +411,10 @@ Summary:"""
                 memory_type='summary'
             )
             
-            logger.debug(f"💾 Stored summary: {summary[:60]}...")
+            logger.debug(f" Stored summary: {summary[:60]}...")
             
         except Exception as e:
-            logger.error(f"❌ Error storing summary: {e}")
+            logger.error(f" Error storing summary: {e}")
     
     def _calculate_importance(self, summary: str, messages: List[Dict[str, Any]]) -> float:
         """Calculate natural importance (0.0 to 1.0)"""

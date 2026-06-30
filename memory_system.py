@@ -18,7 +18,7 @@ from debug_logger import log_memory
 class UnifiedMemorySystem:
     def __init__(self, data_dir: str = "./bot_data") -> None:
         """Initialize ChromaDB for semantic memory + SQLite for structured data"""
-        logger.info("🚀 Initializing Unified Memory System")
+        logger.info(" Initializing Unified Memory System")
         
         self.data_dir = data_dir
         os.makedirs(data_dir, exist_ok=True)
@@ -27,7 +27,7 @@ class UnifiedMemorySystem:
         chroma_path = os.path.join(data_dir, "chroma_data")
         logger.debug(f"📂 ChromaDB path: {chroma_path}")
         self.chroma_client = chromadb.PersistentClient(path=chroma_path)
-        logger.info("✅ ChromaDB client initialized")
+        logger.info(" ChromaDB client initialized")
         
         # Use sentence transformers embedding (local)
         self.embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
@@ -40,14 +40,14 @@ class UnifiedMemorySystem:
                 name="memories",
                 embedding_function=self.embedding_fn
             )
-            logger.info("✅ Loaded existing memories collection")
+            logger.info(" Loaded existing memories collection")
         except Exception:
             self.memories = self.chroma_client.create_collection(
                 name="memories",
                 embedding_function=self.embedding_fn,
                 metadata={"hnsw:space": "cosine"}
             )
-            logger.info("✅ Created new memories collection")
+            logger.info(" Created new memories collection")
         
         # SQLite for structured data (users, relationships, stats)
         self.db_path = os.path.join(data_dir, "bot_data.db")
@@ -61,7 +61,7 @@ class UnifiedMemorySystem:
         self._last_memory_check = datetime.now()
         self._memory_warnings = []
         
-        logger.info("✅ Memory system ready")
+        logger.info(" Memory system ready")
     
     def _init_sqlite_schema(self) -> None:
         """Initialize SQLite tables for structured data"""
@@ -112,7 +112,7 @@ class UnifiedMemorySystem:
         """)
         
         self.conn.commit()
-        logger.debug("✅ SQLite schema initialized")
+        logger.debug(" SQLite schema initialized")
         
         # Memory pressure monitoring
         self._last_memory_check = datetime.now()
@@ -186,7 +186,7 @@ class UnifiedMemorySystem:
         """)
         
         self.conn.commit()
-        logger.debug("✅ SQLite schema initialized")
+        logger.debug(" SQLite schema initialized")
         
         # Memory pressure monitoring
         self._last_memory_check = datetime.now()
@@ -308,12 +308,12 @@ class UnifiedMemorySystem:
                 ids=[memory_id]
             )
             
-            logger.debug(f"💾 Stored memory: {content[:50]}...")
+            logger.debug(f" Stored memory: {content[:50]}...")
             log_memory(content, metadata)
             return memory_id
             
         except Exception as e:
-            logger.error(f"❌ Error adding memory: {e}")
+            logger.error(f" Error adding memory: {e}")
             return ""
     
     def search_memories(
@@ -345,7 +345,7 @@ class UnifiedMemorySystem:
             )
             
             if not results or not results['documents'][0]:
-                logger.debug("🔍 No memories found")
+                logger.debug(" No memories found")
                 return []
             
             # Process results
@@ -389,11 +389,11 @@ class UnifiedMemorySystem:
             # Sort by relevance
             memories.sort(key=lambda x: x['relevance'], reverse=True)
             
-            logger.info(f"🔍 Found {len(memories)} relevant memories")
+            logger.info(f" Found {len(memories)} relevant memories")
             return memories[:n_results]
             
         except Exception as e:
-            logger.error(f"❌ Error searching memories: {e}")
+            logger.error(f" Error searching memories: {e}")
             return []
     
     def get_recent_conversation(
@@ -429,7 +429,7 @@ class UnifiedMemorySystem:
             return memories[-limit:]
             
         except Exception as e:
-            logger.error(f"❌ Error getting recent conversation: {e}")
+            logger.error(f" Error getting recent conversation: {e}")
             return []
     
     # ========================================================================
@@ -450,7 +450,7 @@ class UnifiedMemorySystem:
             """, (user_id, username, display_name or username))
             self.conn.commit()
         except Exception as e:
-            logger.error(f"❌ Error upserting user: {e}")
+            logger.error(f" Error upserting user: {e}")
     
     def update_user_activity(self, user_id: str, message_length: int) -> None:
         """Update user activity metrics"""
@@ -476,7 +476,7 @@ class UnifiedMemorySystem:
                 """, (new_total, new_avg, user_id))
                 self.conn.commit()
         except Exception as e:
-            logger.error(f"❌ Error updating user activity: {e}")
+            logger.error(f" Error updating user activity: {e}")
     
     def update_user_traits(self, user_id: str, traits: Optional[List[str]] = None, interests: Optional[List[str]] = None) -> None:
         """Update user personality traits and interests"""
@@ -507,7 +507,7 @@ class UnifiedMemorySystem:
                 ))
                 self.conn.commit()
         except Exception as e:
-            logger.error(f"❌ Error updating traits: {e}")
+            logger.error(f" Error updating traits: {e}")
     
     def get_user_profile(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user profile"""
@@ -560,7 +560,7 @@ class UnifiedMemorySystem:
             
             self.conn.commit()
         except Exception as e:
-            logger.error(f"❌ Error updating relationship: {e}")
+            logger.error(f" Error updating relationship: {e}")
     
     def get_user_relationships(self, user_id: str, min_strength: float = 0.1) -> List[Dict[str, Any]]:
         """Get all relationships for a user"""
@@ -595,7 +595,7 @@ class UnifiedMemorySystem:
             """, (user_id, channel_id, message_length, sentiment, now.hour, now.weekday()))
             self.conn.commit()
         except Exception as e:
-            logger.error(f"❌ Error logging activity: {e}")
+            logger.error(f" Error logging activity: {e}")
     
     # ========================================================================
     # STATS & MAINTENANCE
@@ -620,7 +620,7 @@ class UnifiedMemorySystem:
                 'strong_relationships': strong_relationships
             }
         except Exception as e:
-            logger.error(f"❌ Error getting stats: {e}")
+            logger.error(f" Error getting stats: {e}")
             return {}
     
     def cleanup_old_memories(self, days_old: int = 90, min_importance: float = 0.3) -> int:
@@ -642,12 +642,12 @@ class UnifiedMemorySystem:
             
             if to_delete:
                 self.memories.delete(ids=to_delete)
-                logger.info(f"🗑️ Cleaned up {len(to_delete)} old memories")
+                logger.info(f" Cleaned up {len(to_delete)} old memories")
                 return len(to_delete)
             
             return 0
         except Exception as e:
-            logger.error(f"❌ Error cleaning memories: {e}")
+            logger.error(f" Error cleaning memories: {e}")
             return 0
     
     def __del__(self):
@@ -689,7 +689,7 @@ class UnifiedMemorySystem:
             
             self.conn.commit()
         except Exception as e:
-            logger.error(f"❌ Error storing recent message: {e}")
+            logger.error(f" Error storing recent message: {e}")
 
     def get_latest_message(self, channel_id: str) -> Optional[Dict[str, Any]]:
         """Get most recent message from a channel"""

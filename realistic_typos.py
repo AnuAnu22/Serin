@@ -73,7 +73,7 @@ class RealisticTypos:
     def __init__(self):
         self.base_typo_rate = 0.03  # 3% base chance
         self.max_typos_per_message = 1  # Only 1 typo max per message
-        logger.info("✅ Realistic typos initialized")
+        logger.info(" Realistic typos initialized")
     
     def add_typos(
         self,
@@ -159,7 +159,7 @@ class RealisticTypos:
                 break  # Only one typo per message
         
         if typo_made:
-            logger.debug(f"✏️ Added apostrophe typo")
+            logger.debug(f"✏ Added apostrophe typo")
         
         return ' '.join(words)
     
@@ -190,7 +190,7 @@ class RealisticTypos:
                 break
         
         if typo_made:
-            logger.debug(f"✏️ Added transposition typo")
+            logger.debug(f"✏ Added transposition typo")
         
         return ' '.join(words)
     
@@ -221,7 +221,7 @@ class RealisticTypos:
                 break
         
         if typo_made:
-            logger.debug(f"✏️ Added common misspelling")
+            logger.debug(f"✏ Added common misspelling")
         
         return ' '.join(words)
     

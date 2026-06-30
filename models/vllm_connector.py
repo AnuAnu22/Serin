@@ -72,7 +72,7 @@ class VLLMConnector(ModelInterface):
             # Test connection
             self.client.models.list()
         except Exception as e:
-            logger.error(f"❌ Failed to connect to vLLM API: {e}")
+            logger.error(f" Failed to connect to vLLM API: {e}")
             raise RuntimeError(f"Could not connect to vLLM at {self.base_url}. Is it running?")
 
         try:
@@ -81,37 +81,37 @@ class VLLMConnector(ModelInterface):
             available_models = [model.id for model in models.data]
 
             if not available_models:
-                raise RuntimeError("❌ No models available on vLLM endpoint. Please load a model first.")
+                raise RuntimeError(" No models available on vLLM endpoint. Please load a model first.")
 
             # Validate configured model or auto-detect
             if self.model_name:
                 # Check if configured model exists
                 if self.model_name not in available_models:
                     # Auto-select available model instead of erroring
-                    logger.warning(f"⚠️ Configured model '{self.model_name}' not found on vLLM server.")
-                    logger.info(f"📋 Available models: {', '.join(available_models)}")
+                    logger.warning(f" Configured model '{self.model_name}' not found on vLLM server.")
+                    logger.info(f" Available models: {', '.join(available_models)}")
                     self.model_name = available_models[0]
-                    logger.info(f"🔍 Auto-selected model: {self.model_name}")
+                    logger.info(f" Auto-selected model: {self.model_name}")
                 else:
-                    logger.info(f"✅ Using configured model: {self.model_name}")
+                    logger.info(f" Using configured model: {self.model_name}")
             else:
                 # Auto-detect model if not specified
                 self.model_name = available_models[0]
-                logger.info(f"🔍 Auto-detected model: {self.model_name}")
+                logger.info(f" Auto-detected model: {self.model_name}")
                 
             # Show all available models
             if len(available_models) > 1:
-                logger.info(f"📚 Available models: {', '.join(available_models)}")
+                logger.info(f" Available models: {', '.join(available_models)}")
 
         except Exception as e:
-            logger.error(f"❌ Failed to detect/select model: {e}")
+            logger.error(f" Failed to detect/select model: {e}")
             raise RuntimeError(f"Could not communicate with vLLM server at {self.base_url}. Is it running and accessible?")
 
         # Initialize model adapter
         self.adapter = ModelAdapter(self.model_name)
 
         logger.info(
-            f"✅ vLLM ready - Model: {self.model_name} ({self.adapter.get_model_type()}), "
+            f" vLLM ready - Model: {self.model_name} ({self.adapter.get_model_type()}), "
             f"Temp: {self.temperature}, Top-P: {self.top_p}"
         )
 
@@ -160,7 +160,7 @@ class VLLMConnector(ModelInterface):
             raw_text = response.choices[0].message.content or ""
             return self.adapter.clean_response(raw_text)
         except Exception as e:
-            logger.error(f"❌ Error during chat completion: {e}")
+            logger.error(f" Error during chat completion: {e}")
             raise
 
     async def chat_completion(
@@ -211,7 +211,7 @@ class VLLMConnector(ModelInterface):
             raw_text = response.choices[0].text
             return self.adapter.clean_response(raw_text)
         except Exception as e:
-            logger.error(f"❌ Error during completion: {e}")
+            logger.error(f" Error during completion: {e}")
             raise
 
     async def send_input(

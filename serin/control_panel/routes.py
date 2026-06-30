@@ -53,7 +53,7 @@ class ConfigUpdateRequest(BaseModel):
 def register_enhanced_routes(app: FastAPI, bot_state: Dict[str, Any], broadcast_func: Any) -> None:
     """Register enhanced routes on the FastAPI app instance"""
     
-    logger.info("🚀 Registering enhanced API routes...")
+    logger.info(" Registering enhanced API routes...")
 
     def get_memory_system() -> Any:
         system = bot_state.get('memory_system')
@@ -82,7 +82,7 @@ def register_enhanced_routes(app: FastAPI, bot_state: Dict[str, Any], broadcast_
             
             return status
         except Exception as e:
-            logger.error(f"❌ Error getting status: {e}")
+            logger.error(f" Error getting status: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.post('/api/enhanced/search')
@@ -120,7 +120,7 @@ def register_enhanced_routes(app: FastAPI, bot_state: Dict[str, Any], broadcast_
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"❌ Error searching memories: {e}")
+            logger.error(f" Error searching memories: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.post('/api/enhanced/memories')
@@ -151,7 +151,7 @@ def register_enhanced_routes(app: FastAPI, bot_state: Dict[str, Any], broadcast_
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"❌ Error adding memory: {e}")
+            logger.error(f" Error adding memory: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.get('/api/enhanced/users/{user_id}')
@@ -168,7 +168,7 @@ def register_enhanced_routes(app: FastAPI, bot_state: Dict[str, Any], broadcast_
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"❌ Error getting user profile: {e}")
+            logger.error(f" Error getting user profile: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.post('/api/enhanced/cleanup')
@@ -192,7 +192,7 @@ def register_enhanced_routes(app: FastAPI, bot_state: Dict[str, Any], broadcast_
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"❌ Error cleaning memories: {e}")
+            logger.error(f" Error cleaning memories: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.post('/api/enhanced/test-connection')
@@ -224,7 +224,7 @@ def register_enhanced_routes(app: FastAPI, bot_state: Dict[str, Any], broadcast_
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"❌ Error testing connection: {e}")
+            logger.error(f" Error testing connection: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    logger.info("✅ Enhanced routes registered successfully")
+    logger.info(" Enhanced routes registered successfully")

@@ -59,10 +59,10 @@ class DatabaseProtector:
         self.backup_count = 0
         self.validation_failures = []
         
-        logger.info("🛡️ Database Protection System initialized")
+        logger.info("🛡 Database Protection System initialized")
         logger.info(f"   📁 Data directory: {self.data_dir}")
-        logger.info(f"   💾 Backup directory: {self.backup_dir}")
-        logger.info(f"   🔍 Validation: {'ENABLED' if self.validation_enabled else 'DISABLED'}")
+        logger.info(f"    Backup directory: {self.backup_dir}")
+        logger.info(f"    Validation: {'ENABLED' if self.validation_enabled else 'DISABLED'}")
 
     # ========================================================================
     # DATABASE VALIDATION
@@ -87,7 +87,7 @@ class DatabaseProtector:
         }
         
         try:
-            logger.info("🔍 Starting comprehensive database validation...")
+            logger.info(" Starting comprehensive database validation...")
             
             # Validate SQLite database
             sqlite_results = self._validate_sqlite_database()
@@ -112,24 +112,24 @@ class DatabaseProtector:
             
             if not results['errors']:
                 results['overall_status'] = 'valid'
-                logger.info("✅ Database validation PASSED")
+                logger.info(" Database validation PASSED")
             elif all_missing:
                 # Allow empty databases to start fresh (even if multiple are missing)
                 results['overall_status'] = 'valid'
-                logger.info("✅ Database validation PASSED (fresh start - databases will be created)")
+                logger.info(" Database validation PASSED (fresh start - databases will be created)")
             elif len(results['errors']) == 1:
                 results['overall_status'] = 'recoverable'
-                logger.warning("⚠️ Database validation found recoverable issues")
+                logger.warning(" Database validation found recoverable issues")
             else:
                 results['overall_status'] = 'critical'
-                logger.error("❌ Database validation FAILED - critical errors found")
+                logger.error(" Database validation FAILED - critical errors found")
             
             results['validation_time'] = time.time() - validation_start
             
         except Exception as e:
             results['overall_status'] = 'error'
             results['errors'].append(f"Validation error: {str(e)}")
-            logger.error(f"❌ Database validation error: {e}")
+            logger.error(f" Database validation error: {e}")
         
         return results
     
@@ -292,7 +292,7 @@ class DatabaseProtector:
             backup_name = f"{backup_type}_{timestamp}"
             backup_path = self.backup_dir / backup_name
             
-            logger.info(f"💾 Creating {backup_type} backup: {backup_name}")
+            logger.info(f" Creating {backup_type} backup: {backup_name}")
             
             # Create backup directory
             backup_path.mkdir(parents=True, exist_ok=True)
@@ -312,10 +312,10 @@ class DatabaseProtector:
                     backup_sqlite = backup_path / "bot_data.db"
                     shutil.copy2(self.sqlite_db, backup_sqlite)
                     backup_info['databases_backed_up'].append('SQLite')
-                    logger.debug("✅ SQLite database backed up")
+                    logger.debug(" SQLite database backed up")
                 except Exception as e:
                     backup_info['errors'].append(f"SQLite backup error: {e}")
-                    logger.error(f"❌ SQLite backup failed: {e}")
+                    logger.error(f" SQLite backup failed: {e}")
             
             # Backup ChromaDB directory
             if self.chroma_dir.exists():
@@ -323,10 +323,10 @@ class DatabaseProtector:
                     backup_chroma = backup_path / "chroma_data"
                     shutil.copytree(self.chroma_dir, backup_chroma)
                     backup_info['databases_backed_up'].append('ChromaDB')
-                    logger.debug("✅ ChromaDB directory backed up")
+                    logger.debug(" ChromaDB directory backed up")
                 except Exception as e:
                     backup_info['errors'].append(f"ChromaDB backup error: {e}")
-                    logger.error(f"❌ ChromaDB backup failed: {e}")
+                    logger.error(f" ChromaDB backup failed: {e}")
             
             # Save backup metadata
             metadata_file = backup_path / "backup_info.json"
@@ -342,16 +342,16 @@ class DatabaseProtector:
                 # Clean up old backups
                 self._cleanup_old_backups()
                 
-                logger.info(f"✅ {backup_type} backup completed: {backup_name}")
+                logger.info(f" {backup_type} backup completed: {backup_name}")
                 return str(backup_path)
             else:
                 # Remove empty backup directory
                 shutil.rmtree(backup_path)
-                logger.warning(f"⚠️ {backup_type} backup failed - no databases backed up")
+                logger.warning(f" {backup_type} backup failed - no databases backed up")
                 return ""
                 
         except Exception as e:
-            logger.error(f"❌ Backup creation failed: {e}")
+            logger.error(f" Backup creation failed: {e}")
             raise DatabaseRecoveryError(f"Backup creation failed: {e}")
     
     def _compress_backup(self, backup_path: Path) -> None:
@@ -368,12 +368,12 @@ class DatabaseProtector:
             # Remove uncompressed directory
             shutil.rmtree(backup_path)
             
-            logger.debug(f"✅ Backup compressed successfully")
+            logger.debug(f" Backup compressed successfully")
             
         except Exception as e:
-            logger.warning(f"⚠️ Backup compression failed: {e}")
+            logger.warning(f" Backup compression failed: {e}")
             # Don't fail the backup process if compression fails
-            logger.info(f"✅ Backup completed without compression: {backup_path.name}")
+            logger.info(f" Backup completed without compression: {backup_path.name}")
     
     def _cleanup_old_backups(self) -> None:
         """Remove old backups beyond retention limit"""
@@ -384,7 +384,7 @@ class DatabaseProtector:
             # Remove excess backups
             for backup_file in backup_files[self.max_backups:]:
                 backup_file.unlink()
-                logger.debug(f"🗑️ Removed old backup: {backup_file.name}")
+                logger.debug(f" Removed old backup: {backup_file.name}")
             
             # Also check for uncompressed backup directories
             for backup_dir in self.backup_dir.iterdir():
@@ -399,10 +399,10 @@ class DatabaseProtector:
                     shutil.rmtree(backup_item)
                 else:
                     backup_item.unlink()
-                logger.debug(f"🗑️ Removed old backup: {backup_item.name}")
+                logger.debug(f" Removed old backup: {backup_item.name}")
                 
         except Exception as e:
-            logger.warning(f"⚠️ Backup cleanup failed: {e}")
+            logger.warning(f" Backup cleanup failed: {e}")
     
     def list_backups(self) -> List[Dict]:
         """List all available backups with metadata"""
@@ -416,7 +416,7 @@ class DatabaseProtector:
                     if backup_info:
                         backups.append(backup_info)
                 except Exception as e:
-                    logger.warning(f"⚠️ Could not read backup info: {e}")
+                    logger.warning(f" Could not read backup info: {e}")
             
             # Check uncompressed directories
             for backup_dir in self.backup_dir.iterdir():
@@ -430,13 +430,13 @@ class DatabaseProtector:
                             backup_info['compressed'] = False
                             backups.append(backup_info)
                         except Exception as e:
-                            logger.warning(f"⚠️ Could not read backup metadata: {e}")
+                            logger.warning(f" Could not read backup metadata: {e}")
             
             # Sort by creation time
             backups.sort(key=lambda x: x['created_at'], reverse=True)
             
         except Exception as e:
-            logger.error(f"❌ Error listing backups: {e}")
+            logger.error(f" Error listing backups: {e}")
         
         return backups
     
@@ -457,11 +457,11 @@ class DatabaseProtector:
             UnicodeDecodeError: If metadata file cannot be decoded as UTF-8
         """
         if not backup_file.exists():
-            logger.error(f"❌ Backup file not found: {backup_file}")
+            logger.error(f" Backup file not found: {backup_file}")
             raise FileNotFoundError(f"Backup file not found: {backup_file}")
         
         if not backup_file.is_file():
-            logger.error(f"❌ Backup path is not a file: {backup_file}")
+            logger.error(f" Backup path is not a file: {backup_file}")
             raise ValueError(f"Backup path is not a file: {backup_file}")
         
         try:
@@ -472,32 +472,32 @@ class DatabaseProtector:
                 # Locate backup metadata file in archive
                 metadata_file = self._locate_metadata_file_in_archive(tar_archive)
                 if not metadata_file:
-                    logger.warning(f"⚠️ No backup_info.json found in {backup_file.name}")
+                    logger.warning(f" No backup_info.json found in {backup_file.name}")
                     return None
                 
                 # Extract and decode metadata content
                 metadata_content = self._decode_backup_metadata_content(tar_archive, metadata_file)
                 if not metadata_content:
-                    logger.error(f"❌ Failed to decode metadata from {backup_file.name}")
+                    logger.error(f" Failed to decode metadata from {backup_file.name}")
                     return None
                 
                 # Parse and validate metadata
                 backup_metadata = self._parse_and_validate_metadata(metadata_content, backup_file)
                 if backup_metadata:
-                    logger.info(f"✅ Successfully extracted metadata from {backup_file.name}")
+                    logger.info(f" Successfully extracted metadata from {backup_file.name}")
                     return backup_metadata
                 else:
-                    logger.error(f"❌ Failed to validate metadata from {backup_file.name}")
+                    logger.error(f" Failed to validate metadata from {backup_file.name}")
                     return None
                     
         except (FileNotFoundError, ValueError):
             # Re-raise our custom exceptions
             raise
         except tarfile.TarError as e:
-            logger.error(f"❌ Archive error while extracting metadata from {backup_file.name}: {e}")
+            logger.error(f" Archive error while extracting metadata from {backup_file.name}: {e}")
             return None
         except Exception as e:
-            logger.error(f"❌ Unexpected error extracting metadata from {backup_file.name}: {e}")
+            logger.error(f" Unexpected error extracting metadata from {backup_file.name}: {e}")
             return None
     
     def _locate_metadata_file_in_archive(self, tar_archive) -> Optional[str]:
@@ -513,14 +513,14 @@ class DatabaseProtector:
         try:
             for member in tar_archive.getmembers():
                 if member.isfile() and member.name.endswith('backup_info.json'):
-                    logger.debug(f"🎯 Found metadata file: {member.name}")
+                    logger.debug(f" Found metadata file: {member.name}")
                     return member.name
             
-            logger.debug("🔍 No backup_info.json found in archive")
+            logger.debug(" No backup_info.json found in archive")
             return None
             
         except Exception as e:
-            logger.error(f"❌ Error searching for metadata file in archive: {e}")
+            logger.error(f" Error searching for metadata file in archive: {e}")
             return None
     
     def _decode_backup_metadata_content(self, tar_archive, metadata_file_path: str) -> Optional[str]:
@@ -542,25 +542,25 @@ class DatabaseProtector:
                 
                 # Validate content is not empty
                 if not file_content_bytes:
-                    logger.error(f"❌ Metadata file {metadata_file_path} is empty")
+                    logger.error(f" Metadata file {metadata_file_path} is empty")
                     return None
                 
                 # Decode with proper error handling
                 try:
                     decoded_content = file_content_bytes.decode('utf-8')
-                    logger.debug(f"✅ Successfully decoded metadata file ({len(decoded_content)} characters)")
+                    logger.debug(f" Successfully decoded metadata file ({len(decoded_content)} characters)")
                     return decoded_content
                 except UnicodeDecodeError as e:
-                    logger.error(f"❌ UTF-8 decoding failed for metadata file {metadata_file_path}: {e}")
+                    logger.error(f" UTF-8 decoding failed for metadata file {metadata_file_path}: {e}")
                     logger.error(f"   File size: {len(file_content_bytes)} bytes")
                     logger.error(f"   First 100 bytes (hex): {file_content_bytes[:100].hex()}")
                     raise
                     
         except KeyError:
-            logger.error(f"❌ Metadata file {metadata_file_path} not found in archive")
+            logger.error(f" Metadata file {metadata_file_path} not found in archive")
             return None
         except Exception as e:
-            logger.error(f"❌ Error extracting metadata file {metadata_file_path}: {e}")
+            logger.error(f" Error extracting metadata file {metadata_file_path}: {e}")
             return None
     
     def _parse_and_validate_metadata(self, metadata_content: str, backup_file: Path) -> Optional[Dict]:
@@ -583,7 +583,7 @@ class DatabaseProtector:
             missing_fields = [field for field in required_fields if field not in backup_metadata]
             
             if missing_fields:
-                logger.error(f"❌ Missing required metadata fields: {missing_fields}")
+                logger.error(f" Missing required metadata fields: {missing_fields}")
                 return None
             
             # Add file system metadata
@@ -595,7 +595,7 @@ class DatabaseProtector:
             })
             
             # Log successful validation
-            logger.debug(f"✅ Metadata validation successful")
+            logger.debug(f" Metadata validation successful")
             logger.debug(f"   Backup type: {backup_metadata['backup_type']}")
             logger.debug(f"   Created: {backup_metadata['created_at']}")
             logger.debug(f"   Databases: {backup_metadata.get('databases_backed_up', [])}")
@@ -603,12 +603,12 @@ class DatabaseProtector:
             return backup_metadata
             
         except json.JSONDecodeError as e:
-            logger.error(f"❌ Invalid JSON in metadata file: {e}")
+            logger.error(f" Invalid JSON in metadata file: {e}")
             logger.error(f"   JSON error position: Line {e.lineno}, Column {e.colno}")
             logger.error(f"   Content preview: {metadata_content[:200]}...")
             return None
         except Exception as e:
-            logger.error(f"❌ Unexpected error parsing metadata: {e}")
+            logger.error(f" Unexpected error parsing metadata: {e}")
             return None
     
     # ========================================================================
@@ -625,7 +625,7 @@ class DatabaseProtector:
         Returns:
             True if recovery successful, False otherwise
         """
-        logger.warning("🛠️ Starting database corruption recovery...")
+        logger.warning("🛠 Starting database corruption recovery...")
         
         try:
             # Determine recovery strategy based on validation results
@@ -634,25 +634,25 @@ class DatabaseProtector:
             
             # Strategy 1: SQLite corrupted, ChromaDB okay
             if not sqlite_valid and chroma_valid:
-                logger.info("🔧 SQLite corruption detected, attempting recovery...")
+                logger.info(" SQLite corruption detected, attempting recovery...")
                 return self._recover_sqlite_database()
             
             # Strategy 2: ChromaDB corrupted, SQLite okay  
             elif sqlite_valid and not chroma_valid:
-                logger.info("🔧 ChromaDB corruption detected, attempting recovery...")
+                logger.info(" ChromaDB corruption detected, attempting recovery...")
                 return self._recover_chroma_database()
             
             # Strategy 3: Both corrupted
             elif not sqlite_valid and not chroma_valid:
-                logger.warning("⚠️ Both databases corrupted, attempting full recovery...")
+                logger.warning(" Both databases corrupted, attempting full recovery...")
                 return self._recover_full_database()
             
             else:
-                logger.info("✅ No corruption detected, no recovery needed")
+                logger.info(" No corruption detected, no recovery needed")
                 return True
                 
         except Exception as e:
-            logger.error(f"❌ Database recovery failed: {e}")
+            logger.error(f" Database recovery failed: {e}")
             return False
     
     def _recover_sqlite_database(self) -> bool:
@@ -661,7 +661,7 @@ class DatabaseProtector:
             # Create backup before recovery attempt
             backup_path = self.create_backup("pre_recovery", force=True)
             if not backup_path:
-                logger.error("❌ Could not create pre-recovery backup")
+                logger.error(" Could not create pre-recovery backup")
                 return False
             
             # Try SQLite repair
@@ -674,10 +674,10 @@ class DatabaseProtector:
                 integrity_result = cursor.fetchone()[0]
                 
                 if integrity_result != "ok":
-                    logger.warning(f"🔧 SQLite integrity check failed: {integrity_result}")
+                    logger.warning(f" SQLite integrity check failed: {integrity_result}")
                     
                     # Try to export/import to repair
-                    logger.info("🔧 Attempting SQLite export/import repair...")
+                    logger.info(" Attempting SQLite export/import repair...")
                     
                     # Get all data
                     cursor.execute("SELECT sql FROM sqlite_master WHERE type='table';")
@@ -718,7 +718,7 @@ class DatabaseProtector:
                             cursor.executemany(f"INSERT INTO {table_name} VALUES ({placeholders})", rows)
                     
                     conn.commit()
-                    logger.info("✅ SQLite database successfully repaired")
+                    logger.info(" SQLite database successfully repaired")
                     
             finally:
                 conn.close()
@@ -726,48 +726,48 @@ class DatabaseProtector:
             # Verify repair
             validation_results = self._validate_sqlite_database()
             if validation_results['valid']:
-                logger.info("✅ SQLite database recovery successful")
+                logger.info(" SQLite database recovery successful")
                 return True
             else:
-                logger.error(f"❌ SQLite database repair failed: {validation_results['error']}")
+                logger.error(f" SQLite database repair failed: {validation_results['error']}")
                 return False
                 
         except Exception as e:
-            logger.error(f"❌ SQLite recovery error: {e}")
+            logger.error(f" SQLite recovery error: {e}")
             return False
     
     def _recover_chroma_database(self) -> bool:
         """Attempt to recover corrupted ChromaDB"""
         try:
             # Strategy: Remove corrupted binary files and let ChromaDB regenerate them
-            logger.info("🧹 Cleaning corrupted ChromaDB binary files...")
+            logger.info(" Cleaning corrupted ChromaDB binary files...")
             
             # Remove corrupted ChromaDB directory
             if self.chroma_dir.exists():
                 backup_path = self.create_backup("pre_recovery", force=True)
                 if not backup_path:
-                    logger.error("❌ Could not create pre-recovery backup")
+                    logger.error(" Could not create pre-recovery backup")
                     return False
                 
                 shutil.rmtree(self.chroma_dir)
-                logger.info("🗑️ Removed corrupted ChromaDB directory")
+                logger.info(" Removed corrupted ChromaDB directory")
             
             # Let ChromaDB recreate on next startup
-            logger.info("🔄 ChromaDB will be recreated on next startup")
+            logger.info(" ChromaDB will be recreated on next startup")
             return True
             
         except Exception as e:
-            logger.error(f"❌ ChromaDB recovery error: {e}")
+            logger.error(f" ChromaDB recovery error: {e}")
             return False
     
     def _recover_full_database(self) -> bool:
         """Attempt to recover both databases"""
-        logger.info("🔧 Attempting full database recovery...")
+        logger.info(" Attempting full database recovery...")
         
         # Restore from latest backup
         backups = self.list_backups()
         if not backups:
-            logger.error("❌ No backups available for recovery")
+            logger.error(" No backups available for recovery")
             return False
         
         # Try latest backup first
@@ -783,14 +783,14 @@ class DatabaseProtector:
             # Verify restoration
             validation_results = self.validate_all_databases()
             if validation_results['overall_status'] in ['valid', 'recoverable']:
-                logger.info("✅ Full database recovery successful")
+                logger.info(" Full database recovery successful")
                 return True
             else:
-                logger.error("❌ Database restoration failed validation")
+                logger.error(" Database restoration failed validation")
                 return False
                 
         except Exception as e:
-            logger.error(f"❌ Full recovery error: {e}")
+            logger.error(f" Full recovery error: {e}")
             return False
     
     def _restore_compressed_backup(self, backup_path: str) -> None:
@@ -805,10 +805,10 @@ class DatabaseProtector:
             with tarfile.open(backup_file, 'r:gz') as tar:
                 tar.extractall(self.data_dir.parent)
             
-            logger.info("✅ Restored from compressed backup")
+            logger.info(" Restored from compressed backup")
             
         except Exception as e:
-            logger.error(f"❌ Compressed backup restore failed: {e}")
+            logger.error(f" Compressed backup restore failed: {e}")
             raise
     
     def _restore_directory_backup(self, backup_path: str) -> None:
@@ -827,10 +827,10 @@ class DatabaseProtector:
                     else:
                         shutil.copy2(item, self.data_dir / item.name)
                 
-                logger.info("✅ Restored from directory backup")
+                logger.info(" Restored from directory backup")
             
         except Exception as e:
-            logger.error(f"❌ Directory backup restore failed: {e}")
+            logger.error(f" Directory backup restore failed: {e}")
             raise
     
     # ========================================================================
@@ -849,19 +849,19 @@ class DatabaseProtector:
             # Prevent re-entry
             if self._shutdown_in_progress:
                 # Force exit on second Ctrl+C
-                logger.info("🛑 Force exit requested")
+                logger.info(" Force exit requested")
                 os._exit(1)
                 return
             
             self._shutdown_in_progress = True
-            logger.info("🛑 Graceful shutdown initiated...")
+            logger.info(" Graceful shutdown initiated...")
             self.graceful_shutdown()
             # Use os._exit to terminate immediately without triggering more handlers
             os._exit(0)
         
         def cleanup_on_exit():
             if not self._shutdown_in_progress:
-                logger.info("🧹 Performing cleanup on exit...")
+                logger.info(" Performing cleanup on exit...")
                 self.graceful_shutdown()
         
         # Register signal handlers
@@ -871,22 +871,22 @@ class DatabaseProtector:
         # Register atexit cleanup
         atexit.register(cleanup_on_exit)
         
-        logger.info("🛡️ Graceful shutdown handlers registered")
+        logger.info("🛡 Graceful shutdown handlers registered")
     
     def graceful_shutdown(self) -> None:
         """Perform graceful shutdown with database protection"""
         try:
-            logger.info("💾 Creating shutdown backup...")
+            logger.info(" Creating shutdown backup...")
             backup_path = self.create_backup("pre_shutdown", force=True)
             
             if backup_path:
-                logger.info(f"✅ Shutdown backup created: {backup_path}")
+                logger.info(f" Shutdown backup created: {backup_path}")
             
             # Additional cleanup can be added here
-            logger.info("🛡️ Database protection shutdown complete")
+            logger.info("🛡 Database protection shutdown complete")
             
         except Exception as e:
-            logger.error(f"❌ Graceful shutdown error: {e}")
+            logger.error(f" Graceful shutdown error: {e}")
     
     # ========================================================================
     # HEALTH MONITORING

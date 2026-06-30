@@ -48,7 +48,7 @@ class ActiveSearch:
                 return False, None, decision.get('reason', 'llm_decided_no_or_null_query')
                 
         except Exception as e:
-            logger.error(f"❌ Active Search Error: {e}")
+            logger.error(f" Active Search Error: {e}")
             return False, None, "error"
 
     def _passes_heuristics(self, message: str) -> bool:
@@ -131,7 +131,7 @@ RESPONSE:
             return json.loads(cleaned)
             
         except (json.JSONDecodeError, AttributeError):
-            logger.warning(f"⚠️ Failed to parse thinking response: {response[:200]}...")
+            logger.warning(f" Failed to parse thinking response: {response[:200]}...")
             # Fallback: simple text search if it looks like a query
             if len(response) < 50 and " " in response:
                  return {"search_needed": True, "query": response, "reason": "parsing_fallback"}

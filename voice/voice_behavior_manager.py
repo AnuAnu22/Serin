@@ -149,7 +149,7 @@ class VoiceBehaviorManager:
         self.stats['pending_evaluations'] += 1
 
         logger.info(
-            "🎤 Voice behavior: %s joined %s — will consider joining in %.0fs",
+            " Voice behavior: %s joined %s — will consider joining in %.0fs",
             username, channel_name, delay,
         )
 
@@ -198,7 +198,7 @@ class VoiceBehaviorManager:
                 if not user_info:
                     # User left VC while we were considering
                     logger.info(
-                        "🎤 Considered joining %s but %s already left",
+                        " Considered joining %s but %s already left",
                         info['channel_name'], info['username'],
                     )
                     self._pending_joins.pop(guild_id, None)
@@ -228,7 +228,7 @@ class VoiceBehaviorManager:
 
             if random.random() < chance:
                 logger.info(
-                    "🎤 Auto-join (delayed): %s in %s (energy=%.2f, chance=%.0f%%)",
+                    " Auto-join (delayed): %s in %s (energy=%.2f, chance=%.0f%%)",
                     info['username'], info['channel_name'], energy, chance * 100,
                 )
                 success = await self.voice_listener.join_channel(
@@ -241,7 +241,7 @@ class VoiceBehaviorManager:
             else:
                 self.stats['rejected_joins'] += 1
                 logger.debug(
-                    "🎤 Decided not to join %s (energy=%.2f, chance=%.0f%%)",
+                    " Decided not to join %s (energy=%.2f, chance=%.0f%%)",
                     info['channel_name'], energy, chance * 100,
                 )
 

@@ -11,7 +11,7 @@ logger = logging.getLogger("LiveTest")
 load_dotenv()
 
 async def test_live_active_search():
-    print("🚀 Starting Live Active Search Test...")
+    print(" Starting Live Active Search Test...")
     
     # 1. Initialize Real Components
     try:
@@ -21,7 +21,7 @@ async def test_live_active_search():
         from serin.memory.qdrant import QdrantMemorySystem
         
         # Initialize Memory (Qdrant)
-        print("💾 Connecting to Qdrant...")
+        print(" Connecting to Qdrant...")
         memory = QdrantMemorySystem(
             data_dir="./bot_data",
             qdrant_host=config.QDRANT_HOST,
@@ -30,7 +30,7 @@ async def test_live_active_search():
         
         # Force recreation of collection
         if memory.qdrant_client:
-            print("♻️ Recreating collection 'memories'...")
+            print("♻ Recreating collection 'memories'...")
             try:
                 memory.qdrant_client.delete_collection("memories")
                 print("   - Deleted existing collection")
@@ -42,7 +42,7 @@ async def test_live_active_search():
             print("   - Collection setup triggered")
         
         # Initialize LLM (vLLM)
-        print("🤖 Connecting to vLLM...")
+        print(" Connecting to vLLM...")
         # VLLMConnector reads from env vars, so we set them if needed
         os.environ["VLLM_BASE_URL"] = "http://localhost:8000/v1"
         os.environ["LLM_MODEL"] = config.LLM_MODEL
@@ -69,36 +69,36 @@ async def test_live_active_search():
         query = "What is the secret code for the project?"
         context = "User: What is the secret code for the project?"
         
-        print(f"\n❓ Testing Query: '{query}'")
+        print(f"\n Testing Query: '{query}'")
         
         # 4. Run Analysis
-        print("🤔 Asking LLM if search is needed...")
+        print(" Asking LLM if search is needed...")
         needs_search, search_query, reason = await active_search.analyze_need_to_search(
             user_message=query,
             recent_context=context
         )
         
-        print(f"\n🧠 Decision: {needs_search}")
-        print(f"🔍 Query: {search_query}")
+        print(f"\n Decision: {needs_search}")
+        print(f" Query: {search_query}")
         print(f"💭 Reason: {reason}")
         
         if needs_search and search_query:
-            print("\n📚 Executing Search...")
+            print("\n Executing Search...")
             results = memory.search_memories(search_query, n_results=3)
-            print(f"✅ Found {len(results)} results:")
+            print(f" Found {len(results)} results:")
             for res in results:
                 print(f"   - {res['content']} (Score: {res.get('relevance', 0):.2f})")
                 
             # Verify we found the secret
             if any("BLUE-OMEGA-99" in r['content'] for r in results):
-                print("\n🎉 SUCCESS: Retrieved the correct memory!")
+                print("\n SUCCESS: Retrieved the correct memory!")
             else:
-                print("\n⚠️ WARNING: Search ran but didn't find the exact memory.")
+                print("\n WARNING: Search ran but didn't find the exact memory.")
         else:
-            print("\n❌ FAILED: LLM decided not to search.")
+            print("\n FAILED: LLM decided not to search.")
             
     except Exception as e:
-        print(f"\n❌ ERROR: {e}")
+        print(f"\n ERROR: {e}")
         import traceback
         traceback.print_exc()
 

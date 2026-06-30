@@ -22,7 +22,7 @@ try:
     QDRANT_AVAILABLE = True
 except ImportError:
     QDRANT_AVAILABLE = False
-    print("⚠️ Qdrant not available - running mock tests")
+    print(" Qdrant not available - running mock tests")
 
 
 
@@ -171,10 +171,10 @@ class TestQdrantMigration:
         
         try:
             test_func()
-            print(f"✅ {test_name} - PASSED")
+            print(f" {test_name} - PASSED")
             self.passed_tests += 1
         except Exception as e:
-            print(f"❌ {test_name} - FAILED: {e}")
+            print(f" {test_name} - FAILED: {e}")
             import traceback
             traceback.print_exc()
             self.failed_tests += 1
@@ -579,7 +579,7 @@ class TestQdrantMigration:
         
         # Report results
         print("\n" + "=" * 50)
-        print("📊 Test Results Summary")
+        print(" Test Results Summary")
         print("=" * 50)
         print(f"Total tests: {self.total_tests}")
         print(f"Passed: {self.passed_tests}")
@@ -587,10 +587,10 @@ class TestQdrantMigration:
         print(f"Success rate: {(self.passed_tests / self.total_tests * 100):.1f}%")
         
         if self.failed_tests == 0:
-            print("🎉 All tests passed!")
+            print(" All tests passed!")
             return True
         else:
-            print(f"❌ {self.failed_tests} test(s) failed")
+            print(f" {self.failed_tests} test(s) failed")
             return False
 
 def main():
@@ -601,7 +601,7 @@ def main():
         success = test_runner.run_all_tests()
         return 0 if success else 1
     except Exception as e:
-        print(f"❌ Test suite failed with error: {e}")
+        print(f" Test suite failed with error: {e}")
         return 1
     finally:
         test_runner.cleanup()

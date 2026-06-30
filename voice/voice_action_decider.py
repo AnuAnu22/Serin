@@ -19,7 +19,7 @@ class VoiceActionDecider:
 
     def __init__(self, model_connector: Any) -> None:
         self.llm = model_connector
-        logger.info("✅ Voice action decider initialized")
+        logger.info(" Voice action decider initialized")
 
     async def decide(
         self,
@@ -48,7 +48,7 @@ class VoiceActionDecider:
 
             if decision.get("action") in ("join", "leave", "none"):
                 logger.info(
-                    "🎙️ Voice action decided: %s (%s)",
+                    " Voice action decided: %s (%s)",
                     decision["action"], decision.get("reason", "no reason")
                 )
                 return decision
@@ -56,7 +56,7 @@ class VoiceActionDecider:
             return {"action": "none", "reason": "invalid_parse"}
 
         except Exception as e:
-            logger.error(f"❌ Voice action decision error: {e}")
+            logger.error(f" Voice action decision error: {e}")
             return {"action": "none", "reason": "error"}
 
     def _has_voice_intent(self, message: str) -> bool:
@@ -128,5 +128,5 @@ RESPONSE:
 
             return json.loads(raw)
         except (json.JSONDecodeError, AttributeError) as e:
-            logger.warning(f"⚠️ Failed to parse voice decision: {response[:120]}...")
+            logger.warning(f" Failed to parse voice decision: {response[:120]}...")
             return {"action": "none", "reason": "parsing_fallback"}

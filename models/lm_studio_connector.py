@@ -79,7 +79,7 @@ class LMStudioConnector(ModelInterface):
             # Test connection immediately
             self.client.models.list()
         except Exception as e:
-            logger.error(f"❌ Failed to connect to LM Studio API: {e}")
+            logger.error(f" Failed to connect to LM Studio API: {e}")
             raise RuntimeError(f"Could not connect to LM Studio at {self.base_url}. Is it running?")
         
         try:
@@ -90,7 +90,7 @@ class LMStudioConnector(ModelInterface):
             if not available_models:
                 raise RuntimeError("No models available in LM Studio. Please load a model first.")
                 
-            logger.info(f"🔍 Found {len(available_models)} models in LM Studio")
+            logger.info(f" Found {len(available_models)} models in LM Studio")
             for model in available_models:
                 logger.info(f"   • {model}")
             
@@ -99,7 +99,7 @@ class LMStudioConnector(ModelInterface):
                 if force_model_name not in available_models:
                     raise ValueError(f"Requested model '{force_model_name}' not available in LM Studio")
                 self.model_name = force_model_name
-                logger.info(f"🎯 Forced model selection: {self.model_name}")
+                logger.info(f" Forced model selection: {self.model_name}")
                 return
             
             # Handle smart model selection (__SMALLEST__ / __LARGEST__)
@@ -111,12 +111,12 @@ class LMStudioConnector(ModelInterface):
                 if self._model_selection_mode == "__SMALLEST__" and env_smallest:
                     if env_smallest in available_models:
                         self.model_name = env_smallest
-                        logger.info(f"🎯 Using SMALLEST model from ENV: {self.model_name}")
+                        logger.info(f" Using SMALLEST model from ENV: {self.model_name}")
                         return
                 elif self._model_selection_mode == "__LARGEST__" and env_largest:
                     if env_largest in available_models:
                         self.model_name = env_largest
-                        logger.info(f"🎯 Using LARGEST model from ENV: {self.model_name}")
+                        logger.info(f" Using LARGEST model from ENV: {self.model_name}")
                         return
                 
                 # Sort models by parameter count (if available in name)
@@ -128,27 +128,27 @@ class LMStudioConnector(ModelInterface):
                 
                 if self._model_selection_mode == "__SMALLEST__":
                     self.model_name = sorted_models[0]
-                    logger.info(f"🎯 Selected SMALLEST model: {self.model_name}")
+                    logger.info(f" Selected SMALLEST model: {self.model_name}")
                 else:  # __LARGEST__
                     self.model_name = sorted_models[-1]
-                    logger.info(f"🎯 Selected LARGEST model: {self.model_name}")
+                    logger.info(f" Selected LARGEST model: {self.model_name}")
             
             # Auto-detect model if still not specified
             if self.model_name is None:
                 self.model_name = available_models[0]
-                logger.info(f"🔍 Auto-detected model: {self.model_name}")
+                logger.info(f" Auto-detected model: {self.model_name}")
                 if len(available_models) > 1:
                     logger.info(f"   Other available: {', '.join(available_models[1:])}")
             
         except Exception as e:
-            logger.error(f"❌ Failed to detect/select model: {e}")
+            logger.error(f" Failed to detect/select model: {e}")
             raise
         
         # Initialize model adapter for format handling
         self.adapter = ModelAdapter(self.model_name)
         
         logger.info(
-            f"✅ LM Studio ready - Model: {self.model_name} ({self.adapter.get_model_type()}), "
+            f" LM Studio ready - Model: {self.model_name} ({self.adapter.get_model_type()}), "
             f"Temp: {self.temperature}, Top-P: {self.top_p}"
         )
     
@@ -209,7 +209,7 @@ class LMStudioConnector(ModelInterface):
             return cleaned
             
         except Exception as e:
-            logger.error(f"❌ Error during chat completion: {e}")
+            logger.error(f" Error during chat completion: {e}")
             raise
     
     async def chat_completion(
@@ -280,7 +280,7 @@ class LMStudioConnector(ModelInterface):
             return cleaned
             
         except Exception as e:
-            logger.error(f"❌ Error during completion: {e}")
+            logger.error(f" Error during completion: {e}")
             raise
     
     async def send_input(
@@ -312,7 +312,7 @@ class LMStudioConnector(ModelInterface):
             models = self.client.models.list()
             return [model.id for model in models.data]
         except Exception as e:
-            logger.error(f"❌ Failed to get available models: {e}")
+            logger.error(f" Failed to get available models: {e}")
             return []
 
     def get_model_info(self) -> Dict[str, Any]:

@@ -410,17 +410,17 @@ async def on_ready():
                                     voice_behavior_manager.stats['auto_joins'] += 1
                                     voice_behavior_manager._pending_joins.pop(guild_id, None)
                                 result = {'executed': True, 'message': 'joined'}
-                                logger.info("🎤 Voice pipeline: joined VC (LLM decided)")
+                                logger.info(" Voice pipeline: joined VC (LLM decided)")
                     if not result['executed']:
                         result = {'executed': False, 'message': 'user_not_in_vc'}
-                        logger.info("🎤 Voice pipeline: user not in VC, LLM will respond naturally")
+                        logger.info(" Voice pipeline: user not in VC, LLM will respond naturally")
 
                 elif action == 'leave' and voice_listener:
                     await voice_listener.leave_channel(guild_id)
                     if voice_behavior_manager:
                         voice_behavior_manager.stats['auto_leaves'] += 1
                     result = {'executed': True, 'message': 'left'}
-                    logger.info("🎤 Voice pipeline: left VC (LLM decided)")
+                    logger.info(" Voice pipeline: left VC (LLM decided)")
 
                 return result
 

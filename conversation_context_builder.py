@@ -67,7 +67,7 @@ class ConversationContextBuilder:
             query_parts.append(msg['content'])
         search_query = " ".join(query_parts)
         
-        logger.debug(f"🔍 Searching memories for: '{search_query[:60]}...'")
+        logger.debug(f" Searching memories for: '{search_query[:60]}...'")
         
         # TIER 5: Check for time reference in query
         time_range = None

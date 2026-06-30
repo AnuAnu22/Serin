@@ -48,7 +48,7 @@ class ModelDetector:
             return "llama"
         else:
             # Default to llama for unknown models
-            logger.warning(f"⚠️ Unknown model type '{model_name}', defaulting to llama format")
+            logger.warning(f" Unknown model type '{model_name}', defaulting to llama format")
             return "llama"
 
 
@@ -145,7 +145,7 @@ class ModelAdapter:
         self.model_type = ModelDetector.detect_type(model_name)
         self.config = MODEL_CONFIG.get(self.model_type, MODEL_CONFIG["llama"])
         
-        logger.info(f"🔧 Model adapter initialized: {self.model_type} ({model_name})")
+        logger.info(f" Model adapter initialized: {self.model_type} ({model_name})")
     
     def format_messages(self, messages: List[Dict]) -> List[Dict]:
         """

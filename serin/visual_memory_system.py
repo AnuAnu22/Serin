@@ -35,12 +35,12 @@ class VisualMemorySystem:
         
         # Load CLIP model (lightweight, runs on CPU/GPU)
         # clip-ViT-B-32 is a good balance of speed and performance
-        logger.info("👁️ Initializing Visual Cortex (CLIP model)...")
+        logger.info(" Initializing Visual Cortex (CLIP model)...")
         try:
             self.model = SentenceTransformer('clip-ViT-B-32')
-            logger.info("✅ Visual Cortex (CLIP) online")
+            logger.info(" Visual Cortex (CLIP) online")
         except Exception as e:
-            logger.error(f"❌ Failed to load CLIP model: {e}")
+            logger.error(f" Failed to load CLIP model: {e}")
             self.model = None
 
         # Ensure collection exists
@@ -63,7 +63,7 @@ class VisualMemorySystem:
                     )
                 )
         except Exception as e:
-            logger.error(f"❌ Error checking/creating visual collection: {e}")
+            logger.error(f" Error checking/creating visual collection: {e}")
 
     def _download_image(self, url: str) -> Optional[Image.Image]:
         """Download image from URL"""
@@ -72,7 +72,7 @@ class VisualMemorySystem:
             response.raise_for_status()
             return Image.open(BytesIO(response.content))
         except Exception as e:
-            logger.error(f"❌ Failed to download image: {e}")
+            logger.error(f" Failed to download image: {e}")
             return None
 
     def embed_image(self, image: Union[Image.Image, str]) -> Optional[List[float]]:
@@ -92,7 +92,7 @@ class VisualMemorySystem:
             embedding = self.model.encode(img_obj)
             return embedding.tolist()
         except Exception as e:
-            logger.error(f"❌ Error embedding image: {e}")
+            logger.error(f" Error embedding image: {e}")
             return None
 
     def analyze_image(self, image_url: str) -> Optional[str]:
@@ -143,7 +143,7 @@ class VisualMemorySystem:
             logger.info(f"📸 Visual memory stored for {username}")
             return True
         except Exception as e:
-            logger.error(f"❌ Error storing visual memory: {e}")
+            logger.error(f" Error storing visual memory: {e}")
             return False
 
     def recall_image(self, image_url: str, threshold: float = 0.85) -> List[Dict]:
@@ -176,7 +176,7 @@ class VisualMemorySystem:
             
             return matches
         except Exception as e:
-            logger.error(f"❌ Error recalling visual memory: {e}")
+            logger.error(f" Error recalling visual memory: {e}")
             return []
 
     def recall_image_from_bytes(self, image_bytes: bytes, threshold: float = 0.85) -> List[Dict]:
@@ -206,7 +206,7 @@ class VisualMemorySystem:
                 for hit in results.points
             ]
         except Exception as e:
-            logger.error(f"❌ Error recalling visual memory from bytes: {e}")
+            logger.error(f" Error recalling visual memory from bytes: {e}")
             return []
 
     def store_image_from_bytes(
@@ -244,5 +244,5 @@ class VisualMemorySystem:
             logger.info(f"📸 Visual memory stored from bytes for {username}")
             return True
         except Exception as e:
-            logger.error(f"❌ Error storing visual memory from bytes: {e}")
+            logger.error(f" Error storing visual memory from bytes: {e}")
             return False

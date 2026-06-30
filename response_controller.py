@@ -44,7 +44,7 @@ class ResponseController:
     def set_creator_id(self, user_id: str) -> None:
         """Set creator ID for priority responses"""
         self.creator_id = user_id
-        logger.info(f"✅ Creator ID set: {user_id}")
+        logger.info(f" Creator ID set: {user_id}")
 
     def _message_mentions_bot(self, message_content: str) -> bool:
         """Check if message mentions bot by name (case-insensitive)"""
@@ -52,7 +52,7 @@ class ResponseController:
         
         for name in self.bot_name_variations:
             if name.lower() in content_lower:
-                logger.info(f"🎯 Bot name '{name}' detected in message")
+                logger.info(f" Bot name '{name}' detected in message")
                 return True
         
         return False
@@ -88,7 +88,7 @@ class ResponseController:
             'last_message_time': datetime.now(),
             'message_count': 1
         }
-        logger.debug(f"💬 Started conversation with user {user_id} in channel {channel_id}")
+        logger.debug(f" Started conversation with user {user_id} in channel {channel_id}")
     
     def _update_conversation(self, channel_id: str, user_id: str) -> None:
         """Update active conversation"""
@@ -131,7 +131,7 @@ class ResponseController:
             is_creator = True
         
         logger.debug("=" * 60)
-        logger.debug("🔍 RESPONSE DECISION")
+        logger.debug(" RESPONSE DECISION")
         logger.debug(f"User: {user_id} (Creator: {is_creator})")
         logger.debug(f"Message: '{message_content[:60]}...'")
         logger.debug(f"Mentioned: {bot_mentioned}")
@@ -350,7 +350,7 @@ class ResponseController:
             mood = 'neutral'
         
         self.conversation_mood[channel_id] = mood
-        logger.debug(f"📊 Conversation mood: {mood} (msgs/min: {msg_per_min:.1f})")
+        logger.debug(f" Conversation mood: {mood} (msgs/min: {msg_per_min:.1f})")
     
     def mark_response(self, channel_id: str) -> None:
         """Mark that bot has responded"""

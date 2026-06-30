@@ -38,7 +38,7 @@ class TTSVoiceManager:
         # Supported formats
         self.supported_formats = ['.wav', '.mp3', '.pth', '.pt']
         
-        logger.info("✅ TTS voice manager initialized")
+        logger.info(" TTS voice manager initialized")
         logger.info(f"   📂 Voices directory: {self.voices_dir}")
     
     def _create_readme(self):
@@ -79,7 +79,7 @@ Place voice reference files here for voice cloning.
 - XTTS v2 works best with 6-30 second samples
 """
             readme_path.write_text(readme_content)
-            logger.info(f"📄 Created README: {readme_path}")
+            logger.info(f" Created README: {readme_path}")
     
     def list_voices(self) -> List[Dict]:
         """
@@ -105,11 +105,11 @@ Place voice reference files here for voice cloning.
             # Sort by name
             voices.sort(key=lambda x: x['name'])
             
-            logger.debug(f"📋 Found {len(voices)} voice files")
+            logger.debug(f" Found {len(voices)} voice files")
             return voices
         
         except Exception as e:
-            logger.error(f"❌ Error listing voices: {e}")
+            logger.error(f" Error listing voices: {e}")
             return []
     
     def get_voice_path(self, filename: str) -> Optional[Path]:
@@ -127,7 +127,7 @@ Place voice reference files here for voice cloning.
         if voice_path.exists() and voice_path.is_file():
             return voice_path
         else:
-            logger.warning(f"⚠️ Voice file not found: {filename}")
+            logger.warning(f" Voice file not found: {filename}")
             return None
     
     def validate_voice_file(self, filename: str) -> Dict:
@@ -213,24 +213,24 @@ Place voice reference files here for voice cloning.
             # Validate
             validation = self.validate_voice_file(filename)
             if not validation['valid']:
-                logger.error(f"❌ Voice validation failed: {validation['errors']}")
+                logger.error(f" Voice validation failed: {validation['errors']}")
                 return False
             
             if validation['warnings']:
                 for warning in validation['warnings']:
-                    logger.warning(f"⚠️ {warning}")
+                    logger.warning(f" {warning}")
             
             # Load into TTS engine
             tts_engine.set_voice_reference(str(voice_path))
             
-            logger.info(f"✅ Loaded voice: {filename}")
+            logger.info(f" Loaded voice: {filename}")
             if validation['info']:
                 logger.info(f"   Info: {validation['info']}")
             
             return True
         
         except Exception as e:
-            logger.error(f"❌ Error loading voice: {e}")
+            logger.error(f" Error loading voice: {e}")
             return False
     
     def clear_voice(self, tts_engine) -> bool:
@@ -245,10 +245,10 @@ Place voice reference files here for voice cloning.
         """
         try:
             tts_engine.clear_voice_reference()
-            logger.info("✅ Cleared voice reference")
+            logger.info(" Cleared voice reference")
             return True
         except Exception as e:
-            logger.error(f"❌ Error clearing voice: {e}")
+            logger.error(f" Error clearing voice: {e}")
             return False
     
     def get_voice_info(self, filename: str) -> Optional[Dict]:

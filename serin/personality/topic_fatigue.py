@@ -22,7 +22,7 @@ class TopicFatigue:
         self.FATIGUE_MESSAGE_COUNT = 10  # 10+ messages on same topic
         self.TOPIC_TIMEOUT = 600  # 10 minutes - topics expire
         
-        logger.info("✅ Topic fatigue tracker initialized")
+        logger.info(" Topic fatigue tracker initialized")
     
     def track_topic(
         self,
@@ -50,7 +50,7 @@ class TopicFatigue:
         # Add new entry
         self.topic_history[channel_id][topic.lower()].append(timestamp)
         
-        logger.debug(f"📊 Tracked topic '{topic}' in channel {channel_id}")
+        logger.debug(f" Tracked topic '{topic}' in channel {channel_id}")
     
     def get_topic_fatigue_level(
         self,

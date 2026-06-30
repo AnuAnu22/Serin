@@ -268,7 +268,7 @@ class RustVoiceBridge:
             'errors': 0,
         }
 
-        logger.info(f"✅ Rust voice bridge initialized (binary: {self.binary_path})")
+        logger.info(f" Rust voice bridge initialized (binary: {self.binary_path})")
 
     async def start(self, guild_id: int, channel_id: int, voice_client: Any) -> bool:
         """
@@ -293,17 +293,17 @@ class RustVoiceBridge:
             True if successfully started
         """
         if not os.path.exists(self.binary_path):
-            logger.error(f"❌ Rust binary not found: {self.binary_path}")
+            logger.error(f" Rust binary not found: {self.binary_path}")
             logger.error("   Build with: cd voice/rust_receiver && cargo build --release")
             return False
 
         # Extract voice server info from discord.py VoiceClient
         info = self._extract_voice_info(voice_client, guild_id, channel_id)
         if info is None:
-            logger.error("❌ Failed to extract voice server info from VoiceClient")
+            logger.error(" Failed to extract voice server info from VoiceClient")
             return False
 
-        logger.info(f"🚀 Starting Rust voice receiver for guild {guild_id}, channel {channel_id}")
+        logger.info(f" Starting Rust voice receiver for guild {guild_id}, channel {channel_id}")
         logger.info(f"   Endpoint: {info['endpoint']}")
 
         try:
@@ -343,11 +343,11 @@ class RustVoiceBridge:
             # Start stderr reader (Rust tracing output → Python logger)
             self._start_stderr_reader()
 
-            logger.info("✅ Rust voice receiver started, waiting for audio...")
+            logger.info(" Rust voice receiver started, waiting for audio...")
             return True
 
         except Exception as e:
-            logger.exception(f"❌ Failed to start Rust voice receiver: {e}")
+            logger.exception(f" Failed to start Rust voice receiver: {e}")
             self.stats['errors'] += 1
             return False
 
@@ -375,7 +375,7 @@ class RustVoiceBridge:
 
         # Send SHUTDOWN command to Rust, then wait for graceful exit
         if self.proc and self.proc.poll() is None:
-            logger.info("🛑 Stopping Rust voice receiver...")
+            logger.info(" Stopping Rust voice receiver...")
             try:
                 self.proc.stdin.write(b"SHUTDOWN\n")
                 self.proc.stdin.flush()
@@ -391,7 +391,7 @@ class RustVoiceBridge:
 
         self.proc = None
         self.reader = None
-        logger.info("⏹️ Rust voice receiver stopped")
+        logger.info(" Rust voice receiver stopped")
 
     # -----------------------------------------------------------------------
     # Internal: extract voice server info from discord.py VoiceClient
@@ -439,7 +439,7 @@ class RustVoiceBridge:
 
             if not all([endpoint, token, session_id]):
                 logger.error(
-                    f"❌ Missing voice server info: endpoint={endpoint is not None}, "
+                    f" Missing voice server info: endpoint={endpoint is not None}, "
                     f"token={token is not None}, session_id={session_id is not None}"
                 )
                 return None
@@ -457,7 +457,7 @@ class RustVoiceBridge:
             }
 
         except Exception as e:
-            logger.exception(f"❌ Error extracting voice info: {e}")
+            logger.exception(f" Error extracting voice info: {e}")
             return None
 
     # -----------------------------------------------------------------------
@@ -484,7 +484,7 @@ class RustVoiceBridge:
           which allows the next user utterance to be transcribed immediately.
           Without this, the processing lock would remain for the full 30s timeout.
         """
-        logger.info("🔄 Rust stdout reader loop started")
+        logger.info(" Rust stdout reader loop started")
 
         try:
             while self._running and self.reader:
@@ -495,7 +495,7 @@ class RustVoiceBridge:
                     )
                 except EOFError:
                     if self._running:
-                        logger.warning("⚠️ Rust stdout EOF — process may have crashed")
+                        logger.warning(" Rust stdout EOF — process may have crashed")
                         self._handle_process_death()
                     break
 
@@ -537,10 +537,10 @@ class RustVoiceBridge:
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            logger.error(f"❌ Error in Rust reader loop: {e}")
+            logger.error(f" Error in Rust reader loop: {e}")
             self.stats['errors'] += 1
 
-        logger.info("🔄 Rust stdout reader loop ended")
+        logger.info(" Rust stdout reader loop ended")
 
     def _handle_audio(self, user_id: str, pcm_data: bytes) -> None:
         """
@@ -572,13 +572,13 @@ class RustVoiceBridge:
                 audio_data=pcm_data,
             )
         except Exception as e:
-            logger.error(f"❌ Error feeding audio to processor: {e}")
+            logger.error(f" Error feeding audio to processor: {e}")
 
     def _handle_join(self, user_id: str) -> None:
         """A user started speaking in voice (SpeakingStateUpdate from Discord)."""
         self.stats['joins'] += 1
         username = self._usernames.get(user_id, f"user_{user_id}")
-        logger.info(f"🔊 User speaking: {username} (ID: {user_id})")
+        logger.info(f" User speaking: {username} (ID: {user_id})")
 
     def _handle_leave(self, user_id: str) -> None:
         """A user stopped speaking in voice (no longer in VoiceTick.speaking)."""
@@ -596,7 +596,7 @@ class RustVoiceBridge:
 
         If there's no lock for this guild (already expired), this is a no-op.
         """
-        logger.info("🔊 TTS playback finished — releasing processing lock")
+        logger.info(" TTS playback finished — releasing processing lock")
         if hasattr(self.audio_processor, '_release_lock'):
             self.audio_processor._release_lock(str(self._guild_id))
 
@@ -616,12 +616,12 @@ class RustVoiceBridge:
                 time.sleep(0.05)
 
         if exit_code is None:
-            logger.error("❌ Rust process died — exit code unknown (pipe closed but process not reaped)")
+            logger.error(" Rust process died — exit code unknown (pipe closed but process not reaped)")
         elif exit_code < 0:
             signal_name = {-6: "SIGABRT", -9: "SIGKILL", -11: "SIGSEGV", -13: "SIGPIPE"}.get(exit_code, f"signal {-exit_code}")
-            logger.error(f"❌ Rust process killed by {signal_name} (code {exit_code})")
+            logger.error(f" Rust process killed by {signal_name} (code {exit_code})")
         else:
-            logger.error(f"❌ Rust process exited with code {exit_code}")
+            logger.error(f" Rust process exited with code {exit_code}")
 
         # Dump stderr ring buffer for diagnostics
         if self._stderr_buf:
@@ -787,16 +787,16 @@ class RustVoiceBridge:
             audio_data: WAV audio bytes from TTS engine (16kHz mono 16-bit WAV)
         """
         if not self.proc or not self.proc.stdin:
-            logger.warning("⚠️ Cannot send TTS: Rust process not running")
+            logger.warning(" Cannot send TTS: Rust process not running")
             return
         try:
             loop = asyncio.get_event_loop()
             header = f"SPEAK:{len(audio_data)}\n".encode('utf-8')
-            logger.info(f"🗣️ Writing {len(header) + len(audio_data)} bytes to Rust stdin")
+            logger.info(f" Writing {len(header) + len(audio_data)} bytes to Rust stdin")
             # Write in a thread to avoid blocking the event loop
             await loop.run_in_executor(None, self._write_stdin, header + audio_data)
         except Exception as e:
-            logger.error(f"❌ Error sending TTS audio: {e}")
+            logger.error(f" Error sending TTS audio: {e}")
 
     async def interrupt(self) -> None:
         """
@@ -854,12 +854,12 @@ class RustVoiceBridge:
             True if successfully started
         """
         if not os.path.exists(self.binary_path):
-            logger.error(f"❌ Rust binary not found: {self.binary_path}")
+            logger.error(f" Rust binary not found: {self.binary_path}")
             logger.error("   Build with: cd voice/rust_receiver && cargo build --release")
             return False
 
         logger.info(
-            f"🚀 Starting Rust voice receiver for guild {guild_id}, "
+            f" Starting Rust voice receiver for guild {guild_id}, "
             f"channel {channel_id} (gateway info)"
         )
 
@@ -896,11 +896,11 @@ class RustVoiceBridge:
 
             self._start_stderr_reader()
 
-            logger.info("✅ Rust voice receiver started (gateway info mode)")
+            logger.info(" Rust voice receiver started (gateway info mode)")
             return True
 
         except Exception as e:
-            logger.exception(f"❌ Failed to start Rust voice receiver: {e}")
+            logger.exception(f" Failed to start Rust voice receiver: {e}")
             self.stats['errors'] += 1
             return False
 

@@ -71,7 +71,7 @@ class CorrectionDetector:
         
         if correction:
             correction['confidence'] = confidence
-            logger.info(f"🔍 Correction detected: {correction}")
+            logger.info(f" Correction detected: {correction}")
             return correction
         
         return None
@@ -202,10 +202,10 @@ class MemoryCorrector:
         corrected = correction.get('corrected_statement', '')
         
         if not corrected:
-            logger.warning("⚠️ No corrected statement found, skipping")
+            logger.warning(" No corrected statement found, skipping")
             return
         
-        logger.info(f"🔧 Applying correction: '{original[:50]}...' → '{corrected[:50]}...'")
+        logger.info(f" Applying correction: '{original[:50]}...' → '{corrected[:50]}...'")
         
         # Find related memories (search for original statement)
         if original:
@@ -216,7 +216,7 @@ class MemoryCorrector:
             
             # Mark old memories as corrected
             if related_memories:
-                logger.info(f"📝 Found {len(related_memories)} related memories to update")
+                logger.info(f" Found {len(related_memories)} related memories to update")
                 # Note: ChromaDB doesn't support in-place updates easily
                 # We'll just add the correction note in the new memory
         
@@ -234,7 +234,7 @@ class MemoryCorrector:
             message_id=None
         )
         
-        logger.info(f"✅ Correction stored in memory")
+        logger.info(f" Correction stored in memory")
     
     def get_correction_history(
         self,

@@ -81,19 +81,19 @@ class TTSEngine:
         if EDGE_TTS_AVAILABLE:
             self.backend = "edge-tts"
             self.voice = EDGE_VOICE_PRESETS['default']
-            logger.info("✅ TTS engine initialized (edge-tts backend)")
-            logger.info(f"   🎙️ Voice: {self.voice}")
+            logger.info(" TTS engine initialized (edge-tts backend)")
+            logger.info(f"    Voice: {self.voice}")
             logger.info(f"   🌐 Backend: Microsoft Edge TTS (cloud, free)")
         elif COQUI_TTS_AVAILABLE:
             self.backend = "coqui"
             if device == "cuda" and not torch.cuda.is_available():
-                logger.warning("⚠️ CUDA not available, falling back to CPU")
+                logger.warning(" CUDA not available, falling back to CPU")
                 self.device = "cpu"
-            logger.info("✅ TTS engine initialized (Coqui XTTS v2 backend)")
-            logger.info(f"   💻 Device: {self.device.upper()}")
+            logger.info(" TTS engine initialized (Coqui XTTS v2 backend)")
+            logger.info(f"    Device: {self.device.upper()}")
         else:
             self.backend = None
-            logger.error("❌ No TTS backend available. Install edge-tts (uv add edge-tts)")
+            logger.error(" No TTS backend available. Install edge-tts (uv add edge-tts)")
             return
 
         # Voice profiles (Coqui-specific settings)
@@ -121,16 +121,16 @@ class TTSEngine:
         """Load TTS model (edge-tts has no model to load, Coqui does)"""
         if self.backend == "edge-tts":
             # edge-tts needs no loading
-            logger.info("✅ edge-tts ready (no model loading needed)")
+            logger.info(" edge-tts ready (no model loading needed)")
             return True
 
         if self.backend == "coqui":
             if not COQUI_TTS_AVAILABLE:
-                logger.error("❌ Cannot load Coqui TTS - not installed")
+                logger.error(" Cannot load Coqui TTS - not installed")
                 return False
 
             try:
-                logger.info(f"📥 Loading XTTS v2 model...")
+                logger.info(f" Loading XTTS v2 model...")
                 logger.info(f"   Device: {self.device}")
                 self.tts = await asyncio.to_thread(
                     TTS,
@@ -140,10 +140,10 @@ class TTSEngine:
                 )
                 if self.device == "cuda":
                     self.tts.to(self.device)
-                logger.info(f"✅ XTTS v2 model ready!")
+                logger.info(f" XTTS v2 model ready!")
                 return True
             except Exception as e:
-                logger.error(f"❌ Error loading Coqui TTS: {e}")
+                logger.error(f" Error loading Coqui TTS: {e}")
                 self.stats['errors'] += 1
                 return False
 
@@ -169,7 +169,7 @@ class TTSEngine:
             Audio data as bytes (WAV format)
         """
         if not self.backend:
-            logger.error("❌ TTS backend not available")
+            logger.error(" TTS backend not available")
             return None
 
         profile = profile or self.active_profile
@@ -186,7 +186,7 @@ class TTSEngine:
             voice = EDGE_VOICE_PRESETS.get(profile, EDGE_VOICE_PRESETS['default'])
             rate = EDGE_RATE_MAP.get(profile, '+0%')
 
-            logger.info(f"🎙️ Synthesizing (edge-tts): '{text[:50]}...' voice={voice} rate={rate}")
+            logger.info(f" Synthesizing (edge-tts): '{text[:50]}...' voice={voice} rate={rate}")
 
             communicate = edge_tts.Communicate(text, voice, rate=rate)
 
@@ -197,7 +197,7 @@ class TTSEngine:
                     audio_chunks.append(chunk["data"])
 
             if not audio_chunks:
-                logger.error("❌ edge-tts returned no audio")
+                logger.error(" edge-tts returned no audio")
                 self.stats['errors'] += 1
                 return None
 
@@ -211,14 +211,14 @@ class TTSEngine:
                 # Estimate duration (rough: 16KB/s for 16kHz mono WAV)
                 duration = len(wav_data) / (16000 * 2)  # 16-bit mono
                 self.stats['total_duration'] += duration
-                logger.info(f"✅ Generated {len(wav_data)} bytes ({duration:.2f}s)")
+                logger.info(f" Generated {len(wav_data)} bytes ({duration:.2f}s)")
             else:
                 self.stats['errors'] += 1
 
             return wav_data
 
         except Exception as e:
-            logger.error(f"❌ Error in edge-tts synthesis: {e}")
+            logger.error(f" Error in edge-tts synthesis: {e}")
             self.stats['errors'] += 1
             return None
 
@@ -241,11 +241,11 @@ class TTSEngine:
                 logger.error(f"ffmpeg error: {stderr.decode()[:200]}")
                 return None
         except FileNotFoundError:
-            logger.error("❌ ffmpeg not found. Install it: sudo apt install ffmpeg")
+            logger.error(" ffmpeg not found. Install it: sudo apt install ffmpeg")
             # Return MP3 as-is — discord.py can play MP3
             return mp3_data
         except Exception as e:
-            logger.error(f"❌ MP3 conversion error: {e}")
+            logger.error(f" MP3 conversion error: {e}")
             return mp3_data
 
     async def _synthesize_coqui(
@@ -253,13 +253,13 @@ class TTSEngine:
     ) -> Optional[bytes]:
         """Synthesize using Coqui XTTS v2"""
         if not self.tts:
-            logger.error("❌ Coqui TTS model not loaded")
+            logger.error(" Coqui TTS model not loaded")
             return None
 
         try:
             profile_settings = self.profiles.get(profile, self.profiles['default'])
 
-            logger.info(f"🎙️ Synthesizing (Coqui): '{text[:50]}...' profile={profile}")
+            logger.info(f" Synthesizing (Coqui): '{text[:50]}...' profile={profile}")
 
             synthesis_kwargs = {
                 'text': text,
@@ -299,11 +299,11 @@ class TTSEngine:
             duration = len(wav_int16) / sample_rate
             self.stats['total_duration'] += duration
 
-            logger.info(f"✅ Generated {len(audio_data)} bytes ({duration:.2f}s)")
+            logger.info(f" Generated {len(audio_data)} bytes ({duration:.2f}s)")
             return audio_data
 
         except Exception as e:
-            logger.error(f"❌ Error in Coqui synthesis: {e}")
+            logger.error(f" Error in Coqui synthesis: {e}")
             self.stats['errors'] += 1
             return None
 
@@ -312,16 +312,16 @@ class TTSEngine:
         try:
             if os.path.exists(audio_path):
                 self.voice_reference = audio_path
-                logger.info(f"✅ Voice reference set: {audio_path}")
+                logger.info(f" Voice reference set: {audio_path}")
             else:
-                logger.error(f"❌ Voice reference file not found: {audio_path}")
+                logger.error(f" Voice reference file not found: {audio_path}")
         except Exception as e:
-            logger.error(f"❌ Error setting voice reference: {e}")
+            logger.error(f" Error setting voice reference: {e}")
 
     def clear_voice_reference(self) -> None:
         """Clear voice reference"""
         self.voice_reference = None
-        logger.info("✅ Voice reference cleared")
+        logger.info(" Voice reference cleared")
 
     def set_profile(self, profile: str) -> None:
         """Set active voice profile"""
@@ -329,9 +329,9 @@ class TTSEngine:
             self.active_profile = profile
             if self.backend == "edge-tts":
                 self.voice = EDGE_VOICE_PRESETS.get(profile, EDGE_VOICE_PRESETS['default'])
-            logger.info(f"🎙️ Voice profile set to: {profile}")
+            logger.info(f" Voice profile set to: {profile}")
         else:
-            logger.warning(f"⚠️ Unknown profile: {profile}")
+            logger.warning(f" Unknown profile: {profile}")
 
     def get_available_speakers(self) -> List[str]:
         """Get list of available speakers"""

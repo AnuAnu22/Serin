@@ -24,7 +24,7 @@ class MentionTranslator:
         self.user_cache: Dict[str, Dict[str, str]] = {}  # {user_id: {name, global_name, mention}}
         self.name_to_id_cache: Dict[str, str] = {}  # {username: user_id}
         
-        logger.info("✅ MentionTranslator initialized")
+        logger.info(" MentionTranslator initialized")
     
     def update_cache(self, user: Any) -> None:
         """
@@ -48,7 +48,7 @@ class MentionTranslator:
         self.name_to_id_cache[username] = user_id
         self.name_to_id_cache[display_name] = user_id
         
-        logger.debug(f"📝 Cached user: {user.name} ({user_id})")
+        logger.debug(f" Cached user: {user.name} ({user_id})")
     
     def clean_for_bot(self, text: str, message: discord.Message) -> str:
         """
@@ -94,13 +94,13 @@ class MentionTranslator:
                     pass
             
             # Fallback: keep original mention if we can't resolve
-            logger.warning(f"⚠️ Could not resolve mention <@{user_id}>")
+            logger.warning(f" Could not resolve mention <@{user_id}>")
             return f"@unknown_user_{user_id[:4]}"
         
         cleaned_text = re.sub(mention_pattern, replace_mention, text)
         
         if cleaned_text != text:
-            logger.debug(f"🧹 Cleaned mentions: '{text[:50]}' → '{cleaned_text[:50]}'")
+            logger.debug(f" Cleaned mentions: '{text[:50]}' → '{cleaned_text[:50]}'")
         
         return cleaned_text
     
@@ -144,13 +144,13 @@ class MentionTranslator:
                     pass
             
             # Can't resolve - leave as @username (won't ping but readable)
-            logger.debug(f"⚠️ Could not resolve username @{username} to mention")
+            logger.debug(f" Could not resolve username @{username} to mention")
             return f"@{username}"
         
         restored_text = re.sub(mention_pattern, replace_username, text)
         
         if restored_text != text:
-            logger.debug(f"🔄 Restored mentions: '{text[:50]}' → '{restored_text[:50]}'")
+            logger.debug(f" Restored mentions: '{text[:50]}' → '{restored_text[:50]}'")
         
         return restored_text
     
@@ -212,9 +212,9 @@ class MentionTranslator:
             for member in guild.members:
                 self.update_cache(member)
                 count += 1
-            logger.info(f"📚 Cached {count} members from {guild.name}")
+            logger.info(f" Cached {count} members from {guild.name}")
         except Exception as e:
-            logger.error(f"❌ Error caching guild members: {e}")
+            logger.error(f" Error caching guild members: {e}")
         
         return count
     

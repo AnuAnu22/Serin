@@ -59,7 +59,7 @@ class MemorySystemDiagnostic:
     
     def run_comprehensive_diagnostic(self) -> MemoryDiagnosticReport:
         """Run full diagnostic suite and return report"""
-        logger.info("🔍 Starting comprehensive memory system diagnostic...")
+        logger.info(" Starting comprehensive memory system diagnostic...")
         
         report = MemoryDiagnosticReport(
             timestamp=datetime.now().isoformat(),
@@ -79,12 +79,12 @@ class MemorySystemDiagnostic:
         # Save diagnostic report
         self._save_diagnostic_report(report)
         
-        logger.info("✅ Comprehensive diagnostic completed")
+        logger.info(" Comprehensive diagnostic completed")
         return report
     
     def _analyze_database_health(self) -> Dict:
         """Analyze database integrity and health"""
-        logger.debug("🗄️ Analyzing database health...")
+        logger.debug("🗄 Analyzing database health...")
         
         health_status = {
             "sqlite_connection": self._check_sqlite_health(),
@@ -116,7 +116,7 @@ class MemorySystemDiagnostic:
             cursor.fetchone()
             return True
         except Exception as e:
-            logger.error(f"❌ SQLite health check failed: {e}")
+            logger.error(f" SQLite health check failed: {e}")
             return False
     
     def _check_chroma_health(self) -> bool:
@@ -169,7 +169,7 @@ class MemorySystemDiagnostic:
             }
             
         except Exception as e:
-            logger.error(f"❌ Schema integrity check failed: {e}")
+            logger.error(f" Schema integrity check failed: {e}")
             return {"error": str(e), "score": 0}
     
     def _check_data_consistency(self) -> Dict:
@@ -218,7 +218,7 @@ class MemorySystemDiagnostic:
             }
             
         except Exception as e:
-            logger.error(f"❌ Data consistency check failed: {e}")
+            logger.error(f" Data consistency check failed: {e}")
             return {"error": str(e), "score": 0}
     
     def _check_backup_status(self) -> Dict:
@@ -248,12 +248,12 @@ class MemorySystemDiagnostic:
             }
             
         except Exception as e:
-            logger.error(f"❌ Backup status check failed: {e}")
+            logger.error(f" Backup status check failed: {e}")
             return {"error": str(e)}
     
     def _analyze_memory_statistics(self) -> Dict:
         """Analyze memory system statistics"""
-        logger.debug("📊 Analyzing memory statistics...")
+        logger.debug(" Analyzing memory statistics...")
         
         stats = {
             "total_memories": 0,
@@ -317,14 +317,14 @@ class MemorySystemDiagnostic:
                 stats["total_memories"] = len(documents)
                 
         except Exception as e:
-            logger.error(f"❌ Memory statistics analysis failed: {e}")
+            logger.error(f" Memory statistics analysis failed: {e}")
             stats["error"] = str(e)
         
         return stats
     
     def _analyze_retrieval_patterns(self) -> Dict:
         """Analyze memory retrieval patterns and accuracy"""
-        logger.debug("🔍 Analyzing retrieval patterns...")
+        logger.debug(" Analyzing retrieval patterns...")
         
         analysis = {
             "test_scenarios": [],
@@ -373,7 +373,7 @@ class MemorySystemDiagnostic:
                 })
                 
             except Exception as e:
-                logger.error(f"❌ Test scenario failed: {e}")
+                logger.error(f" Test scenario failed: {e}")
                 analysis["test_scenarios"].append({
                     "scenario": scenario["context"],
                     "error": str(e)
@@ -383,7 +383,7 @@ class MemorySystemDiagnostic:
     
     def _analyze_personality_consistency(self) -> Dict:
         """Analyze personality trait consistency across memories"""
-        logger.debug("🧠 Analyzing personality consistency...")
+        logger.debug(" Analyzing personality consistency...")
         
         consistency = {
             "user_profiles": {},
@@ -432,7 +432,7 @@ class MemorySystemDiagnostic:
                     }
             
         except Exception as e:
-            logger.error(f"❌ Personality consistency analysis failed: {e}")
+            logger.error(f" Personality consistency analysis failed: {e}")
             consistency["error"] = str(e)
         
         return consistency
@@ -499,7 +499,7 @@ class MemorySystemDiagnostic:
                 temporal["retention_patterns"] = dict(retention_scores)
                 
         except Exception as e:
-            logger.error(f"❌ Temporal pattern analysis failed: {e}")
+            logger.error(f" Temporal pattern analysis failed: {e}")
             temporal["error"] = str(e)
         
         return temporal
@@ -510,21 +510,21 @@ class MemorySystemDiagnostic:
         
         # Database health recommendations
         if report.database_health.get("overall_score", 0) < 90:
-            recommendations.append("🔧 Improve database health score through schema optimization and data cleanup")
+            recommendations.append(" Improve database health score through schema optimization and data cleanup")
         
         if report.database_health.get("data_consistency", {}).get("orphaned_records", 0) > 0:
-            recommendations.append("🗑️ Clean up orphaned records in recent_messages table")
+            recommendations.append(" Clean up orphaned records in recent_messages table")
         
         # Memory retrieval recommendations
         low_precision_scenarios = [s for s in report.retrieval_analysis.get("test_scenarios", []) if s.get("precision", 0) < 0.3]
         if low_precision_scenarios:
-            recommendations.append(f"🎯 Improve retrieval precision for {len(low_precision_scenarios)} test scenarios")
+            recommendations.append(f" Improve retrieval precision for {len(low_precision_scenarios)} test scenarios")
         
         # Personality consistency recommendations
         inconsistent_users = [uid for uid, profile in report.personality_consistency.get("user_profiles", {}).items() 
                             if profile.get("trait_consistency_score", 1) < 0.5]
         if inconsistent_users:
-            recommendations.append(f"🧠 Enhance personality trait consistency for {len(inconsistent_users)} users")
+            recommendations.append(f" Enhance personality trait consistency for {len(inconsistent_users)} users")
         
         # Temporal recommendations
         very_old_memories = report.temporal_analysis.get("memory_age_distribution", {}).get("older", 0)
@@ -532,7 +532,7 @@ class MemorySystemDiagnostic:
             recommendations.append("⏰ Implement memory archival strategy for older memories")
         
         if not recommendations:
-            recommendations.append("✅ System is performing well - continue monitoring")
+            recommendations.append(" System is performing well - continue monitoring")
         
         return recommendations
     
@@ -542,20 +542,20 @@ class MemorySystemDiagnostic:
         
         # Database connectivity issues
         if not report.database_health.get("sqlite_connection", True):
-            critical_issues.append("❌ SQLite database connection failed - system unusable")
+            critical_issues.append(" SQLite database connection failed - system unusable")
         
         if not report.database_health.get("chroma_connection", True):
-            critical_issues.append("❌ ChromaDB connection failed - memory retrieval unavailable")
+            critical_issues.append(" ChromaDB connection failed - memory retrieval unavailable")
         
         # Very low overall health score
         overall_score = report.database_health.get("overall_score", 0)
         if overall_score < 50:
-            critical_issues.append(f"⚠️ Critical: Database health score critically low ({overall_score})")
+            critical_issues.append(f" Critical: Database health score critically low ({overall_score})")
         
         # Data loss indicators
         orphaned_count = report.database_health.get("data_consistency", {}).get("orphaned_records", 0)
         if orphaned_count > 50:
-            critical_issues.append(f"🚨 Data integrity issue: {orphaned_count} orphaned records detected")
+            critical_issues.append(f" Data integrity issue: {orphaned_count} orphaned records detected")
         
         return critical_issues
     
@@ -579,10 +579,10 @@ class MemorySystemDiagnostic:
             with open(report_file, 'w') as f:
                 json.dump(report_dict, f, indent=2, default=str)
             
-            logger.info(f"💾 Diagnostic report saved: {report_file}")
+            logger.info(f" Diagnostic report saved: {report_file}")
             
         except Exception as e:
-            logger.error(f"❌ Failed to save diagnostic report: {e}")
+            logger.error(f" Failed to save diagnostic report: {e}")
     
     def run_quick_health_check(self) -> Dict:
         """Run quick health check for monitoring"""

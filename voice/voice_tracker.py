@@ -27,7 +27,7 @@ class VoiceTracker:
         self.current_voice_states = {}  # user_id -> VoiceState dict
         self.session_start_times = {}   # user_id -> datetime
         
-        logger.info("✅ Voice tracker initialized")
+        logger.info(" Voice tracker initialized")
     
     async def on_voice_update(self, member: Any, before: Any, after: Any) -> None:
         """
@@ -59,14 +59,14 @@ class VoiceTracker:
             elif before.channel and after.channel:
                 if before.self_mute != after.self_mute:
                     action = "muted" if after.self_mute else "unmuted"
-                    logger.debug(f"🔇 {username} {action}")
+                    logger.debug(f" {username} {action}")
                 
                 if before.self_deaf != after.self_deaf:
                     action = "deafened" if after.self_deaf else "undeafened"
-                    logger.debug(f"🔇 {username} {action}")
+                    logger.debug(f" {username} {action}")
         
         except Exception as e:
-            logger.error(f"❌ Error handling voice update: {e}")
+            logger.error(f" Error handling voice update: {e}")
     
     async def _handle_join(self, member: Any, channel: Any) -> None:
         """User joined voice channel"""
@@ -96,7 +96,7 @@ class VoiceTracker:
             importance=0.4
         )
         log_voice("JOIN", username, channel_name)
-        logger.info(f"🎤 {username} joined VC: {channel_name}")
+        logger.info(f" {username} joined VC: {channel_name}")
     
     async def _handle_leave(self, member: Any, channel: Any) -> None:
         """User left voice channel"""
@@ -136,9 +136,9 @@ class VoiceTracker:
             if user_id in self.current_voice_states:
                 del self.current_voice_states[user_id]
             
-            logger.info(f"🎤 {username} left VC after {duration_minutes} min")
+            logger.info(f" {username} left VC after {duration_minutes} min")
         else:
-            logger.warning(f"⚠️ {username} left VC but no session start time found")
+            logger.warning(f" {username} left VC but no session start time found")
     
     async def _handle_switch(self, member: Any, old_channel: Any, new_channel: Any) -> None:
         """User switched voice channels"""
@@ -163,7 +163,7 @@ class VoiceTracker:
             importance=0.3
         )
         
-        logger.info(f"🎤 {username} switched: {old_name} → {new_name}")
+        logger.info(f" {username} switched: {old_name} → {new_name}")
     
     def is_in_voice(self, user_id: str) -> bool:
         """

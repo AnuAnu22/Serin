@@ -63,7 +63,7 @@ class VoiceOutputManager:
         self.processing_task = None
         self.is_running = False
 
-        logger.info("✅ Voice output manager initialized")
+        logger.info(" Voice output manager initialized")
 
     async def start(self) -> None:
         """Start the TTS processing loop."""
@@ -72,14 +72,14 @@ class VoiceOutputManager:
 
         self.is_running = True
         self.processing_task = asyncio.create_task(self._process_queue())
-        logger.info("▶️ Voice output manager started")
+        logger.info(" Voice output manager started")
 
     async def stop(self) -> None:
         """Stop the TTS processing loop."""
         self.is_running = False
         if self.processing_task:
             self.processing_task.cancel()
-        logger.info("⏹️ Voice output manager stopped")
+        logger.info(" Voice output manager stopped")
 
     async def speak(self, text: str, guild_id: int, priority: bool = False) -> None:
         """
@@ -106,7 +106,7 @@ class VoiceOutputManager:
 
         if text.strip():
             await self.sentence_queue.put((text, guild_id))
-            logger.debug(f"🗣️ Queued: '{text[:50]}...'")
+            logger.debug(f" Queued: '{text[:50]}...'")
 
     async def stop_speaking(self, guild_id: int) -> None:
         """
@@ -160,7 +160,7 @@ class VoiceOutputManager:
                 # Check interrupt before generating — don't waste TTS compute
                 # if the user already started speaking
                 if self.interrupt_event.is_set():
-                    logger.info(f"🗣️ Skipping synthesis — interrupted: '{text[:50]}...'")
+                    logger.info(f" Skipping synthesis — interrupted: '{text[:50]}...'")
                     self.sentence_queue.task_done()
                     continue
 
@@ -210,10 +210,10 @@ class VoiceOutputManager:
         """
         bridge = self.voice_listener.rust_bridge
         if not bridge or not bridge.is_running():
-            logger.warning(f"🗣️ Cannot play — bridge not running for guild {guild_id}")
+            logger.warning(f" Cannot play — bridge not running for guild {guild_id}")
             return
 
-        logger.info(f"🗣️ Sending {len(audio_data)} bytes to Rust bridge for playback")
+        logger.info(f" Sending {len(audio_data)} bytes to Rust bridge for playback")
         await bridge.send_tts_audio(audio_data)
 
     def _split_sentences(self, text: str) -> List[str]:

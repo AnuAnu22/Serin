@@ -23,7 +23,7 @@ try:
     from faster_whisper import WhisperModel
     WHISPER_AVAILABLE = True
 except ImportError:
-    logger.warning("⚠️ faster-whisper not installed. Run: pip install faster-whisper")
+    logger.warning(" faster-whisper not installed. Run: pip install faster-whisper")
     WHISPER_AVAILABLE = False
 
 
@@ -57,22 +57,22 @@ class WhisperTranscriber:
         }
         
         if not WHISPER_AVAILABLE:
-            logger.error("❌ faster-whisper not available")
+            logger.error(" faster-whisper not available")
             return
         
-        logger.info(f"✅ Whisper transcriber initialized")
-        logger.info(f"   🧠 Model: {model_size}")
-        logger.info(f"   💻 Device: {device.upper()}")
-        logger.info(f"   ⚙️ Compute: {self.compute_type}")
+        logger.info(f" Whisper transcriber initialized")
+        logger.info(f"    Model: {model_size}")
+        logger.info(f"    Device: {device.upper()}")
+        logger.info(f"    Compute: {self.compute_type}")
     
     async def load_model(self) -> bool:
         """Load Whisper model"""
         if not WHISPER_AVAILABLE:
-            logger.error("❌ Cannot load Whisper model - faster-whisper not installed")
+            logger.error(" Cannot load Whisper model - faster-whisper not installed")
             return False
         
         try:
-            logger.info(f"📥 Loading Whisper model '{self.model_size}'...")
+            logger.info(f" Loading Whisper model '{self.model_size}'...")
             
             # Load model in background thread
             self.model = await asyncio.to_thread(
@@ -82,11 +82,11 @@ class WhisperTranscriber:
                 compute_type=self.compute_type
             )
             
-            logger.info(f"✅ Whisper model '{self.model_size}' loaded")
+            logger.info(f" Whisper model '{self.model_size}' loaded")
             return True
         
         except Exception as e:
-            logger.error(f"❌ Error loading Whisper model: {e}")
+            logger.error(f" Error loading Whisper model: {e}")
             self.stats['errors'] += 1
             return False
     
@@ -102,7 +102,7 @@ class WhisperTranscriber:
             Transcribed text or None
         """
         if not self.model:
-            logger.error("❌ Whisper model not loaded")
+            logger.error(" Whisper model not loaded")
             return None
         
         try:
@@ -125,7 +125,7 @@ class WhisperTranscriber:
             audio_float = audio_16k.astype(np.float32) / 32768.0
             
             # Transcribe in background thread
-            logger.debug("🎤 Transcribing audio...")
+            logger.debug(" Transcribing audio...")
             
             segments, info = await asyncio.to_thread(
                 self.model.transcribe,
@@ -149,14 +149,14 @@ class WhisperTranscriber:
             self.stats['total_transcriptions'] += 1
             
             if transcription:
-                logger.info(f"✅ Transcription: '{transcription}'")
+                logger.info(f" Transcription: '{transcription}'")
                 return transcription
             else:
-                logger.debug("⏭️ Empty transcription")
+                logger.debug(" Empty transcription")
                 return None
         
         except Exception as e:
-            logger.error(f"❌ Error transcribing audio: {e}")
+            logger.error(f" Error transcribing audio: {e}")
             self.stats['errors'] += 1
             return None
     
@@ -184,7 +184,7 @@ class WhisperTranscriber:
             return resampled.astype(np.int16)
         
         except Exception as e:
-            logger.error(f"❌ Error resampling audio: {e}")
+            logger.error(f" Error resampling audio: {e}")
             return audio
     
     def get_stats(self) -> Dict[str, Any]:
@@ -205,13 +205,13 @@ class WhisperTranscriberFallback:
     
     def __init__(self, api_key: Optional[str] = None) -> None:
         self.api_key = api_key
-        logger.warning("⚠️ Using Whisper API fallback (requires API key)")
+        logger.warning(" Using Whisper API fallback (requires API key)")
     
     async def load_model(self) -> bool:
         return bool(self.api_key)
     
     async def transcribe(self, audio_data: bytes, language: str = "en") -> Optional[str]:
-        logger.error("❌ Whisper API fallback not implemented")
+        logger.error(" Whisper API fallback not implemented")
         return None
     
     def get_stats(self) -> Dict[str, Any]:

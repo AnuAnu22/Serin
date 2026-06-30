@@ -55,7 +55,7 @@ class DatabaseIntegrityChecker:
         
     def run_comprehensive_health_check(self) -> Dict[str, Any]:
         """Run comprehensive database health check"""
-        logger.info("🔍 Running comprehensive database health check...")
+        logger.info(" Running comprehensive database health check...")
         
         health_report = {
             "timestamp": datetime.now().isoformat(),
@@ -83,7 +83,7 @@ class DatabaseIntegrityChecker:
                 health_report["checks_performed"].append(check_result)
                 total_score += check_result.get("score", 0)
             except Exception as e:
-                logger.error(f"❌ Health check failed: {e}")
+                logger.error(f" Health check failed: {e}")
                 health_report["checks_performed"].append({
                     "check_name": check.__name__,
                     "error": str(e),
@@ -106,12 +106,12 @@ class DatabaseIntegrityChecker:
         # Save health report
         self._save_health_report(health_report)
         
-        logger.info(f"✅ Health check completed - Score: {health_report['overall_health_score']}/100")
+        logger.info(f" Health check completed - Score: {health_report['overall_health_score']}/100")
         return health_report
     
     def _check_table_integrity(self) -> Dict[str, Any]:
         """Check database table integrity"""
-        logger.debug("🗄️ Checking table integrity...")
+        logger.debug("🗄 Checking table integrity...")
         
         result = {
             "check_name": "table_integrity",
@@ -163,7 +163,7 @@ class DatabaseIntegrityChecker:
                 result["score"] -= 20
             
         except Exception as e:
-            logger.error(f"❌ Table integrity check failed: {e}")
+            logger.error(f" Table integrity check failed: {e}")
             result["error"] = str(e)
             result["score"] = 0
         
@@ -250,7 +250,7 @@ class DatabaseIntegrityChecker:
                     })
         
         except Exception as e:
-            logger.error(f"❌ Single table integrity check failed for {table_name}: {e}")
+            logger.error(f" Single table integrity check failed for {table_name}: {e}")
             issues.append({
                 "table": table_name,
                 "type": "check_failed",
@@ -261,7 +261,7 @@ class DatabaseIntegrityChecker:
     
     def _check_data_consistency(self) -> Dict[str, Any]:
         """Check data consistency across tables"""
-        logger.debug("🔄 Checking data consistency...")
+        logger.debug(" Checking data consistency...")
         
         result = {
             "check_name": "data_consistency",
@@ -320,7 +320,7 @@ class DatabaseIntegrityChecker:
                 result["score"] -= (invalid_user_a + invalid_user_b) * 5
             
         except Exception as e:
-            logger.error(f"❌ Data consistency check failed: {e}")
+            logger.error(f" Data consistency check failed: {e}")
             result["error"] = str(e)
             result["score"] = 0
         
@@ -328,7 +328,7 @@ class DatabaseIntegrityChecker:
     
     def _check_index_performance(self) -> Dict[str, Any]:
         """Check index performance and suggest optimizations"""
-        logger.debug("📊 Checking index performance...")
+        logger.debug(" Checking index performance...")
         
         result = {
             "check_name": "index_performance",
@@ -368,7 +368,7 @@ class DatabaseIntegrityChecker:
             result["score"] -= len(missing_indexes) * 3  # Penalty for missing indexes
             
         except Exception as e:
-            logger.error(f"❌ Index performance check failed: {e}")
+            logger.error(f" Index performance check failed: {e}")
             result["error"] = str(e)
             result["score"] = 50  # Reduced score for failed check
         
@@ -376,7 +376,7 @@ class DatabaseIntegrityChecker:
     
     def _check_backup_status(self) -> Dict[str, Any]:
         """Check backup system status"""
-        logger.debug("💾 Checking backup status...")
+        logger.debug(" Checking backup status...")
         
         result = {
             "check_name": "backup_status",
@@ -425,7 +425,7 @@ class DatabaseIntegrityChecker:
                     result["score"] -= 30
             
         except Exception as e:
-            logger.error(f"❌ Backup status check failed: {e}")
+            logger.error(f" Backup status check failed: {e}")
             result["error"] = str(e)
             result["score"] = 40
         
@@ -433,7 +433,7 @@ class DatabaseIntegrityChecker:
     
     def _check_concurrent_access(self) -> Dict[str, Any]:
         """Check for concurrent access issues"""
-        logger.debug("🔄 Checking concurrent access...")
+        logger.debug(" Checking concurrent access...")
         
         result = {
             "check_name": "concurrent_access",
@@ -463,7 +463,7 @@ class DatabaseIntegrityChecker:
                 result["score"] -= 5  # Penalty for multiple connections
             
         except Exception as e:
-            logger.error(f"❌ Concurrent access check failed: {e}")
+            logger.error(f" Concurrent access check failed: {e}")
             result["error"] = str(e)
             result["score"] = 70
         
@@ -471,7 +471,7 @@ class DatabaseIntegrityChecker:
     
     def _check_corruption_indicators(self) -> Dict[str, Any]:
         """Check for database corruption indicators"""
-        logger.debug("🚨 Checking corruption indicators...")
+        logger.debug(" Checking corruption indicators...")
         
         result = {
             "check_name": "corruption_indicators",
@@ -548,7 +548,7 @@ class DatabaseIntegrityChecker:
                 result["score"] -= 30
         
         except Exception as e:
-            logger.error(f"❌ Corruption indicators check failed: {e}")
+            logger.error(f" Corruption indicators check failed: {e}")
             result["error"] = str(e)
             result["score"] = 50
         
@@ -617,7 +617,7 @@ class DatabaseIntegrityChecker:
     
     def _attempt_auto_repairs(self, issues: List[DatabaseIssue]) -> List[RepairAction]:
         """Attempt to automatically repair issues"""
-        logger.info("🔧 Attempting auto-repairs...")
+        logger.info(" Attempting auto-repairs...")
         
         repairs = []
         
@@ -631,7 +631,7 @@ class DatabaseIntegrityChecker:
                     repairs.append(repair_action)
                     
             except Exception as e:
-                logger.error(f"❌ Auto-repair failed for {issue.category}: {e}")
+                logger.error(f" Auto-repair failed for {issue.category}: {e}")
                 repairs.append(RepairAction(
                     issue_id=str(hash(str(issue))),
                     action_type="repair_attempt",
@@ -646,7 +646,7 @@ class DatabaseIntegrityChecker:
     
     def _repair_issue(self, issue: DatabaseIssue) -> Optional[RepairAction]:
         """Attempt to repair a specific issue"""
-        logger.info(f"🔧 Attempting to repair: {issue.description}")
+        logger.info(f" Attempting to repair: {issue.description}")
         
         # Create backup before repair
         backup_path = self._create_pre_repair_backup()
@@ -670,7 +670,7 @@ class DatabaseIntegrityChecker:
                 rollback_data["deleted_users"] = affected_count
                 self.memory.conn.commit()
                 
-                logger.info(f"✅ Removed {affected_count} duplicate users")
+                logger.info(f" Removed {affected_count} duplicate users")
                 
             elif "orphaned_messages" in issue.description:
                 # Delete orphaned messages
@@ -683,7 +683,7 @@ class DatabaseIntegrityChecker:
                 rollback_data["deleted_messages"] = affected_count
                 self.memory.conn.commit()
                 
-                logger.info(f"✅ Removed {affected_count} orphaned messages")
+                logger.info(f" Removed {affected_count} orphaned messages")
                 
             elif "invalid_relationship_strength" in issue.description:
                 # Fix invalid relationship strengths
@@ -697,10 +697,10 @@ class DatabaseIntegrityChecker:
                 rollback_data["fixed_strengths"] = affected_count
                 self.memory.conn.commit()
                 
-                logger.info(f"✅ Fixed {affected_count} invalid relationship strengths")
+                logger.info(f" Fixed {affected_count} invalid relationship strengths")
             
             else:
-                logger.warning(f"⚠️ No auto-repair implemented for: {issue.category}")
+                logger.warning(f" No auto-repair implemented for: {issue.category}")
                 return None
             
             return RepairAction(
@@ -714,7 +714,7 @@ class DatabaseIntegrityChecker:
             )
             
         except Exception as e:
-            logger.error(f"❌ Auto-repair failed: {e}")
+            logger.error(f" Auto-repair failed: {e}")
             return RepairAction(
                 issue_id=str(hash(str(issue))),
                 action_type="auto_repair",
@@ -753,11 +753,11 @@ class DatabaseIntegrityChecker:
             os.remove(db_backup_path)
             os.remove(chroma_backup_path)
             
-            logger.info(f"💾 Pre-repair backup created: {backup_path}")
+            logger.info(f" Pre-repair backup created: {backup_path}")
             return backup_path
             
         except Exception as e:
-            logger.error(f"❌ Failed to create pre-repair backup: {e}")
+            logger.error(f" Failed to create pre-repair backup: {e}")
             return None
     
     def _generate_health_recommendations(self, health_report: Dict[str, Any]) -> List[str]:
@@ -768,13 +768,13 @@ class DatabaseIntegrityChecker:
         issues = health_report["issues_detected"]
         
         if score < 50:
-            recommendations.append("🚨 Critical: Immediate attention required for database health")
+            recommendations.append(" Critical: Immediate attention required for database health")
         elif score < 70:
-            recommendations.append("⚠️ Database health needs improvement")
+            recommendations.append(" Database health needs improvement")
         elif score < 85:
-            recommendations.append("💡 Consider optimizations for better performance")
+            recommendations.append(" Consider optimizations for better performance")
         else:
-            recommendations.append("✅ Database health is good")
+            recommendations.append(" Database health is good")
         
         # Specific recommendations based on issues
         issue_types = [issue.category for issue in issues]
@@ -801,10 +801,10 @@ class DatabaseIntegrityChecker:
             with open(report_file, 'w') as f:
                 json.dump(health_report, f, indent=2, default=str)
             
-            logger.info(f"💾 Health report saved: {report_file}")
+            logger.info(f" Health report saved: {report_file}")
             
         except Exception as e:
-            logger.error(f"❌ Failed to save health report: {e}")
+            logger.error(f" Failed to save health report: {e}")
     
     def create_emergency_backup(self) -> Optional[str]:
         """Create emergency backup of current database state"""
@@ -838,11 +838,11 @@ class DatabaseIntegrityChecker:
                 
                 tar.add(metadata_file, arcname='backup_info.json')
             
-            logger.info(f"🚨 Emergency backup created: {backup_path}")
+            logger.info(f" Emergency backup created: {backup_path}")
             return backup_path
             
         except Exception as e:
-            logger.error(f"❌ Emergency backup failed: {e}")
+            logger.error(f" Emergency backup failed: {e}")
             return None
 
 def create_database_healer(memory_system: Any) -> DatabaseIntegrityChecker:

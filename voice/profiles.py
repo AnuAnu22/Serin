@@ -50,8 +50,8 @@ class VoiceProfileManager:
         # Load default profiles
         self._load_default_profiles()
         
-        logger.info("✅ Voice profile manager initialized")
-        logger.info(f"   📋 Loaded {len(self.profiles)} default profiles")
+        logger.info(" Voice profile manager initialized")
+        logger.info(f"    Loaded {len(self.profiles)} default profiles")
     
     def _load_default_profiles(self):
         """Load default voice profiles"""
@@ -139,13 +139,13 @@ class VoiceProfileManager:
     def add_profile(self, profile: VoiceProfile):
         """Add or update a profile"""
         self.profiles[profile.name] = profile
-        logger.debug(f"📋 Added profile: {profile.name}")
+        logger.debug(f" Added profile: {profile.name}")
     
     def remove_profile(self, name: str) -> bool:
         """Remove a profile"""
         if name in self.profiles and name != 'default':
             del self.profiles[name]
-            logger.info(f"🗑️ Removed profile: {name}")
+            logger.info(f" Removed profile: {name}")
             return True
         return False
     
@@ -157,7 +157,7 @@ class VoiceProfileManager:
         """Set active profile"""
         if name in self.profiles:
             self.active_profile = name
-            logger.info(f"🎙️ Active profile: {name}")
+            logger.info(f" Active profile: {name}")
             return True
         return False
     

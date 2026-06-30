@@ -18,7 +18,7 @@ class BotPersonality:
         self._init_schema()
         self._load_default_preferences()
         
-        logger.info("✅ Bot personality system initialized")
+        logger.info(" Bot personality system initialized")
     
     def _init_schema(self) -> None:
         """Initialize personality database schema"""
@@ -50,7 +50,7 @@ class BotPersonality:
         """)
         
         self.conn.commit()
-        logger.debug("✅ Personality schema initialized")
+        logger.debug(" Personality schema initialized")
     
     def _load_default_preferences(self) -> None:
         """Load default preferences if database is empty"""
@@ -100,7 +100,7 @@ class BotPersonality:
                 """, (category, item, stance, intensity, reason))
             
             self.conn.commit()
-            logger.info(f"✅ Loaded {len(defaults)} default preferences")
+            logger.info(f" Loaded {len(defaults)} default preferences")
     
     def get_preference(self, category: str, item: str) -> Optional[Dict]:
         """Get bot's preference for a specific item"""

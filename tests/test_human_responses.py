@@ -15,7 +15,7 @@ from memory_system import UnifiedMemorySystem
 def test_system_prompt():
     """Test the new human-like system prompt"""
     print("="*60)
-    print("🔍 TESTING SYSTEM PROMPT")
+    print(" TESTING SYSTEM PROMPT")
     print("="*60)
     
     prompt = ImprovedSystemPrompt.get_enhanced_system_prompt()
@@ -33,7 +33,7 @@ def test_system_prompt():
 def test_personality_context():
     """Test the new natural personality expressions"""
     print("\n" + "="*60)
-    print("🧠 TESTING PERSONALITY CONTEXT")
+    print(" TESTING PERSONALITY CONTEXT")
     print("="*60)
     
     try:
@@ -47,9 +47,9 @@ def test_personality_context():
         
         # Check if it sounds natural (no bullet points, formal structure)
         if context and not any(indicator in context.lower() for indicator in ['your preferences:', '- ', 'bullet points']):
-            print("✅ Personality context sounds natural (no robotic formatting)")
+            print(" Personality context sounds natural (no robotic formatting)")
         else:
-            print("❌ Still has robotic formatting")
+            print(" Still has robotic formatting")
             
         return context
         
@@ -60,7 +60,7 @@ def test_personality_context():
 def test_context_formatting():
     """Test the new natural context formatting"""
     print("\n" + "="*60)
-    print("💬 TESTING CONTEXT FORMATTING")
+    print(" TESTING CONTEXT FORMATTING")
     print("="*60)
     
     try:
@@ -102,9 +102,9 @@ def test_context_formatting():
         print(f"Natural language score: {natural_score}/3 (higher is better)")
         
         if natural_score > 0:
-            print("✅ Context formatting sounds natural")
+            print(" Context formatting sounds natural")
         else:
-            print("❌ Still sounds robotic")
+            print(" Still sounds robotic")
             
         return formatted
         
@@ -116,7 +116,7 @@ def test_context_formatting():
 
 def main():
     """Run all tests"""
-    print("🚀 TESTING HUMAN-LIKE BOT IMPROVEMENTS")
+    print(" TESTING HUMAN-LIKE BOT IMPROVEMENTS")
     print("="*80)
     
     # Test each component
@@ -126,35 +126,35 @@ def main():
     
     # Summary
     print("\n" + "="*60)
-    print("📊 SUMMARY")
+    print(" SUMMARY")
     print("="*60)
     
     improvements = []
     
     if prompt and len(prompt) > 100:
-        improvements.append("✅ System prompt updated")
+        improvements.append(" System prompt updated")
     else:
-        improvements.append("❌ System prompt needs work")
+        improvements.append(" System prompt needs work")
         
     if personality and 'bullet' not in personality.lower():
-        improvements.append("✅ Personality expressions naturalized")
+        improvements.append(" Personality expressions naturalized")
     else:
-        improvements.append("❌ Personality still robotic")
+        improvements.append(" Personality still robotic")
         
     if context and 'what we were just talking about' in context.lower():
-        improvements.append("✅ Context formatting humanized")
+        improvements.append(" Context formatting humanized")
     else:
-        improvements.append("❌ Context still robotic")
+        improvements.append(" Context still robotic")
     
     for improvement in improvements:
         print(improvement)
     
-    print(f"\n🎯 Overall: {sum(1 for imp in improvements if imp.startswith('✅'))}/3 improvements successful")
+    print(f"\n Overall: {sum(1 for imp in improvements if imp.startswith(''))}/3 improvements successful")
     
-    if all(imp.startswith('✅') for imp in improvements):
-        print("\n🎉 All improvements successful! Bot should sound much more human now.")
+    if all(imp.startswith('') for imp in improvements):
+        print("\n All improvements successful! Bot should sound much more human now.")
     else:
-        print("\n⚠️  Some improvements need more work.")
+        print("\n  Some improvements need more work.")
 
 if __name__ == "__main__":
     main()

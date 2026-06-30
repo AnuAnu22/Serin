@@ -69,7 +69,7 @@ class MinimalAudioProcessor:
             if user_id not in self.currently_speaking:
                 self.currently_speaking.add(user_id)
                 self.stats['vad'] += 1
-                print(f"🎤 {username} started speaking", flush=True)
+                print(f" {username} started speaking", flush=True)
         else:
             if user_id in self.currently_speaking:
                 self.user_silence_frames[user_id] += 1
@@ -77,7 +77,7 @@ class MinimalAudioProcessor:
                     buf = self.user_buffers.get(user_id)
                     if buf and len(buf) >= 96000:
                         audio = bytes(buf)
-                        print(f"📋 Utterance from {username}: {len(audio)} bytes", flush=True)
+                        print(f" Utterance from {username}: {len(audio)} bytes", flush=True)
                         asyncio.create_task(self._transcribe(audio, user_id, username, guild_id, channel_id))
                     self.currently_speaking.discard(user_id)
                     self.user_silence_frames[user_id] = 0
@@ -109,12 +109,12 @@ class MinimalAudioProcessor:
 
             if transcription:
                 self.stats['transcriptions'] += 1
-                print(f"✅ TRANSCRIBED [{username}]: {transcription}", flush=True)
+                print(f" TRANSCRIBED [{username}]: {transcription}", flush=True)
                 await self._respond(transcription, username)
             else:
-                print(f"⭐ Empty transcription from {username}", flush=True)
+                print(f" Empty transcription from {username}", flush=True)
         except Exception as e:
-            print(f"❌ Transcription error: {e}", flush=True)
+            print(f" Transcription error: {e}", flush=True)
 
     async def _respond(self, text: str, username: str):
         try:
@@ -131,9 +131,9 @@ class MinimalAudioProcessor:
                 resp.raise_for_status()
                 reply = resp.json()['choices'][0]['message']['content'].strip()
             if reply:
-                print(f"💬 GEMMA RESPONSE: {reply}", flush=True)
+                print(f" GEMMA RESPONSE: {reply}", flush=True)
         except Exception as e:
-            print(f"❌ Response error: {e}", flush=True)
+            print(f" Response error: {e}", flush=True)
 
     @staticmethod
     def _pcm_to_wav_b64(audio_data: bytes, sample_rate: int = 16000) -> str:
@@ -242,16 +242,16 @@ async def run_bridge(args):
                         token = line.strip().split('=', 1)[1]
                         break
     if not token:
-        print("❌ No token. Pass --token or set DISCORD_TOKEN in .env", flush=True)
+        print(" No token. Pass --token or set DISCORD_TOKEN in .env", flush=True)
         return
 
     bin_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'target', 'release', 'voice_receiver')
     if not os.path.exists(bin_path):
-        print(f"❌ Binary not found at {bin_path}", flush=True)
+        print(f" Binary not found at {bin_path}", flush=True)
         print("   Run: cd temp_voice_test && cargo build --release", flush=True)
         return
 
-    print(f"🚀 Starting Rust voice receiver...", flush=True)
+    print(f" Starting Rust voice receiver...", flush=True)
     print(f"   Guild: {args.guild_id}, Channel: {args.channel_id}", flush=True)
 
     proc = subprocess.Popen(
@@ -296,13 +296,13 @@ async def run_bridge(args):
                 pcm=pcm,
             )
         elif event[0] == 'join':
-            print(f"🔊 User joined: {event[1]}", flush=True)
+            print(f" User joined: {event[1]}", flush=True)
         elif event[0] == 'leave':
-            print(f"🔇 User left: {event[1]}", flush=True)
+            print(f" User left: {event[1]}", flush=True)
         elif event[0] == 'log':
             msg = event[1]
             if 'READY' in msg:
-                print(f"✅ Connected as: {msg.split(':', 1)[-1] if ':' in msg else msg}", flush=True)
+                print(f" Connected as: {msg.split(':', 1)[-1] if ':' in msg else msg}", flush=True)
             elif 'CONNECTED' in msg:
                 print("🔗 Voice channel joined!", flush=True)
             elif 'JOINING' in msg:
@@ -310,11 +310,11 @@ async def run_bridge(args):
             elif 'EVENTS_REGISTERED' in msg:
                 print("🎧 Voice events registered", flush=True)
             elif 'SONGBIRD_OK' in msg:
-                print("🎵 Songbird initialized", flush=True)
+                print(" Songbird initialized", flush=True)
             else:
                 print(f"   [rust] {msg}", flush=True)
 
-    print(f"\n📊 Stats: {processor.stats}", flush=True)
+    print(f"\n Stats: {processor.stats}", flush=True)
     proc.terminate()
 
 

@@ -43,7 +43,7 @@ class VoiceMemoryPipeline:
             'errors': 0
         }
         
-        logger.info("✅ Voice memory pipeline initialized")
+        logger.info(" Voice memory pipeline initialized")
     
     async def process_voice_message(
         self,
@@ -70,7 +70,7 @@ class VoiceMemoryPipeline:
         try:
             timestamp = timestamp or datetime.now()
             
-            logger.info(f"📝 Processing voice message from {username}: '{transcription}'")
+            logger.info(f" Processing voice message from {username}: '{transcription}'")
             
             # Update user profile
             self.memory.upsert_user(user_id, username, username)
@@ -120,7 +120,7 @@ class VoiceMemoryPipeline:
             
             # Generate voice response
             if self.message_manager and hasattr(self.message_manager, 'process_voice_input'):
-                logger.info(f"🎤 Triggering voice response for {username}")
+                logger.info(f" Triggering voice response for {username}")
                 await self.message_manager.process_voice_input(
                     user_id=user_id,
                     username=username,
@@ -130,10 +130,10 @@ class VoiceMemoryPipeline:
                 )
                 self.stats['responses_triggered'] += 1
             
-            logger.debug(f"✅ Voice message processed and stored")
+            logger.debug(f" Voice message processed and stored")
         
         except Exception as e:
-            logger.error(f"❌ Error processing voice message: {e}")
+            logger.error(f" Error processing voice message: {e}")
             self.stats['errors'] += 1
     
     async def _should_respond_to_voice(
