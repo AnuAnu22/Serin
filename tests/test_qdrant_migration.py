@@ -18,7 +18,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Import testing modules
 try:
-    from serin.pipeline.remember.store import QdrantMemorySystem, SQLiteBM25Index
+    from serin.pipeline.remember.store import QdrantMemorySystem
+    from serin.pipeline.remember.bm25_index import SQLiteBM25Index
     QDRANT_AVAILABLE = True
 except ImportError:
     QDRANT_AVAILABLE = False
