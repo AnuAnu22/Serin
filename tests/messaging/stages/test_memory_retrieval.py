@@ -1,8 +1,8 @@
 """Tests for MemoryRetrievalStage."""
 import pytest
 from unittest.mock import MagicMock, AsyncMock
-from serin.messaging.stages.memory_retrieval import MemoryRetrievalStage
-from serin.messaging.context import MessageContext
+from serin.pipeline.act.memory_retrieval import MemoryRetrievalStage
+from serin.state.message_context import MessageContext
 
 
 @pytest.mark.asyncio

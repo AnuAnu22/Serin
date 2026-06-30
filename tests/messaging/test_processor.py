@@ -9,7 +9,7 @@ import pytest
 import numpy as np
 from unittest.mock import MagicMock, patch
 
-from voice.processor import (
+from serin.gateway.voice_system.processor import (
     AudioStreamProcessor,
     VAD_AMPLITUDE_THRESHOLD,
     SILENCE_FRAMES_BEFORE_FLUSH,

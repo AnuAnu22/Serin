@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, patch, AsyncMock
 
 import pytest
 
-from voice.bridge import RustVoiceBridge, RustStdoutReader
+from serin.gateway.voice_system.bridge import RustVoiceBridge, RustStdoutReader
 
 
 # =========================================================================
@@ -460,7 +460,7 @@ def _patch_bg_tasks():
     created in start_with_info() are properly handled by AsyncMock.
     """
     from unittest.mock import AsyncMock
-    from voice.bridge import RustVoiceBridge
+    from serin.gateway.voice_system.bridge import RustVoiceBridge
     return patch.multiple(
         RustVoiceBridge,
         _read_loop=AsyncMock(),

@@ -11,7 +11,7 @@ async def test_add_memory_skips_on_embedding_failure():
     with patch("serin.pipeline.remember.store.SentenceTransformer") as mock_st:
         mock_st.return_value.encode.side_effect = RuntimeError("Model not loaded")
 
-        from serin.memory.qdrant import QdrantMemorySystem
+        from serin.pipeline.remember.store import QdrantMemorySystem
 
         ms = QdrantMemorySystem.__new__(QdrantMemorySystem)
         ms.data_dir = "/tmp/test_serin_mem"
@@ -35,7 +35,7 @@ async def test_add_memory_skips_on_embedding_failure():
 @pytest.mark.asyncio
 async def test_add_memory_skips_on_empty_content():
     """Empty content should skip write and return None."""
-    from serin.memory.qdrant import QdrantMemorySystem
+    from serin.pipeline.remember.store import QdrantMemorySystem
 
     ms = QdrantMemorySystem.__new__(QdrantMemorySystem)
     ms.data_dir = "/tmp/test_serin_mem"
@@ -57,7 +57,7 @@ async def test_add_memory_skips_on_empty_content():
 
 def test_search_hybrid_handles_missing_embedding_model():
     """search_hybrid should degrade gracefully when embedding model is unavailable."""
-    from serin.memory.qdrant import QdrantMemorySystem
+    from serin.pipeline.remember.store import QdrantMemorySystem
 
     ms = QdrantMemorySystem.__new__(QdrantMemorySystem)
     ms.data_dir = "/tmp/test_serin_mem"

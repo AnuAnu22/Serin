@@ -3,7 +3,7 @@ Shared pytest fixtures for Serin tests.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from serin.messaging.context import MessageContext
+from serin.state.message_context import MessageContext
 
 
 @pytest.fixture

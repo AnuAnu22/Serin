@@ -1,6 +1,6 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
-from active_search import ActiveSearch
+from serin.pipeline.perceive.active_search import ActiveSearch
 from logger_config import logger
 
 # Mock Model Interface

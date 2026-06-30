@@ -23,7 +23,7 @@ os.environ["LLM_TEMPERATURE"] = "0.3"
 os.environ["LLM_TOP_P"] = "0.9"
 os.environ["LLM_MAX_TOKENS"] = "500"
 
-from models.vllm import VLLMConnector
+from serin.state.model_system.vllm import VLLMConnector
 
 
 async def test_vision(image_url: str):

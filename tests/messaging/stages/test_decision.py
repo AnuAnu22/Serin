@@ -1,8 +1,8 @@
 """Tests for ResponseDecisionStage."""
 import pytest
 from unittest.mock import MagicMock, AsyncMock
-from serin.messaging.stages.decision import ResponseDecisionStage
-from serin.messaging.context import MessageContext
+from serin.pipeline.act.decision import ResponseDecisionStage
+from serin.state.message_context import MessageContext
 
 
 @pytest.mark.asyncio

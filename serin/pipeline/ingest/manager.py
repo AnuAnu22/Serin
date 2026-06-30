@@ -26,7 +26,7 @@ from serin.pipeline.remember.qdrant import QdrantMemorySystem
 from serin.pipeline.remember.memory_context import EnhancedMemoryContext, ImprovedSystemPrompt
 from serin.pipeline.think.response_controller import ResponseController, PersonalityState
 from serin.pipeline.think.response_generator import get_response_natural
-from serin.personality.bot_personality import BotPersonality
+from serin.pipeline.perceive.bot_personality import BotPersonality
 from serin.pipeline.perceive.conversation_analyzer import ConversationAnalyzer
 from serin.pipeline.ingest.correction_handler import CorrectionDetector, MemoryCorrector, get_correction_acknowledgment
 from serin.pipeline.perceive.active_search import ActiveSearch

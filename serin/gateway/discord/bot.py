@@ -32,7 +32,7 @@ from serin.config.config import config
 
 # TIER 1: Core Message Processing
 from serin.pipeline.think.response_generator import initialize_llama
-import serin.messaging.response_generator
+import serin.pipeline.think.response_generator
 from serin.pipeline.ingest.manager import EnhancedMessageManagerV3
 from serin.pipeline.ingest.mention_translator import MentionTranslator
 
@@ -313,7 +313,7 @@ async def on_ready():
                 transcriber=transcriber,
                 voice_pipeline=voice_pipeline,
                 silence_threshold=1.5,
-                llm_connector=serin.messaging.response_generator.llama
+                llm_connector=serin.pipeline.think.response_generator.llama
             )
 
             # 4. Voice Listener
@@ -764,7 +764,7 @@ async def main():
         logger.info("=" * 60)
 
         # Set up discord client reference
-        serin.messaging.response_generator.discord_client = client
+        serin.pipeline.think.response_generator.discord_client = client
         logger.debug("Discord client reference set")
 
         MAX_RETRIES = 5
