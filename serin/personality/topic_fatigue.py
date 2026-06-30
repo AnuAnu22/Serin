@@ -14,7 +14,7 @@ class TopicFatigue:
     After 10+ messages about same topic, bot becomes less enthusiastic.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         # channel_id -> {topic: [timestamps]}
         self.topic_history = defaultdict(lambda: defaultdict(list))
         

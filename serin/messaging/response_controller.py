@@ -16,7 +16,7 @@ import discord
 
 
 class ResponseController:
-    def __init__(self):
+    def __init__(self) -> None:
         self.last_response_time = {}  # channel_id -> timestamp
         self.conversation_mood = {}   # channel_id -> mood state
         self.message_buffer = {}      # channel_id -> message count since last response

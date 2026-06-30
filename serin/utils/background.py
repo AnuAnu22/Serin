@@ -199,7 +199,7 @@ class BackgroundProcessor:
                         batch_size = min(3, queue_size)
                         batch = [self.processing_queue.popleft() for _ in range(batch_size)]
                     
-                    logger.info(f"📦 Processing batch of {batch_size} RAW messages")
+                    logger.info(f" Processing batch of {batch_size} RAW messages")
                     await self._process_batch(batch)
                     await asyncio.sleep(2)
                 

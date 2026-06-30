@@ -45,7 +45,7 @@ except ImportError:
 
 
 class QdrantMemorySystem:
-    def __init__(self, data_dir: str = "./bot_data", qdrant_host: str = "localhost", qdrant_port: int = 6333):
+    def __init__(self, data_dir: str = "./bot_data", qdrant_host: str = "localhost", qdrant_port: int = 6333) -> None:
         """Initialize Qdrant-based memory system with hybrid search capabilities"""
         logger.info(" Initializing Qdrant Memory System")
         
@@ -906,7 +906,7 @@ class QdrantMemorySystem:
     # User Management (SQLite)
     # ========================================================================
     
-    def upsert_user(self, user_id: str, username: str, display_name: str = None):
+    def upsert_user(self, user_id: str, username: str, display_name: str = None) -> None:
         """Create or update user profile"""
         cursor = self.conn.cursor()
         try:
@@ -922,7 +922,7 @@ class QdrantMemorySystem:
         except Exception as e:
             logger.error(f" Error upserting user: {e}")
     
-    def update_user_activity(self, user_id: str, message_length: int):
+    def update_user_activity(self, user_id: str, message_length: int) -> None:
         """Update user activity metrics"""
         cursor = self.conn.cursor()
         try:
@@ -961,7 +961,7 @@ class QdrantMemorySystem:
             return profile
         return None
     
-    def update_user_traits(self, user_id: str, traits: Optional[List[str]] = None, interests: Optional[List[str]] = None):
+    def update_user_traits(self, user_id: str, traits: Optional[List[str]] = None, interests: Optional[List[str]] = None) -> None:
         """Update user personality traits and interests"""
         cursor = self.conn.cursor()
         try:
@@ -992,7 +992,7 @@ class QdrantMemorySystem:
         except Exception as e:
             logger.error(f" Error updating traits: {e}")
     
-    def log_activity(self, user_id: str, channel_id: str, message_length: int, sentiment: float):
+    def log_activity(self, user_id: str, channel_id: str, message_length: int, sentiment: float) -> None:
         """Log user activity for pattern analysis"""
         cursor = self.conn.cursor()
         try:
@@ -1006,7 +1006,7 @@ class QdrantMemorySystem:
         except Exception as e:
             logger.error(f" Error logging activity: {e}")
     
-    def update_relationship(self, user_a_id: str, user_b_id: str, interaction_type: str = 'message'):
+    def update_relationship(self, user_a_id: str, user_b_id: str, interaction_type: str = 'message') -> None:
         """Update relationship between two users"""
         # Ensure ordering
         if user_a_id > user_b_id:
@@ -1103,7 +1103,7 @@ class QdrantMemorySystem:
         content: str,
         message_id: str,
         timestamp: Optional[datetime] = None
-    ):
+    ) -> None:
         """Store recent message in SQLite"""
         cursor = self.conn.cursor()
         try:
@@ -1178,7 +1178,7 @@ class QdrantMemorySystem:
     ) -> List[Dict]:
         """Get messages around a timestamp (±radius)"""
         # Handle both datetime objects and ISO format strings
-        def safe_datetime_convert(ts):
+        def safe_datetime_convert(ts) -> None:
             """Safely convert timestamp to datetime, handling both string and datetime inputs"""
             if isinstance(ts, str):
                 try:
@@ -1228,7 +1228,7 @@ class QdrantMemorySystem:
         return dict(result) if result else None
 
     
-    def cleanup_old_memories(self, days_old: int = 90, min_importance: float = 0.3):
+    def cleanup_old_memories(self, days_old: int = 90, min_importance: float = 0.3) -> None:
         """Remove old, unimportant memories"""
         try:
             cutoff = (datetime.now() - timedelta(days=days_old)).isoformat()
@@ -1278,7 +1278,7 @@ class QdrantMemorySystem:
 class SQLiteBM25Index:
     """SQLite-based BM25 index for keyword search"""
     
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str) -> None:
         self.db_path = db_path
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self.conn.execute("PRAGMA journal_mode=WAL")
@@ -1300,7 +1300,7 @@ class SQLiteBM25Index:
         
         self.conn.commit()
     
-    def add_document(self, doc_id: str, text: str, person_id: str, channel_id: str):
+    def add_document(self, doc_id: str, text: str, person_id: str, channel_id: str) -> None:
         """Add document to BM25 index"""
         cursor = self.conn.cursor()
         
@@ -1365,7 +1365,7 @@ class SQLiteBM25Index:
         
         return results
     
-    def delete_documents(self, doc_ids: List[str]):
+    def delete_documents(self, doc_ids: List[str]) -> None:
         """Delete documents from index"""
         cursor = self.conn.cursor()
         

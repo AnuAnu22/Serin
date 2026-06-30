@@ -30,7 +30,7 @@ async def test_live_active_search():
         
         # Force recreation of collection
         if memory.qdrant_client:
-            print("♻ Recreating collection 'memories'...")
+            print(" Recreating collection 'memories'...")
             try:
                 memory.qdrant_client.delete_collection("memories")
                 print("   - Deleted existing collection")

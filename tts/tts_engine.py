@@ -83,7 +83,7 @@ class TTSEngine:
             self.voice = EDGE_VOICE_PRESETS['default']
             logger.info(" TTS engine initialized (edge-tts backend)")
             logger.info(f"    Voice: {self.voice}")
-            logger.info(f"   🌐 Backend: Microsoft Edge TTS (cloud, free)")
+            logger.info(f"    Backend: Microsoft Edge TTS (cloud, free)")
         elif COQUI_TTS_AVAILABLE:
             self.backend = "coqui"
             if device == "cuda" and not torch.cuda.is_available():

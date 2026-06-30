@@ -39,7 +39,7 @@ class TTSVoiceManager:
         self.supported_formats = ['.wav', '.mp3', '.pth', '.pt']
         
         logger.info(" TTS voice manager initialized")
-        logger.info(f"   📂 Voices directory: {self.voices_dir}")
+        logger.info(f"    Voices directory: {self.voices_dir}")
     
     def _create_readme(self):
         """Create README in voices directory"""

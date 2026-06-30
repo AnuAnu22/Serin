@@ -20,7 +20,7 @@ from serin.core.logger import logger
 
 
 class MessagePipeline:
-    def __init__(self, stages: list[PipelineStage]):
+    def __init__(self, stages: list[PipelineStage]) -> None:
         self.stages = stages
 
     @classmethod

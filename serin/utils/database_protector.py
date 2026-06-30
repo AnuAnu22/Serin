@@ -59,7 +59,7 @@ class DatabaseProtector:
         self.backup_count = 0
         self.validation_failures = []
         
-        logger.info("🛡 Database Protection System initialized")
+        logger.info(" Database Protection System initialized")
         logger.info(f"   📁 Data directory: {self.data_dir}")
         logger.info(f"    Backup directory: {self.backup_dir}")
         logger.info(f"    Validation: {'ENABLED' if self.validation_enabled else 'DISABLED'}")
@@ -466,7 +466,7 @@ class DatabaseProtector:
         
         try:
             import tarfile
-            logger.debug(f"📦 Extracting metadata from backup: {backup_file.name}")
+            logger.debug(f" Extracting metadata from backup: {backup_file.name}")
             
             with tarfile.open(backup_file, 'r:gz') as tar_archive:
                 # Locate backup metadata file in archive
@@ -772,7 +772,7 @@ class DatabaseProtector:
         
         # Try latest backup first
         latest_backup = backups[0]
-        logger.info(f"📦 Restoring from backup: {latest_backup['created_at']}")
+        logger.info(f" Restoring from backup: {latest_backup['created_at']}")
         
         try:
             if latest_backup.get('compressed', True):
@@ -871,7 +871,7 @@ class DatabaseProtector:
         # Register atexit cleanup
         atexit.register(cleanup_on_exit)
         
-        logger.info("🛡 Graceful shutdown handlers registered")
+        logger.info(" Graceful shutdown handlers registered")
     
     def graceful_shutdown(self) -> None:
         """Perform graceful shutdown with database protection"""
@@ -883,7 +883,7 @@ class DatabaseProtector:
                 logger.info(f" Shutdown backup created: {backup_path}")
             
             # Additional cleanup can be added here
-            logger.info("🛡 Database protection shutdown complete")
+            logger.info(" Database protection shutdown complete")
             
         except Exception as e:
             logger.error(f" Graceful shutdown error: {e}")

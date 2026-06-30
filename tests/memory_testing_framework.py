@@ -625,7 +625,7 @@ class MemorySystemTester:
         # Performance recommendations
         avg_response_time = performance.get("average_response_time", 0)
         if avg_response_time > 1.0:
-            recommendations.append("⚡ Optimize memory retrieval performance - response time too slow")
+            recommendations.append(" Optimize memory retrieval performance - response time too slow")
         elif avg_response_time < 0.1:
             recommendations.append(" Excellent performance - fast retrieval times")
         
@@ -679,7 +679,7 @@ class MemorySystemTester:
     
     def run_performance_benchmark(self, iterations: int = 100) -> Dict:
         """Run performance benchmark test"""
-        logger.info(f"⚡ Running performance benchmark ({iterations} iterations)...")
+        logger.info(f" Running performance benchmark ({iterations} iterations)...")
         
         benchmark_results = {
             "timestamp": datetime.now().isoformat(),

@@ -8,7 +8,7 @@ from serin.core.logger import logger
 
 
 class ConversationAnalyzer:
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize conversation analyzer"""
         self.active_topics = {}  # channel_id -> current topic
         self.topic_history = {}  # channel_id -> list of past topics

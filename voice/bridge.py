@@ -84,7 +84,7 @@ class RustStdoutReader:
     # Sentinel object for EOF (distinct from None which means timeout)
     _EOF = object()
 
-    def __init__(self, proc: subprocess.Popen):
+    def __init__(self, proc: subprocess.Popen) -> None:
         self.proc = proc
         self.events: queue.Queue = queue.Queue()
         self._thread = threading.Thread(target=self._run, name="rust-stdout-reader", daemon=True)

@@ -280,7 +280,7 @@ async def run_bridge(args):
 
     threading.Thread(target=stderr_thread, daemon=True).start()
 
-    print("⏳ Listening for audio... (join a voice channel and speak)", flush=True)
+    print(" Listening for audio... (join a voice channel and speak)", flush=True)
 
     while proc.poll() is None:
         event = reader.get(timeout=1.0)

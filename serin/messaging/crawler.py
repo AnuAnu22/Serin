@@ -64,7 +64,7 @@ class MessageCrawler:
         }
         
         logger.info(" Message crawler initialized")
-        logger.info(f"   ⚡ Quick sync: every {self.quick_sync_interval/60} minutes")
+        logger.info(f"    Quick sync: every {self.quick_sync_interval/60} minutes")
         logger.info(f"    Deep validation: every {self.deep_validation_interval/60} minutes")
         logger.info(f"    Max messages per channel: {self.max_messages_per_channel}")
     
@@ -99,14 +99,14 @@ class MessageCrawler:
         If latest Discord message matches latest SQL message, sleep.
         Otherwise, backfill missing messages.
         """
-        logger.info("⚡ Quick sync loop started")
+        logger.info(" Quick sync loop started")
         
         while self.is_running:
             try:
                 await asyncio.sleep(self.quick_sync_interval)
                 
                 logger.info("=" * 60)
-                logger.info("⚡ QUICK SYNC - Checking for new messages")
+                logger.info(" QUICK SYNC - Checking for new messages")
                 logger.info("=" * 60)
                 
                 synced_count = 0

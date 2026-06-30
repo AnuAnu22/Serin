@@ -116,7 +116,7 @@ app.add_middleware(
 
 # Auth middleware
 @app.middleware("http")
-async def check_auth(request: Request, call_next):
+async def check_auth(request: Request, call_next) -> Any:
     if config.CONTROL_PANEL_KEY:
         api_key = request.headers.get("X-API-Key", "")
         if api_key != config.CONTROL_PANEL_KEY:
@@ -133,11 +133,11 @@ app.mount("/static", StaticFiles(directory="control_panel/static"), name="static
 # Replace WebSocket endpoint in web_server.py
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket) -> Any:
     """WebSocket for real-time log streaming and stats updates"""
     await websocket.accept()
     active_websockets.append(websocket)
-    logger.info(f"🌐 WebSocket connected (total: {len(active_websockets)})")
+    logger.info(f" WebSocket connected (total: {len(active_websockets)})")
     
     try:
         # Send initial stats immediately
@@ -278,7 +278,7 @@ register_enhanced_routes(app, bot_state, broadcast_event )
 # ============================================================================
 
 @app.get("/", response_class=HTMLResponse)
-async def homepage():
+async def homepage() -> Any:
     """Serve main dashboard"""
     return FileResponse("control_panel/static/index.html")
 
@@ -288,7 +288,7 @@ async def homepage():
 # ============================================================================
 
 @app.get("/api/status")
-async def get_status():
+async def get_status() -> Any:
     """Get current bot status"""
     client = bot_state['discord_client']
     
@@ -324,12 +324,12 @@ async def get_status():
 
 
 @app.get("/api/stats")
-async def get_stats():
+async def get_stats() -> Any:
     """Get comprehensive bot statistics"""
     return get_current_stats()
 
 @app.get("/api/health")
-async def get_system_health():
+async def get_system_health() -> Any:
     """Get health status of all components"""
     health = {
         'status': 'healthy',
@@ -440,7 +440,7 @@ def get_current_stats() -> Dict[str, Any]:
 # ============================================================================
 
 @app.get("/api/model")
-async def get_model_info():
+async def get_model_info() -> Any:
     """Return active vLLM model info"""
     try:
         from models.factory import get_model_connector
@@ -459,7 +459,7 @@ async def get_model_info():
 # ============================================================================
 
 @app.post("/api/background/start")
-async def start_background_processor():
+async def start_background_processor() -> Any:
     """Start background processor"""
     try:
         bg = bot_state['background_processor']
@@ -472,7 +472,7 @@ async def start_background_processor():
 
 
 @app.post("/api/background/stop")
-async def stop_background_processor():
+async def stop_background_processor() -> Any:
     """Stop background processor"""
     try:
         bg = bot_state['background_processor']
@@ -489,7 +489,7 @@ async def stop_background_processor():
 # ============================================================================
 
 @app.get("/api/channels/allowed")
-async def get_allowed_channels():
+async def get_allowed_channels() -> Any:
     """Get list of allowed channels"""
     try:
         import discord_bot
@@ -501,7 +501,7 @@ async def get_allowed_channels():
 
 
 @app.post("/api/channels/allowed")
-async def update_allowed_channels(control: ChannelControl):
+async def update_allowed_channels(control: ChannelControl) -> Any:
     """Add or remove allowed channel"""
     try:
         import discord_bot
@@ -528,7 +528,7 @@ async def update_allowed_channels(control: ChannelControl):
 # ============================================================================
 
 @app.get("/api/voice/channels")
-async def get_voice_channels():
+async def get_voice_channels() -> Any:
     """Get all voice channels across servers"""
     try:
         client = bot_state['discord_client']
@@ -553,7 +553,7 @@ async def get_voice_channels():
 
 
 @app.post("/api/voice/join")
-async def join_voice_channel(control: VoiceChannelControl):
+async def join_voice_channel(control: VoiceChannelControl) -> Any:
     """Join a voice channel"""
     try:
         voice_listener = bot_state['voice_listener']
@@ -579,7 +579,7 @@ async def join_voice_channel(control: VoiceChannelControl):
 
 
 @app.post("/api/voice/leave")
-async def leave_voice_channel(control: VoiceChannelControl):
+async def leave_voice_channel(control: VoiceChannelControl) -> Any:
     """Leave a voice channel"""
     try:
         voice_listener = bot_state['voice_listener']
@@ -600,7 +600,7 @@ async def leave_voice_channel(control: VoiceChannelControl):
 
 
 @app.get("/api/voice/status")
-async def get_voice_status():
+async def get_voice_status() -> Any:
     """Get current voice connection status"""
     try:
         voice_listener = bot_state['voice_listener']
@@ -614,7 +614,7 @@ async def get_voice_status():
 # --- VOICE CLONING (TIER 8) ---
 
 @app.get("/api/voice/files")
-async def list_voice_files():
+async def list_voice_files() -> Any:
     """List available voice files"""
     try:
         manager = bot_state['voice_manager']
@@ -626,7 +626,7 @@ async def list_voice_files():
         return {'error': str(e)}
 
 @app.post("/api/voice/load")
-async def load_voice_file(data: VoiceLoad):
+async def load_voice_file(data: VoiceLoad) -> Any:
     """Load a voice file for cloning"""
     try:
         manager = bot_state['voice_manager']
@@ -641,7 +641,7 @@ async def load_voice_file(data: VoiceLoad):
         return {'success': False, 'error': str(e)}
 
 @app.post("/api/voice/clear")
-async def clear_voice_file():
+async def clear_voice_file() -> Any:
     """Clear voice cloning (revert to default)"""
     try:
         manager = bot_state['voice_manager']
@@ -661,7 +661,7 @@ async def clear_voice_file():
 # ============================================================================
 
 @app.post("/api/memory/search")
-async def search_memories(query: MemoryQuery):
+async def search_memories(query: MemoryQuery) -> Any:
     """Search memories"""
     try:
         memory = bot_state['memory_system']
@@ -680,7 +680,7 @@ async def search_memories(query: MemoryQuery):
 
 
 @app.get("/api/memory/users")
-async def get_all_users():
+async def get_all_users() -> Any:
     """Get all users in memory"""
     try:
         memory = bot_state['memory_system']
@@ -697,7 +697,7 @@ async def get_all_users():
 
 
 @app.get("/api/memory/user/{user_id}")
-async def get_user_profile(user_id: str):
+async def get_user_profile(user_id: str) -> Any:
     """Get detailed user profile"""
     try:
         memory = bot_state['memory_system']
@@ -722,7 +722,7 @@ async def get_user_profile(user_id: str):
 # ============================================================================
 
 @app.get("/api/brain/state")
-async def get_brain_state():
+async def get_brain_state() -> Any:
     """Get current brain state (thinking, generating, etc.)"""
     try:
         manager = bot_state['message_manager']
@@ -734,7 +734,7 @@ async def get_brain_state():
         return {'error': str(e)}
 
 @app.post("/api/brain/abort")
-async def abort_generation():
+async def abort_generation() -> Any:
     """Abort current generation"""
     try:
         manager = bot_state['message_manager']
@@ -747,12 +747,12 @@ async def abort_generation():
         return {'success': False, 'error': str(e)}
 
 @app.post("/api/emergency-stop")
-async def emergency_stop():
+async def emergency_stop() -> Any:
     """Emergency stop alias"""
     return await abort_generation()
 
 @app.post("/api/bot/restart")
-async def restart_bot():
+async def restart_bot() -> Any:
     """Restart the bot process (hot-reloads code changes). The hot_reloader.py wrapper will auto-restart."""
     try:
         import os
@@ -767,7 +767,7 @@ class MoodRequest(BaseModel):
     mood: str
 
 @app.post("/api/mood/set")
-async def set_mood(request: MoodRequest):
+async def set_mood(request: MoodRequest) -> Any:
     """Set bot mood"""
     try:
         manager = bot_state['message_manager']
@@ -795,7 +795,7 @@ class ContextSeverRequest(BaseModel):
     channel_id: str
 
 @app.post("/api/context/sever")
-async def sever_context(request: ContextSeverRequest):
+async def sever_context(request: ContextSeverRequest) -> Any:
     """Sever proactive context for a channel"""
     try:
         manager = bot_state['message_manager']
@@ -813,7 +813,7 @@ async def sever_context(request: ContextSeverRequest):
         return {'success': False, 'error': str(e)}
 
 @app.get("/api/system_prompt")
-async def get_system_prompt():
+async def get_system_prompt() -> Any:
     """Get current system prompt"""
     try:
         manager = bot_state['message_manager']
@@ -825,7 +825,7 @@ async def get_system_prompt():
         return {'error': str(e)}
 
 @app.post("/api/system_prompt")
-async def update_system_prompt(data: Dict[str, str]):
+async def update_system_prompt(data: Dict[str, str]) -> Any:
     """Update system prompt"""
     try:
         manager = bot_state['message_manager']
@@ -846,7 +846,7 @@ async def update_system_prompt(data: Dict[str, str]):
 # ============================================================================
 
 @app.get("/api/config")
-async def get_full_config():
+async def get_full_config() -> Any:
     """Get full bot configuration"""
     try:
         return config.to_dict()
@@ -854,7 +854,7 @@ async def get_full_config():
         return {'error': str(e)}
 
 @app.post("/api/config")
-async def update_full_config(data: Dict[str, Any]):
+async def update_full_config(data: Dict[str, Any]) -> Any:
     """Update bot configuration"""
     try:
         config.update_from_dict(data)
@@ -867,12 +867,12 @@ async def update_full_config(data: Dict[str, Any]):
 # ============================================================================
 
 @app.get("/api/settings")
-async def get_settings():
+async def get_settings() -> Any:
     """Get all configurable settings (Legacy)"""
     return await get_full_config()
 
 @app.post("/api/settings/update")
-async def update_setting(update: SettingsUpdate):
+async def update_setting(update: SettingsUpdate) -> Any:
     """Update a setting (Legacy wrapper)"""
     try:
         from serin.core.config import config
@@ -897,7 +897,7 @@ async def update_setting(update: SettingsUpdate):
 # ============================================================================
 
 @app.get("/api/logs/recent")
-async def get_recent_logs():
+async def get_recent_logs() -> Any:
     """Get recent log entries"""
     try:
         # Read last 100 lines from log file
@@ -918,7 +918,7 @@ async def get_recent_logs():
 # ============================================================================
 
 @app.post("/api/crawler/trigger-sync")
-async def trigger_manual_sync():
+async def trigger_manual_sync() -> Any:
     """Manually trigger a quick sync"""
     try:
         crawler = bot_state['message_crawler']
@@ -959,7 +959,7 @@ async def _run_manual_sync(crawler):
 # ============================================================================
 
 @app.get("/api/tts/voices")
-async def list_tts_voices():
+async def list_tts_voices() -> Any:
     """List available TTS voice files"""
     try:
         # Try voice_manager first (TTSVoiceManager)
@@ -980,7 +980,7 @@ async def list_tts_voices():
         return {'error': str(e)}
 
 @app.get("/api/tts/current")
-async def get_current_tts():
+async def get_current_tts() -> Any:
     """Get current TTS engine status"""
     try:
         tts = bot_state['tts_engine']
@@ -999,7 +999,7 @@ async def get_current_tts():
         return {'error': str(e)}
 
 @app.post("/api/tts/voice/load")
-async def load_tts_voice(data: Dict[str, Any]):
+async def load_tts_voice(data: Dict[str, Any]) -> Any:
     """Load a TTS voice file"""
     try:
         tts = bot_state['tts_engine']
@@ -1014,7 +1014,7 @@ async def load_tts_voice(data: Dict[str, Any]):
         return {'success': False, 'error': str(e)}
 
 @app.post("/api/tts/voice/clear")
-async def clear_tts_voice():
+async def clear_tts_voice() -> Any:
     """Clear custom TTS voice, revert to default"""
     try:
         tts = bot_state['tts_engine']
@@ -1028,7 +1028,7 @@ async def clear_tts_voice():
         return {'success': False, 'error': str(e)}
 
 @app.post("/api/tts/settings/update")
-async def update_tts_settings(data: Dict[str, Any]):
+async def update_tts_settings(data: Dict[str, Any]) -> Any:
     """Update TTS settings (profile, speed, etc.)"""
     try:
         tts = bot_state['tts_engine']
@@ -1046,7 +1046,7 @@ async def update_tts_settings(data: Dict[str, Any]):
 # ============================================================================
 
 @app.get("/api/audio/settings")
-async def get_audio_settings():
+async def get_audio_settings() -> Any:
     """Get audio processing settings"""
     try:
         listener = bot_state['voice_listener']
@@ -1062,7 +1062,7 @@ async def get_audio_settings():
         return {'error': str(e)}
 
 @app.post("/api/audio/settings/update")
-async def update_audio_settings(data: Dict[str, Any]):
+async def update_audio_settings(data: Dict[str, Any]) -> Any:
     """Update audio processing settings"""
     try:
         listener = bot_state['voice_listener']
@@ -1081,7 +1081,7 @@ async def update_audio_settings(data: Dict[str, Any]):
         return {'success': False, 'error': str(e)}
 
 @app.get("/api/audio/stats")
-async def get_audio_stats():
+async def get_audio_stats() -> Any:
     """Get audio processing statistics"""
     try:
         listener = bot_state['voice_listener']
@@ -1101,7 +1101,7 @@ async def get_audio_stats():
         return {'error': str(e)}
 
 @app.get("/api/audio/speakers")
-async def get_active_speakers():
+async def get_active_speakers() -> Any:
     """Get currently active/streaming speakers"""
     try:
         listener = bot_state['voice_listener']
@@ -1120,7 +1120,7 @@ async def get_active_speakers():
 # ============================================================================
 
 @app.get("/api/voice-profiles/list")
-async def list_voice_profiles():
+async def list_voice_profiles() -> Any:
     """List all voice profiles"""
     try:
         from voice.profiles import get_voice_profiles, get_active_profile_name
@@ -1142,7 +1142,7 @@ async def list_voice_profiles():
         return {'error': str(e), 'profiles': [], 'active': 'default'}
 
 @app.post("/api/voice-profiles/create")
-async def create_voice_profile(data: Dict[str, Any]):
+async def create_voice_profile(data: Dict[str, Any]) -> Any:
     """Create a new voice profile"""
     try:
         from voice.profiles import create_profile
@@ -1163,7 +1163,7 @@ async def create_voice_profile(data: Dict[str, Any]):
         return {'success': False, 'error': str(e)}
 
 @app.post("/api/voice-profiles/set-active")
-async def set_active_voice_profile(profile_name: str = 'default'):
+async def set_active_voice_profile(profile_name: str = 'default') -> Any:
     """Set active voice profile"""
     try:
         from voice.profiles import set_active_profile
@@ -1176,7 +1176,7 @@ async def set_active_voice_profile(profile_name: str = 'default'):
         return {'success': False, 'error': str(e)}
 
 @app.delete("/api/voice-profiles/{profile_name}")
-async def delete_voice_profile(profile_name: str):
+async def delete_voice_profile(profile_name: str) -> Any:
     """Delete a voice profile"""
     try:
         from voice.profiles import delete_profile
@@ -1193,7 +1193,7 @@ async def delete_voice_profile(profile_name: str):
 # ============================================================================
 
 @app.get("/api/background/queue")
-async def get_background_queue():
+async def get_background_queue() -> Any:
     """Get background processor queue status"""
     try:
         bg = bot_state['background_processor']
@@ -1207,7 +1207,7 @@ async def get_background_queue():
         return {'error': str(e)}
 
 @app.post("/api/background/clear-queue")
-async def clear_background_queue():
+async def clear_background_queue() -> Any:
     """Clear all pending background tasks"""
     try:
         bg = bot_state['background_processor']
@@ -1236,7 +1236,7 @@ async def clear_background_queue():
 # ============================================================================
 
 @app.get("/api/voice/behavior/settings")
-async def get_voice_behavior_settings():
+async def get_voice_behavior_settings() -> Any:
     """Get voice auto-join/leave behavior settings"""
     try:
         vbm = bot_state['voice_behavior_manager']
@@ -1254,7 +1254,7 @@ async def get_voice_behavior_settings():
         return {'error': str(e)}
 
 @app.post("/api/voice/behavior/settings")
-async def update_voice_behavior_settings(data: Dict[str, Any]):
+async def update_voice_behavior_settings(data: Dict[str, Any]) -> Any:
     """Update voice auto-join/leave behavior settings"""
     try:
         vbm = bot_state['voice_behavior_manager']
@@ -1266,7 +1266,7 @@ async def update_voice_behavior_settings(data: Dict[str, Any]):
         return {'success': False, 'error': str(e)}
 
 @app.get("/api/voice/behavior/stats")
-async def get_voice_behavior_stats():
+async def get_voice_behavior_stats() -> Any:
     """Get voice behavior statistics"""
     try:
         vbm = bot_state['voice_behavior_manager']
@@ -1305,7 +1305,7 @@ def init_bot_state(
     logger.info(" Control panel state initialized")
 
 
-async def start_server(host: str = "127.0.0.1", port: int = 8080):
+async def start_server(host: str = "127.0.0.1", port: int = 8080) -> Any:
     """Start web server with port retry logic"""
     if host != "127.0.0.1" and not config.CONTROL_PANEL_KEY:
         logger.warning("Control panel exposed to network without authentication!")
@@ -1323,7 +1323,7 @@ async def start_server(host: str = "127.0.0.1", port: int = 8080):
             )
             server = uvicorn.Server(uvicorn_cfg)
             
-            logger.info(f"🌐 Control panel starting at http://{host}:{current_port}")
+            logger.info(f" Control panel starting at http://{host}:{current_port}")
             await server.serve()
             break  # If successful (or clean exit), stop retrying
             
@@ -1356,7 +1356,7 @@ import logging
 class WebSocketLogHandler(logging.Handler):
     """Custom log handler that broadcasts to WebSocket clients"""
     
-    def emit(self, record):
+    def emit(self, record) -> None:
         try:
             log_entry = {
                 'timestamp': datetime.now().isoformat(),

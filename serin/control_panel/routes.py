@@ -62,7 +62,7 @@ def register_enhanced_routes(app: FastAPI, bot_state: Dict[str, Any], broadcast_
         return system
 
     @app.get('/api/enhanced/status')
-    async def get_enhanced_status():
+    async def get_enhanced_status() -> Dict[str, Any]:
         """Get system status"""
         try:
             memory_system = bot_state.get('memory_system')
@@ -86,7 +86,7 @@ def register_enhanced_routes(app: FastAPI, bot_state: Dict[str, Any], broadcast_
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.post('/api/enhanced/search')
-    async def search_memories_enhanced(request: SearchRequest):
+    async def search_memories_enhanced(request: SearchRequest) -> Dict[str, Any]:
         """Search memories using hybrid search (Qdrant)"""
         try:
             memory_system = get_memory_system()
@@ -124,7 +124,7 @@ def register_enhanced_routes(app: FastAPI, bot_state: Dict[str, Any], broadcast_
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.post('/api/enhanced/memories')
-    async def add_memory_enhanced(request: MemoryRequest):
+    async def add_memory_enhanced(request: MemoryRequest) -> Dict[str, Any]:
         """Add a new memory"""
         try:
             memory_system = get_memory_system()
@@ -155,7 +155,7 @@ def register_enhanced_routes(app: FastAPI, bot_state: Dict[str, Any], broadcast_
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.get('/api/enhanced/users/{user_id}')
-    async def get_user_profile_enhanced(user_id: str):
+    async def get_user_profile_enhanced(user_id: str) -> Dict[str, Any]:
         """Get user profile"""
         try:
             memory_system = get_memory_system()
@@ -172,7 +172,7 @@ def register_enhanced_routes(app: FastAPI, bot_state: Dict[str, Any], broadcast_
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.post('/api/enhanced/cleanup')
-    async def cleanup_memories_enhanced(request: CleanupRequest):
+    async def cleanup_memories_enhanced(request: CleanupRequest) -> Dict[str, Any]:
         """Clean up old memories"""
         try:
             memory_system = get_memory_system()
@@ -196,7 +196,7 @@ def register_enhanced_routes(app: FastAPI, bot_state: Dict[str, Any], broadcast_
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.post('/api/enhanced/test-connection')
-    async def test_connection_enhanced(request: ConnectionTestRequest):
+    async def test_connection_enhanced(request: ConnectionTestRequest) -> Dict[str, Any]:
         """Test Qdrant connection"""
         try:
             if not QDRANT_AVAILABLE:
