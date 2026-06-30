@@ -62,13 +62,6 @@ class ResponseCleaningStage(PipelineStage):
         if len(cleaned) > 2000:
             cleaned = cleaned[:1997] + "..."
 
-        # 3. Apply natural variations
-        from serin.messaging.fillers import add_conversational_fillers
-        from serin.messaging.typos import add_realistic_typos
-
-        cleaned = add_conversational_fillers(cleaned, None, "simple")
-        cleaned = add_realistic_typos(cleaned, None, False)
-
         ctx.final_response = cleaned
 
         logger.debug("pipeline.response_cleaned", extra={
