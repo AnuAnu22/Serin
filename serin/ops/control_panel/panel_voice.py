@@ -378,7 +378,7 @@ def register_voice_routes(app):
     async def update_setting(update: SettingsUpdate) -> Any:
         """Update a setting (Legacy wrapper)"""
         try:
-            from serin.core.config import config
+            from serin.config.config import config
             # Map legacy keys to config keys
             key_map = {
                 'debug_mode': 'DEBUG_MODE',

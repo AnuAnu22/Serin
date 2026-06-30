@@ -443,7 +443,7 @@ def get_current_stats() -> Dict[str, Any]:
 async def get_model_info() -> Any:
     """Return active vLLM model info"""
     try:
-        from models.factory import get_model_connector
+        from serin.state.model_system.factory import get_model_connector
         connector = get_model_connector()
         # Lazy load to ensure info is available
         if getattr(connector, 'client', None) is None:
@@ -498,11 +498,3 @@ async def get_allowed_channels() -> Any:
         }
     except Exception as e:
         return {'error': str(e)}
-# Import panel modules to register their routes
-from serin.ops.control_panel.panel_voice import register_voice_routes
-from serin.ops.control_panel.panel_control import register_control_routes
-from serin.ops.control_panel.panel_lifecycle import register_lifecycle_routes
-register_voice_routes(app)
-register_control_routes(app)
-register_lifecycle_routes(app)
-
