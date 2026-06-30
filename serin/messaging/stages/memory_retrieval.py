@@ -1,52 +1,87 @@
+"""
+MemoryRetrievalStage
+--------------------
+Fetches relevant memories, user profile, and recent messages from the
+memory system (Qdrant hybrid search). Populates ctx.memories,
+ctx.recent_messages, and ctx.user_profile.
+"""
 from __future__ import annotations
-
-from typing import TYPE_CHECKING
 
 from serin.core.logger import logger
 from serin.messaging.context import MessageContext
 from serin.messaging.stages import PipelineStage
 
-if TYPE_CHECKING:
-    from serin.messaging.context import PipelineDeps
-
 
 class MemoryRetrievalStage(PipelineStage):
+    """Searches Qdrant for semantic + keyword matches and builds context."""
+
     GARBAGE_PATTERNS = [
-        "We are given", "We must write", "CRITICAL RULES", "CRITICAL:",
-        "one sentence", "Summary:", "Task:", "INSTRUCTIONS",
-        "### FINAL", "[the ", "template", "example",
-        "Output Format", "JSON", "search_needed", "query:",
-        "username followed by", "third person"
+        "We are given",
+        "We must write",
+        "CRITICAL RULES",
+        "CRITICAL:",
+        "one sentence",
+        "Summary:",
+        "Task:",
+        "INSTRUCTIONS",
+        "### FINAL",
+        "[the ",
+        "template",
+        "example",
+        "Output Format",
+        "JSON",
+        "search_needed",
+        "query:",
+        "username followed by",
+        "third person",
     ]
 
-    async def _run(self, ctx: MessageContext, deps: PipelineDeps) -> None:
-        logger.debug("Building enhanced context...")
+    def __init__(self, memory_system, retrieval):
+        self.memory = memory_system
+        self.retrieval = retrieval
 
-        ctx.context = deps.context_builder.build_context(
-            user_messages=ctx.user_messages,
-            channel_id=str(ctx.channel.id)
-        )
+    async def _run(self, ctx: MessageContext) -> MessageContext:
+        logger.debug("pipeline.memory_retrieval_start", extra={
+            "user": ctx.username,
+            "channel_id": ctx.channel_id,
+        })
 
-        # Filter polluted memories
+        # Fetch user profile
+        ctx.user_profile = self.memory.get_user_profile(ctx.user_id) or {}
+
+        # Build context from conversation context builder
+        if hasattr(self.retrieval, "build_context"):
+            user_messages_for_ctx = [{"user_id": ctx.user_id, "user_name": ctx.username, "content": ctx.raw_content}]
+            context_data = self.retrieval.build_context(
+                user_messages=user_messages_for_ctx,
+                channel_id=ctx.channel_id,
+            )
+        else:
+            context_data = {}
+
+        # Extract memories
+        raw_memories = context_data.get("relevant_memories", [])
         clean_memories = []
-        for mem in ctx.context.get('relevant_memories', []):
-            content = mem.get('content', '')
+        for mem in raw_memories:
+            content = mem.get("content", "")
             is_garbage = any(
                 pattern.lower() in content.lower()
                 for pattern in self.GARBAGE_PATTERNS
             )
             if is_garbage:
-                logger.warning(f"Filtered polluted memory: {content[:50]}...")
+                logger.warning("pipeline.memory_filtered_garbage", extra={
+                    "content_preview": content[:50],
+                })
                 continue
             clean_memories.append(mem)
-        ctx.context['relevant_memories'] = clean_memories
 
-        deps.stats['context_improvements'] += 1
-        logger.info("Using ConversationContextBuilder for context")
-        self._log_context(ctx)
+        ctx.memories = clean_memories
+        ctx.recent_messages = context_data.get("recent_conversation", [])
 
-    def _log_context(self, ctx: MessageContext) -> None:
-        logger.info(f"Recent messages: {len(ctx.context.get('recent_conversation', []))}")
-        logger.info(f"Relevant memories: {len(ctx.context.get('relevant_memories', []))}")
-        logger.info(f"User profiles: {len(ctx.context.get('profiles', {}))}")
-        logger.info(f"Relationships: {len(ctx.context.get('relationships', []))}")
+        logger.info("pipeline.memory_retrieval_complete", extra={
+            "user": ctx.username,
+            "memories_found": len(ctx.memories),
+            "recent_messages": len(ctx.recent_messages),
+        })
+
+        return ctx

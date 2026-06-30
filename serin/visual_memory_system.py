@@ -1,3 +1,16 @@
+"""
+serin.visual_memory_system
+--------------------------
+VisualMemorySystem: CLIP-based image recall and storage.
+
+Responsibilities:
+- Recall images by URL (CLIP similarity search against stored images)
+- Store images with context text (user_id, channel_id, timestamp)
+- Generate CLIP embeddings for image comparison
+
+Key classes:
+- VisualMemorySystem: main class, requires Qdrant client
+"""
 import os
 import logging
 from typing import List, Dict, Optional, Union

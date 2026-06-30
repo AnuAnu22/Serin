@@ -4,7 +4,6 @@ This shim exists for backwards compatibility only. Update your imports.
 """
 from serin.messaging.stages import *  # noqa: F401, F403
 from serin.messaging.stages import PipelineStage  # explicit
-from serin.messaging.context import PipelineDeps
 from serin.messaging.context import MessageContext
 import warnings
 warnings.warn(

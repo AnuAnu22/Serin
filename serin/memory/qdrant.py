@@ -523,12 +523,18 @@ class QdrantMemorySystem:
                     chunk_embeddings = self.embedding_model.encode(prefixed_chunks)
                     embeddings = [emb.tolist() for emb in chunk_embeddings]
                 except Exception as e:
-                    logger.error(f"❌ Error generating embeddings: {e}")
-                    # Create zero embeddings as fallback
-                    embeddings = [[0.0] * self.embedding_dim for _ in chunks]
+                    logger.error("memory.embedding_failed_skipping_write", extra={
+                        "error": str(e),
+                        "content_preview": content[:50],
+                        "user_id": user_id,
+                    }, exc_info=True)
+                    return None  # Do not write garbage to Qdrant
             else:
-                # Create zero embeddings if model not available
-                embeddings = [[0.0] * self.embedding_dim for _ in chunks]
+                logger.warning("memory.embedding_model_unavailable", extra={
+                    "user_id": user_id,
+                    "content_preview": content[:50],
+                })
+                return None
             
             # 4. Batch upsert to Qdrant
             memory_ids = []
@@ -565,17 +571,30 @@ class QdrantMemorySystem:
             # 6. Update statistics
             self._update_ingestion_stats(len(memory_ids))
             
-            logger.debug(f"💾 Stored {len(memory_ids)} memory chunks: {content[:50]}...")
+            logger.debug("memory.write_complete", extra={
+                "chunks": len(memory_ids),
+                "content_preview": content[:50],
+                "user_id": user_id,
+            })
             log_memory(content, payload)
-            
+
             return memory_ids[0] if memory_ids else None
-            
+
         except Exception as e:
-            logger.error(f"❌ Error adding memory: {e}")
+            logger.error("memory.write_failed", extra={
+                "error": str(e),
+                "content_preview": content[:50],
+                "user_id": user_id,
+            }, exc_info=True)
             return None
     
     def search_hybrid(self, query: str, user_id: Optional[str] = None, n_results: int = 5, **filters) -> List[Dict]:
         """Hybrid search: BM25 + Vector + Rerank"""
+        logger.debug("memory.search_start", extra={
+            "query_preview": query[:50],
+            "user_id": user_id or "all",
+            "n_results": n_results,
+        })
         try:
             # Stage 1: BM25 keyword search
             bm25_candidates = []
@@ -588,19 +607,17 @@ class QdrantMemorySystem:
                         limit=20
                     )
                 except Exception as e:
-                    logger.error(f"❌ Error in BM25 search: {e}")
-            
-            # Stage 2: Vector semantic search  
+                    logger.error("memory.bm25_search_failed", extra={
+                        "error": str(e),
+                        "query_preview": query[:50],
+                    })
+
+            # Stage 2: Vector semantic search
             vector_candidates = []
             if self.qdrant_client and self.embedding_model:
                 try:
-                    # Build Qdrant filter
                     qdrant_filter = self._build_qdrant_filter(user_id, filters)
-                    
-                    # Generate query embedding (Nomic requires 'search_query: ' prefix)
                     query_embedding = self.embedding_model.encode([f"search_query: {query}"])[0].tolist()
-                    
-                    # Search Qdrant
                     results = self.qdrant_client.query_points(
                         collection_name="memories",
                         query=query_embedding,
@@ -608,22 +625,32 @@ class QdrantMemorySystem:
                         limit=50,
                         with_payload=True
                     ).points
-                    
                     vector_candidates = [{'id': r.id, 'score': r.score, 'payload': r.payload} for r in results]
                 except Exception as e:
-                    logger.error(f"❌ Error in vector search: {e}")
-            
+                    logger.error("memory.vector_search_failed", extra={
+                        "error": str(e),
+                        "query_preview": query[:50],
+                    })
+
             # Stage 3: Merge and deduplicate
             merged_candidates = self._merge_candidates(bm25_candidates, vector_candidates)
-            
+
             # Stage 4: Rerank top candidates (simplified)
             reranked_results = self._rerank_results_simple(query, merged_candidates, n_results)
-            
+
             # Stage 5: Condense and return
-            return self._condense_results(reranked_results)
-            
+            results = self._condense_results(reranked_results)
+            logger.debug("memory.search_complete", extra={
+                "query_preview": query[:50],
+                "results_count": len(results),
+            })
+            return results
+
         except Exception as e:
-            logger.error(f"❌ Error in hybrid search: {e}")
+            logger.error("memory.search_failed", extra={
+                "error": str(e),
+                "query_preview": query[:50],
+            }, exc_info=True)
             return []
     
     def _build_qdrant_filter(self, user_id: Optional[str], filters: Dict) -> models.Filter:

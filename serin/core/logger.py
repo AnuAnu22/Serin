@@ -35,7 +35,9 @@ class ContextFilter(logging.Filter):
 
 
 class JSONFormatter(logging.Formatter):
-    """Structured JSON log formatter for production log aggregation."""
+    """Structured JSON log formatter for production log aggregation.
+    Captures extra= dict fields passed by the caller.
+    """
 
     def format(self, record: logging.LogRecord) -> str:
         correlation_id = getattr(record, "correlation_id", "")
@@ -51,6 +53,16 @@ class JSONFormatter(logging.Formatter):
             log_entry["correlation_id"] = correlation_id
         if record.exc_info and record.exc_info[0] is not None:
             log_entry["exception"] = self.formatException(record.exc_info)
+
+        # Include any extra= fields passed by the caller
+        for key, val in record.__dict__.items():
+            if key not in ("args", "asctime", "created", "exc_info", "exc_text",
+                           "filename", "funcName", "levelname", "levelno", "lineno",
+                           "module", "msecs", "message", "msg", "name", "pathname",
+                           "process", "processName", "relativeCreated", "stack_info",
+                           "thread", "threadName", "correlation_id"):
+                log_entry[key] = str(val) if not isinstance(val, (str, int, float, bool, list, dict, type(None))) else val
+
         return json.dumps(log_entry, default=str)
 
 

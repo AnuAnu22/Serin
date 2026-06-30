@@ -6,17 +6,16 @@ Each stage in the message pipeline. Stages are:
 - Independently instantiable
 - Independently testable
 
-Stages signal early exit by setting ctx.should_halt = True.
+Stages signal early exit by setting ctx.halt_reason to a non-empty string.
+They do NOT raise exceptions for expected early exits (e.g. "should not respond").
+They DO raise exceptions for unexpected failures (handled by the pipeline runner).
 """
 from __future__ import annotations
 
 import time
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from serin.messaging.context import MessageContext
-    from serin.messaging.context import PipelineDeps
+from serin.messaging.context import MessageContext
 
 
 class PipelineStage(ABC):
@@ -26,34 +25,38 @@ class PipelineStage(ABC):
     def name(self) -> str:
         return self.__class__.__name__
 
-    async def run(self, ctx: "MessageContext", deps: "PipelineDeps") -> None:
+    async def run(self, ctx: MessageContext) -> MessageContext:
         start = time.perf_counter()
-        await self._run(ctx, deps)
+        ctx = await self._run(ctx)
         ctx.stage_timings[self.name] = round((time.perf_counter() - start) * 1000, 2)
+        return ctx
 
     @abstractmethod
-    async def _run(self, ctx: "MessageContext", deps: "PipelineDeps") -> None:
+    async def _run(self, ctx: MessageContext) -> MessageContext:
+        """Implement the stage logic here."""
         ...
 
 
 # Re-export all stage classes for easy access
-from serin.messaging.stages.preparation import MessagePreparationStage  # noqa: E402
-from serin.messaging.stages.memory_retrieval import MemoryRetrievalStage  # noqa: E402
-from serin.messaging.stages.conversation import ConversationUpdateStage  # noqa: E402
 from serin.messaging.stages.decision import ResponseDecisionStage  # noqa: E402
-from serin.messaging.stages.context_assembly import ContextAssemblyStage  # noqa: E402
-from serin.messaging.stages.active_search import ActiveSearchStage  # noqa: E402
-from serin.messaging.stages.voice_action import VoiceActionStage  # noqa: E402
-from serin.messaging.stages.generation import GenerationStage  # noqa: E402
+from serin.messaging.stages.memory_retrieval import MemoryRetrievalStage  # noqa: E402
+from serin.messaging.stages.temporal import TemporalStage  # noqa: E402
+from serin.messaging.stages.personality import PersonalityStage  # noqa: E402
+from serin.messaging.stages.prompt_assembly import PromptAssemblyStage  # noqa: E402
+from serin.messaging.stages.llm_call import LLMCallStage  # noqa: E402
+from serin.messaging.stages.response_cleaning import ResponseCleaningStage  # noqa: E402
+from serin.messaging.stages.send import SendStage  # noqa: E402
+from serin.messaging.stages.memory_write import MemoryWriteStage  # noqa: E402
 
 __all__ = [
     "PipelineStage",
-    "MessagePreparationStage",
-    "MemoryRetrievalStage",
-    "ConversationUpdateStage",
     "ResponseDecisionStage",
-    "ContextAssemblyStage",
-    "ActiveSearchStage",
-    "VoiceActionStage",
-    "GenerationStage",
+    "MemoryRetrievalStage",
+    "TemporalStage",
+    "PersonalityStage",
+    "PromptAssemblyStage",
+    "LLMCallStage",
+    "ResponseCleaningStage",
+    "SendStage",
+    "MemoryWriteStage",
 ]

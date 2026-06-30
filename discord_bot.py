@@ -182,13 +182,23 @@ async def on_ready():
     try:
         stats['start_time'] = asyncio.get_running_loop().time()
 
+        # Startup banner
+        logger.info("serin.startup", extra={
+            "version": "1.0.0",
+            "voice_enabled": config.ENABLE_VOICE,
+            "tts_enabled": config.ENABLE_TTS,
+            "voice_mode": config.VOICE_RECEIVER_MODE,
+            "llm_model": config.LLM_MODEL,
+            "allowed_channels": len(config.ALLOWED_CHANNEL_IDS),
+            "qdrant_host": config.QDRANT_HOST,
+        })
+
         # Create startup backup
         try:
-            logger.info("Creating startup backup...")
             database_protector.create_backup("startup", force=True)
-            logger.info("Startup backup created")
+            logger.info("system.startup_backup_created")
         except Exception as e:
-            logger.warning(f"Startup backup failed: {e}")
+            logger.warning("system.startup_backup_failed", extra={"error": str(e)})
 
         logger.info("=" * 60)
         logger.info(f"Logged in as {client.user}!")
@@ -345,7 +355,24 @@ async def on_ready():
             voice_output_manager=voice_output_manager
         )
         await message_manager.start()
-        logger.info("MessageManager started successfully!")
+
+        # Build the MessagePipeline and attach it to the manager
+        logger.info("Building MessagePipeline...")
+        from serin.messaging.pipeline import MessagePipeline
+        from serin.utils.thinking_filter import get_thinking_filter
+        from serin.messaging.response_generator import get_response_natural
+        pipeline = MessagePipeline.build(
+            response_controller=message_manager.response_controller,
+            memory_system=memory_system,
+            retrieval=message_manager.context_builder,
+            personality=message_manager.bot_personality,
+            temporal_context=message_manager.enhanced_context,
+            response_generator=get_response_natural,
+            thinking_filter=get_thinking_filter(),
+            mention_translator=mention_translator,
+        )
+        message_manager.pipeline = pipeline
+        logger.info("MessagePipeline built and attached to manager!")
 
         # Initialize Voice Behavior Manager (auto join/leave based on mood)
         if voice_listener and hasattr(message_manager, 'personality'):

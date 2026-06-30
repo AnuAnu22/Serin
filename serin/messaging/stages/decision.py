@@ -1,28 +1,50 @@
+"""
+ResponseDecisionStage
+---------------------
+Decides whether Serin should respond to this message at all.
+Sets ctx.should_respond. If False, sets ctx.halt_reason and pipeline halts.
+"""
 from __future__ import annotations
-
-from typing import TYPE_CHECKING
 
 from serin.core.logger import logger
 from serin.messaging.context import MessageContext
 from serin.messaging.stages import PipelineStage
 
-if TYPE_CHECKING:
-    from serin.messaging.context import PipelineDeps
-
 
 class ResponseDecisionStage(PipelineStage):
-    async def _run(self, ctx: MessageContext, deps: PipelineDeps) -> None:
-        should_respond, reason = deps.response_controller.should_respond(
-            message_content=ctx.user_messages[-1]['content'],
-            channel_id=str(ctx.channel.id),
-            bot_mentioned=ctx.bot_mentioned or ctx.is_instruction,
-            user_id=ctx.primary_user_id,
-            recent_messages=ctx.context.get('recent_conversation', [])
+    """Decides whether to respond based on mention, rate limits, and DM rules."""
+
+    def __init__(self, response_controller):
+        self.controller = response_controller
+
+    async def _run(self, ctx: MessageContext) -> MessageContext:
+        should_respond, reason = self.controller.should_respond(
+            message_content=ctx.raw_content,
+            channel_id=ctx.channel_id,
+            bot_mentioned=ctx.message.guild is not None
+            and ctx.message.guild.me in ctx.message.mentions,
+            user_id=ctx.user_id,
+            recent_messages=[],
         )
 
-        if not should_respond and not ctx.is_instruction:
-            logger.info(f"Skipping response (reason: {reason})")
-            ctx.should_halt = True
-            return
+        if not should_respond:
+            ctx.should_respond = False
+            ctx.halt_reason = reason or "no_response_needed"
+            logger.debug("pipeline.decision", extra={
+                "user": ctx.username,
+                "user_id": ctx.user_id,
+                "channel_id": ctx.channel_id,
+                "decision": False,
+                "reason": ctx.halt_reason,
+            })
+            return ctx
 
-        logger.info(f"Responding (reason: {reason})")
+        ctx.should_respond = True
+        logger.debug("pipeline.decision", extra={
+            "user": ctx.username,
+            "user_id": ctx.user_id,
+            "channel_id": ctx.channel_id,
+            "decision": True,
+            "reason": "will_respond",
+        })
+        return ctx

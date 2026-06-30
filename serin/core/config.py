@@ -1,3 +1,17 @@
+"""
+serin.core.config
+-----------------
+BotConfig singleton — loads environment variables via python-dotenv and
+provides typed access to all configuration keys.
+
+Responsibilities:
+- Read DISCORD_TOKEN, LLM_MODEL, QDRANT_HOST, etc. from .env
+- Provide defaults for all optional settings
+- Validate required config at import time
+
+Key classes:
+- BotConfig: singleton accessed via `config` module-level instance
+"""
 from __future__ import annotations
 
 import os

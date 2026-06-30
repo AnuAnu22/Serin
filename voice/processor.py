@@ -6,7 +6,7 @@ This is the core of the voice conversation pipeline. It:
   1. Receives raw PCM audio chunks (48kHz stereo 16-bit) from the Rust songbird bridge
   2. Runs energy-based Voice Activity Detection on each chunk
   3. Buffers audio per-user while they speak
-  4. Detects when the user stops speaking (silence threshold = 1.5s of consecutive non-voice frames)
+  4. Detects when the user stops speaking (silence threshold = SILENCE_FRAMES_BEFORE_FLUSH / FRAMES_PER_SECOND)
   5. Queues the buffered audio for transcription (either direct to Gemma or via Whisper STT)
   6. Sets a processing lock so new speech during LLM/TTS is buffered silently
   7. The lock is released by a TTS_DONE signal from Rust when playback actually finishes
@@ -23,8 +23,17 @@ Processing lock lifecycle:
   4. When playback finishes, Rust sends TTS_DONE → Python receives it → _release_lock()
   5. Next user utterance is processed immediately (no artificial delay)
 
-  The 30s lock duration is purely a safety net — TTS_DONE normally releases it much sooner.
+    The 30s lock duration is purely a safety net — TTS_DONE normally releases it much sooner.
 """
+
+# ── Constants ──────────────────────────────────────────────────────────────────
+VAD_AMPLITUDE_THRESHOLD = 150           # RMS amplitude below which is considered silence
+SILENCE_FRAMES_BEFORE_FLUSH = 75        # 1.5s at 50 frames/sec
+MIN_BUFFER_BYTES = 192_000              # ~1 second of 48kHz stereo PCM
+MAX_BUFFER_BYTES_GEMMA = 5_760_000      # ~30 seconds (Gemma audio limit)
+MAX_BUFFER_BYTES_WHISPER = 50_000_000   # ~260 seconds (Whisper limit)
+PROCESSING_LOCK_SECONDS = 30            # How long to lock after queueing audio
+VOICE_BURST_IGNORE_FRAMES = 25          # Ignore bursts shorter than 0.5s
 import asyncio
 import base64
 import io
@@ -120,16 +129,10 @@ class AudioStreamProcessor:
         # 150 is relatively low — catches quieter speech and garbled audio from Opus decode errors.
         # FRAMES_PER_SECOND: Discord sends 20ms audio frames = 50 fps.
         # SILENCE_FRAMES_THRESHOLD: How many consecutive non-voice frames trigger processing.
-        self.VAD_THRESHOLD = 150
+        self.VAD_THRESHOLD = VAD_AMPLITUDE_THRESHOLD
         self.FRAMES_PER_SECOND = 50
         self.SILENCE_FRAMES_THRESHOLD = int(silence_threshold * self.FRAMES_PER_SECOND)
-
-        # MAX_BUFFER_BYTES: Maximum buffer size before forced transcription.
-        # For Gemma unified (direct audio, no Whisper): 30 seconds max (Gemma's input limit).
-        #   Formula: 48kHz × 2ch × 2bytes × 30s = 5,760,000 bytes
-        # For other models (Whisper STT): ~4 minutes (practical memory limit, not a model limit).
-        #   Formula: 48kHz × 2ch × 2bytes × 260s ≈ 50,000,000 bytes
-        self.MAX_BUFFER_BYTES = 5_760_000 if (self.llm_connector and self.supports_audio) else 50_000_000
+        self.MAX_BUFFER_BYTES = MAX_BUFFER_BYTES_GEMMA if (self.llm_connector and self.supports_audio) else MAX_BUFFER_BYTES_WHISPER
 
         self.stats = {
             'chunks_received': 0,
@@ -142,11 +145,11 @@ class AudioStreamProcessor:
             'errors': 0
         }
 
-        logger.info("✅ Audio stream processor initialized")
-        logger.info(f"   🔊 VAD threshold: {self.VAD_THRESHOLD}")
-        logger.info(f"   ⏱️ Silence threshold: {silence_threshold}s")
-        if self.llm_connector and self.supports_audio:
-            logger.info("   🎵 Direct audio support enabled (gemma12b input_audio)")
+        logger.info("voice.processor_initialized", extra={
+            "vad_threshold": self.VAD_THRESHOLD,
+            "silence_threshold_s": silence_threshold,
+            "direct_audio": bool(self.llm_connector and self.supports_audio),
+        })
 
     @staticmethod
     def _pcm_to_wav_base64(audio_data: bytes, sample_rate: int = 16000) -> str:

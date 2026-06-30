@@ -596,7 +596,7 @@ class RustVoiceBridge:
 
         If there's no lock for this guild (already expired), this is a no-op.
         """
-        logger.info("🔊 TTS playback finished — releasing processing lock")
+        logger.info("voice.tts_playback_done", extra={"guild_id": str(self._guild_id)})
         if hasattr(self.audio_processor, '_release_lock'):
             self.audio_processor._release_lock(str(self._guild_id))
 
@@ -616,19 +616,31 @@ class RustVoiceBridge:
                 time.sleep(0.05)
 
         if exit_code is None:
-            logger.error("❌ Rust process died — exit code unknown (pipe closed but process not reaped)")
+            logger.error("voice.process_died", extra={
+                "exit_code": "unknown",
+                "detail": "pipe closed but process not reaped",
+                "guild_id": str(self._guild_id),
+            })
         elif exit_code < 0:
             signal_name = {-6: "SIGABRT", -9: "SIGKILL", -11: "SIGSEGV", -13: "SIGPIPE"}.get(exit_code, f"signal {-exit_code}")
-            logger.error(f"❌ Rust process killed by {signal_name} (code {exit_code})")
+            logger.error("voice.process_killed", extra={
+                "exit_code": exit_code,
+                "signal": signal_name,
+                "guild_id": str(self._guild_id),
+            })
         else:
-            logger.error(f"❌ Rust process exited with code {exit_code}")
+            logger.error("voice.process_exited", extra={
+                "exit_code": exit_code,
+                "guild_id": str(self._guild_id),
+            })
 
         # Dump stderr ring buffer for diagnostics
         if self._stderr_buf:
-            logger.error("--- Rust stderr (last {} lines) ---".format(len(self._stderr_buf)))
-            for line in self._stderr_buf:
-                logger.error(f"   |{line}")
-            logger.error("--- end stderr ---")
+            logger.error("voice.process_stderr", extra={
+                "line_count": len(self._stderr_buf),
+                "lines": "\n".join(self._stderr_buf[-20:]),
+                "guild_id": str(self._guild_id),
+            })
 
         # Signal supervisor to attempt re-spawn
         self._death_event.set()
@@ -661,11 +673,19 @@ class RustVoiceBridge:
                 # 5 restarts in the deque — check if they're within 60s
                 oldest = self._restart_timestamps[0]
                 if now - oldest < 60.0:
-                    logger.critical("Rust process crashed 5 times in 60s — giving up")
+                    logger.critical("voice.supervisor_giving_up", extra={
+                        "restarts": len(self._restart_timestamps),
+                        "window_seconds": 60,
+                        "guild_id": str(self._guild_id),
+                        "requires_intervention": True,
+                    })
                     self.stats['errors'] += 1
                     return
 
-            logger.error("Rust voice process died unexpectedly, restarting in 2s...")
+            logger.warning("voice.process_restarting", extra={
+                "restart_attempt": len(self._restart_timestamps),
+                "guild_id": str(self._guild_id),
+            })
             self.stats['restarts'] += 1
             await asyncio.sleep(2)
 
