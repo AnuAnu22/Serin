@@ -83,3 +83,11 @@ always a real answer — "utils" is what happens when nobody looked for it.
 Every claim that "this follows the Law" must be checked by the scripts in
 `scripts/law/` (Phase 6), not asserted in a commit message. A directory
 that violates Rule 1 or Rule 2 fails the build.
+
+## Pre-commit hook
+Add to `.git/hooks/pre-commit` (or use a hook manager):
+```bash
+#!/usr/bin/env bash
+bash scripts/law/check_all.sh
+```
+This ensures every commit passes structure, import, and test checks.

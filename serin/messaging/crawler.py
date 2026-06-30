@@ -1,2 +1,2 @@
-"""Redirect — moved. Update your imports."""
-from serin.pipeline.ingest.crawler import MessageCrawler
+"""Redirect — moved to p2_gateway. Update your imports."""
+from p2_gateway import MessageCrawler

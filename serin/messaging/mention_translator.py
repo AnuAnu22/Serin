@@ -1,2 +1,2 @@
-"""Redirect — moved. Update your imports."""
-from serin.pipeline.ingest.mention_translator import MentionTranslator
+"""Redirect — moved to p2_gateway. Update your imports."""
+from p2_gateway import MentionTranslator
