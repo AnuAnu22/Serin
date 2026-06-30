@@ -14,6 +14,24 @@ class ConversationalFillers:
     Humans use fillers when thinking, being casual, or expressing uncertainty.
     """
     
+    # Concession and agreement patterns — skip fillers on these
+    CONCESSION_PATTERNS = [
+        r"\byou'?re\s+right\b",
+        r"\byou'?re\s+actually\s+right\b",
+        r"\byou'?re\s+not\s+wrong\b",
+        r"\bgood\s+point\b",
+        r"\bfair\s+enough\b",
+        r"\bi\s+was\s+wrong\b",
+        r"\bi\s+stand\s+corrected\b",
+        r"\bpoint\s+taken\b",
+        r"\byou\s+make\s+a\s+good\s+point\b",
+        r"\byou\s+got\s+me\b",
+        r"\bi\s+concede\b",
+        r"\bi\s+see\s+what\s+you\s+mean\b",
+        r"\bactually\s+(?:yeah|true|fair)\b",
+        r"\bokay\s+(?:yeah|fair)\b",
+    ]
+
     # Filler categories
     THINKING_FILLERS = [
         "hmm", "uh", "um", "well", "let me think", "hold on"
@@ -75,8 +93,16 @@ class ConversationalFillers:
         
         return text
     
+    def _is_concession(self, text: str) -> bool:
+        """Check if the text contains a concession or agreement that should not be diluted."""
+        return any(re.search(p, text.lower()) for p in self.CONCESSION_PATTERNS)
+
     def _should_add_fillers(self, text: str, personality_state: Optional[dict] = None) -> bool:
         """Decide if fillers should be added"""
+        
+        # Skip fillers on concession sentences — don't dilute a clean agreement
+        if self._is_concession(text):
+            return False
         
         # Don't add to very short messages
         if len(text.split()) < 5:

@@ -25,7 +25,9 @@ class MemoryWriteStage(PipelineStage):
             return ctx
 
         try:
-            # Store the bot's response as a memory
+            # Store the bot's response as a low-importance memory
+            # Tagged as type 'bot_response' so it ranks below user traits and
+            # conversation facts in retrieval, reducing self-reinforcement loops.
             self.memory.add_memory_enhanced(
                 content=ctx.final_response,
                 user_id="serin",
@@ -33,7 +35,8 @@ class MemoryWriteStage(PipelineStage):
                 channel_id=ctx.channel_id,
                 participants=[ctx.user_id],
                 emotional_tone="neutral",
-                importance=0.5,
+                importance=0.1,
+                memory_type="bot_response",
             )
 
             logger.debug("pipeline.memory_written", extra={

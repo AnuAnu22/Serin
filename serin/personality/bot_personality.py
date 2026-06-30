@@ -325,9 +325,16 @@ class BotPersonality:
         cursor.execute("""
             SELECT category, item, stance, reason
             FROM bot_preferences
-            WHERE stance IN ('love', 'hate')
-            ORDER BY intensity DESC
-            LIMIT 8
+            WHERE stance IN ('love', 'like', 'dislike', 'hate')
+            ORDER BY
+                CASE stance
+                    WHEN 'love' THEN 0
+                    WHEN 'hate' THEN 1
+                    WHEN 'like' THEN 2
+                    WHEN 'dislike' THEN 3
+                END,
+                intensity DESC
+            LIMIT 10
         """)
         
         preferences = cursor.fetchall()
@@ -336,38 +343,34 @@ class BotPersonality:
             return ""
         
         # Build natural-sounding context
-        preferences_list = []
         loves = []
+        likes = []
+        dislikes = []
         hates = []
         
         for pref in preferences:
-            category = pref['category'].replace('_', ' ')
             item = pref['item'].replace('_', ' ')
             stance = pref['stance']
-            reason = pref['reason']
             
             if stance == 'love':
-                loves.append(f"{item}")
+                loves.append(item)
+            elif stance == 'like':
+                likes.append(item)
+            elif stance == 'dislike':
+                dislikes.append(item)
             elif stance == 'hate':
-                hates.append(f"{item}")
+                hates.append(item)
         
         # Create natural sentences
         context_parts = []
         if loves:
-            if len(loves) == 1:
-                context_parts.append(f"I'm really into {loves[0]}")
-            elif len(loves) == 2:
-                context_parts.append(f"I'm all about {loves[0]} and {loves[1]}")
-            else:
-                context_parts.append(f"I'm huge on {', '.join(loves[:-1])}, and {loves[-1]}")
-        
+            context_parts.append(f"I'm really into {' and '.join(loves)}")
+        if likes:
+            context_parts.append(f"{' and '.join(likes)} are pretty cool too")
+        if dislikes:
+            context_parts.append(f"Not really into {' or '.join(dislikes)}")
         if hates:
-            if len(hates) == 1:
-                context_parts.append(f"Not a fan of {hates[0]} though")
-            elif len(hates) == 2:
-                context_parts.append(f"Not into {hates[0]} or {hates[1]} either")
-            else:
-                context_parts.append(f"And I can't stand {', '.join(hates[:-1])}, or {hates[-1]}")
+            context_parts.append(f"Can't stand {' or '.join(hates)}")
         
         return " ".join(context_parts) if context_parts else ""
     
