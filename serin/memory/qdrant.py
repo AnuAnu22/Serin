@@ -459,6 +459,8 @@ class QdrantMemorySystem:
             "conversation_id": kwargs.get('conversation_id', ''),
             "source_message_id": kwargs.get('source_message_id', ''),
             "memory_type": kwargs.get('memory_type', 'utterance'),
+            "compressed": kwargs.get('compressed', False),
+            "source_message_count": kwargs.get('source_message_count', 0),
             "evidence_class": kwargs.get('evidence_class', 'conversation'),
             "speech_act": kwargs.get('speech_act', 'statement'),
             "is_objective": kwargs.get('is_objective', False),

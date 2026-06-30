@@ -115,7 +115,7 @@ class BackgroundProcessor:
             channel_id: Channel ID
             server_id: Server/Guild ID
             timestamp: Message timestamp
-            **kwargs: Additional parameters for backward compatibility (ignored)
+            **kwargs: Additional parameters — message_id is extracted when available
         """
         # VALIDATE CONTENT - Skip empty or meaningless messages
         content = content.strip()
@@ -146,11 +146,12 @@ class BackgroundProcessor:
                 logger.debug(" Processing queue full, dropping oldest message")
             
             self.processing_queue.append({
-                'content': content,  # RAW message content
+                'content': content,
                 'user_id': user_id,
                 'username': username,
                 'channel_id': channel_id,
                 'server_id': server_id,
+                'message_id': kwargs.get('message_id', ''),
                 'timestamp': timestamp or datetime.now()
             })
             
@@ -397,7 +398,9 @@ Memory:"""
     
     async def _store_summary(self, summary: str, messages: List[Dict[str, Any]]) -> None:
         """
-        Store summary as a natural memory.
+        Store summary as a disposable index — linked to its source messages
+        and marked as compressed. Raw evidence is always preferred over summaries
+        during retrieval. Summaries are fallbacks, not sources of truth.
         """
         try:
             # Get all participants
@@ -406,10 +409,16 @@ Memory:"""
             # Use first message's context
             first_msg = messages[0]
             
+            # Collect source message IDs for traceability
+            source_ids = [
+                msg['message_id'] for msg in messages
+                if msg.get('message_id')
+            ]
+            
             # Calculate importance
             importance = self._calculate_importance(summary, messages)
             
-            # Store as summary (distinct from real messages to avoid duplicates in context)
+            # Store as summary with source links + compressed flag
             self.memory.add_memory_enhanced(
                 content=summary,
                 user_id=first_msg['user_id'],
@@ -419,10 +428,17 @@ Memory:"""
                 emotional_tone='neutral',
                 importance=importance,
                 source_message_id=None,
-                memory_type='summary'
+                memory_type='summary',
+                compressed=True,
+                source_message_count=len(messages),
+                linked_ids=source_ids,
             )
             
-            logger.debug(f" Stored summary: {summary[:60]}...")
+            logger.debug(
+                f" Stored summary: {summary[:60]}... "
+                f"(compressed from {len(messages)} messages, "
+                f"{len(source_ids)} linked)"
+            )
             
         except Exception as e:
             logger.error(f" Error storing summary: {e}")

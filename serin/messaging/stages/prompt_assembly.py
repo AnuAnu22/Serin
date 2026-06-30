@@ -185,10 +185,31 @@ class PromptAssemblyStage(PipelineStage):
             lines = _format_memories(ctx.evidence_memories, max_items=3)
             context_parts.append("Evidence I've seen:\n" + "\n".join(lines))
 
-        # 2. Episodic memories — what happened previously on this topic
+        # 2. Episodic memories — summaries of past conversations
         if ctx.episode_memories:
-            lines = _format_memories(ctx.episode_memories, max_items=2)
-            context_parts.append("What I remember about this:\n" + "\n".join(lines))
+            sorted_mems = sorted(
+                ctx.episode_memories,
+                key=lambda m: m.get("timestamp", ""),
+                reverse=True,
+            )
+            summary_lines = []
+            for m in sorted_mems[:2]:
+                label = _time_label(m.get("timestamp", ""))
+                is_compressed = m.get("compressed", False)
+                msg_count = m.get("source_message_count", 0)
+                content = m.get("content", "")
+                if is_compressed and msg_count > 0:
+                    summary_lines.append(
+                        f"- {label}{content} "
+                        f"(compressed from {msg_count} messages — "
+                        f"raw evidence may be more accurate)"
+                    )
+                else:
+                    summary_lines.append(f"- {label}{content}")
+            if summary_lines:
+                context_parts.append(
+                    "What I remember about this:\n" + "\n".join(summary_lines)
+                )
 
         # 3. Utterance memories — what people have said (lowest priority)
         if ctx.utterance_memories:

@@ -90,6 +90,33 @@ class MemoryRetrievalStage(PipelineStage):
         ctx.episode_memories = _clean_garbage(episode_memories)
         ctx.utterance_memories = _clean_garbage(utterance_memories)
 
+        # Deprioritize summaries when evidence exists for the same topic.
+        # If evidence memories share keywords with episode memories, the
+        # summary is redundant — raw evidence is always preferred.
+        if ctx.evidence_memories and ctx.episode_memories:
+            evidence_keywords = set()
+            for ev in ctx.evidence_memories:
+                for w in ev.get("content", "").lower().split():
+                    if len(w) > 4:
+                        evidence_keywords.add(w)
+            filtered_episodes = []
+            for ep in ctx.episode_memories:
+                ep_words = set(w for w in ep.get("content", "").lower().split() if len(w) > 4)
+                # Require at least 2 overlapping content words to consider
+                # a summary redundant — single-word matches are coincidental
+                overlap = evidence_keywords & ep_words
+                if len(overlap) >= 2:
+                    logger.debug(
+                        "pipeline.summary_deprioritized",
+                        extra={
+                            "summary": ep.get("content", "")[:40],
+                            "overlap_keywords": list(overlap)[:5],
+                        }
+                    )
+                    continue
+                filtered_episodes.append(ep)
+            ctx.episode_memories = filtered_episodes
+
         # Flatten all memories for backwards compatibility
         ctx.memories = (ctx.evidence_memories + ctx.episode_memories + ctx.utterance_memories)
 
