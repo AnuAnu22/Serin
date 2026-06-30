@@ -1,3 +1,7 @@
+# This file is kept for pip compatibility.
+# Primary dependency management is via pyproject.toml + uv.
+# To update: uv sync
+
 # Core dependencies
 aiohttp>=3.13.2
 fastapi>=0.122.0

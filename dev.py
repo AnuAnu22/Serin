@@ -1,4 +1,8 @@
 """
+DEPRECATED: Use hot_reloader.py instead.
+This file does not rebuild Rust components on change.
+Kept for reference only.
+
 Hot-reload development server.
 
 Watches .py files for changes and automatically restarts the bot process.
