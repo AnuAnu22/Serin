@@ -29,8 +29,14 @@ class MessageContext:
 
     # ── Memory retrieval ──────────────────────────────────────────────────────
     memories: list[dict] = field(default_factory=list)
+    facts: list[dict] = field(default_factory=list)  # From FactStore
+    beliefs: list[dict] = field(default_factory=list)  # From BeliefStore
+    evidence_memories: list[dict] = field(default_factory=list)
+    episode_memories: list[dict] = field(default_factory=list)
+    utterance_memories: list[dict] = field(default_factory=list)
     recent_messages: list[dict] = field(default_factory=list)
     user_profile: dict = field(default_factory=dict)
+    relationships: list[dict] = field(default_factory=list)
 
     # ── Temporal / context ────────────────────────────────────────────────────
     temporal_refs: list[str] = field(default_factory=list)

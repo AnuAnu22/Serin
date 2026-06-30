@@ -105,7 +105,7 @@ async def get_response_natural(
         # Vision: if main LLM has mmproj (LLM_SUPPORTS_VISION=true), send image_url directly.
         # Otherwise, use SmolVLM fallback if available.
         main_llm_has_vision = os.environ.get("LLM_SUPPORTS_VISION", "false").lower() in ("true", "1", "yes")
-        for msg in current_messages[-8:]:
+        for msg in current_messages[2:][-8:]:
             has_image = 'image_url' in msg
             
             # Support two message formats:

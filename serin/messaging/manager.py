@@ -12,6 +12,9 @@ from __future__ import annotations
 import asyncio
 import base64
 import os
+import re
+import uuid
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -31,6 +34,51 @@ from serin.messaging.context_builder import ConversationContextBuilder
 from serin.messaging.mention_translator import MentionTranslator
 from serin.utils.debug_logger import log_message, log_correction
 from models.factory import get_model_connector
+
+
+@dataclass
+class PerceptionResult:
+    """Structured analysis of an incoming message before storage.
+
+    Transforms a raw text string into classified information that the
+    memory system can store with proper provenance. Separates:
+      - What was *said* (the speech act)
+      - What *evidence* was presented (boards, URLs, code, quotes)
+      - What *claims* were made (subjective assertions)
+      - What *observations* can be extracted (verifiable content)
+    """
+    speech_act: str  # assertion | question | joke | sarcasm | agreement | disagreement | evidence | statement | instruction
+    is_objective: bool  # primarily factual/verifiable?
+    evidence_blocks: List[Dict] = field(default_factory=list)  # [{type, content, metadata}]
+    claims: List[Dict] = field(default_factory=list)  # [{claimant, content, category}]
+    observations: List[str] = field(default_factory=list)  # verifiable observations extracted
+    extracted_facts: List[Dict] = field(default_factory=list)  # [{content, category, confidence, source_type}]
+
+
+# ── Perception patterns ──────────────────────────────────────────────────────
+
+# Claim patterns: subjective assertions about self, others, or how things are
+_CLAIM_PATTERNS = [
+    (r'\bI\s+won\b', 'win_claim'),
+    (r'\byou\s+lost\b', 'loss_attribution'),
+    (r'\bI\'\w+\s+(?:right|correct|wrong|better|best)\b', 'self_assessment'),
+    (r'\byou\s+\'\w+\s+(?:wrong|incorrect|mistaken)\b', 'other_correction'),
+    (r'\b(?:actually|honestly|truthfully|literally)\s*,?\s+(?:\w+)', 'emphasis_claim'),
+]
+
+# Sarcasm indicators
+_SARCASM_MARKERS = [
+    'oh sure', 'yeah right', 'obviously', 'clearly',
+    'as if', 'sure thing', 'totally', 'no way',
+    'big brain', 'galaxy brain',
+]
+
+# Joke indicators  
+_JOKE_MARKERS = ['lol', 'lmao', 'rofl', 'jk', 'kidding', 'just joking', 'haha', 'hehe', 'xd']
+
+# Argument keywords (for mood-based filtering at retrieval time)
+_ARGUMENT_KEYWORDS = ['lose', 'lost', 'win', 'won', 'admit', 'wrong',
+                       'cope', 'argue', 'disagree', 'disagreed', 'prove']
 
 
 class EnhancedMessageManagerV3:
@@ -394,6 +442,11 @@ class EnhancedMessageManagerV3:
             participants = list(set([str(m.author.id) for m in self.current_batch] + [user_id]))
 
             if hasattr(self.memory, "add_memory_enhanced"):
+                # ── Perception: analyze before storage ────────────────────
+                perception = self._perceive_message(
+                    cleaned_content, user_id, user_name
+                )
+
                 self.memory.add_memory_enhanced(
                     content=cleaned_content,
                     user_id=user_id,
@@ -401,13 +454,58 @@ class EnhancedMessageManagerV3:
                     channel_id=channel_id,
                     participants=participants,
                     emotional_tone=emotional_tone,
-                    importance=0.5,
+                    importance=0.8 if perception.is_objective else 0.3,
+                    memory_type='evidence' if perception.is_objective else 'utterance',
                     source_message_id=str(message.id),
+                    speech_act=perception.speech_act,
+                    is_objective=perception.is_objective,
+                    extracted_facts=[
+                        f['content'] for f in perception.extracted_facts
+                    ],
                 )
+
+                # ── Store extracted facts in FactStore ────────────────────
+                for fact in perception.extracted_facts:
+                    try:
+                        self.memory.add_fact(
+                            content=fact['content'],
+                            category=fact['category'],
+                            confidence=fact['confidence'],
+                            source_message_id=str(message.id),
+                            source_user_id=user_id,
+                            source_username=user_name,
+                            source_type=fact['source_type'],
+                        )
+                    except Exception as e:
+                        logger.debug("Could not store fact: %s", e)
+
+                # ── Infer beliefs from updated facts ───────────────────────
+                if perception.extracted_facts:
+                    try:
+                        beliefs = self.memory.infer_beliefs_from_facts(
+                            query=cleaned_content
+                        )
+                        for belief in beliefs:
+                            self.memory.add_or_update_belief(
+                                content=belief['content'],
+                                category=belief['category'],
+                                confidence=belief['confidence'],
+                                supporting_fact_ids=belief.get('supporting_fact_ids'),
+                                contradicting_fact_ids=belief.get('contradicting_fact_ids'),
+                                evidence_count=belief.get('evidence_count', 1),
+                                claim_count=belief.get('claim_count', 0),
+                            )
+                    except Exception as e:
+                        logger.debug("Could not infer beliefs: %s", e)
             else:
                 raise ValueError("Memory system does not support enhanced memory addition")
 
-            self._analyze_personality(user_id, cleaned_content)
+            detected_traits = self._analyze_personality(user_id, cleaned_content)
+            self.personality.update_from_conversation(
+                conversation_mood=emotional_tone,
+                user_traits=detected_traits,
+                time_of_day=datetime.now().hour,
+            )
 
             try:
                 self.memory.store_recent_message(
@@ -420,6 +518,11 @@ class EnhancedMessageManagerV3:
                 )
             except Exception as e:
                 logger.debug("Could not store recent message: %s", e)
+
+            try:
+                self.memory.update_relationship(str(self.client.user.id), user_id)
+            except Exception as e:
+                logger.debug("Could not update relationship: %s", e)
 
             self.memory.log_activity(user_id, channel_id, len(content), sentiment["compound"])
 
@@ -479,6 +582,7 @@ class EnhancedMessageManagerV3:
                     response_generator=get_response_natural,
                     thinking_filter=get_thinking_filter(),
                     mention_translator=self.mention_translator,
+                    mood_state=self.personality,
                 )
 
             ctx = MessageContext(
@@ -513,8 +617,325 @@ class EnhancedMessageManagerV3:
             except Exception:
                 pass
 
-    def _analyze_personality(self, user_id: str, content: str) -> None:
-        """Analyze message and update personality traits"""
+    _EVIDENCE_PATTERNS = [
+        r'\|.*\|.*\|',        # Board states (pipes with separators)
+        r'https?://\S+',       # URLs
+        r'```[\s\S]*?```',     # Code blocks
+        r'"[^"]{20,}"',        # Long quotes (20+ chars)
+    ]
+
+    def _detect_evidence(self, content: str) -> bool:
+        """Detect if content contains factual evidence (boards, links, code, quotes)."""
+        for pattern in self._EVIDENCE_PATTERNS:
+            if re.search(pattern, content):
+                return True
+        return False
+
+    def _perceive_message(self, content: str, user_id: str, username: str) -> PerceptionResult:
+        """Analyze message before storage — classify, extract evidence, claims, facts.
+
+        This is the perception layer. It transforms raw text into structured
+        information so the memory system stores *what the message contains*
+        rather than just *the text itself*.
+        """
+        content_lower = content.lower()
+        result = PerceptionResult(speech_act='statement', is_objective=False)
+
+        # ── 1. Classify speech act ────────────────────────────────────────
+        # Question?
+        if content.strip().endswith('?'):
+            result.speech_act = 'question'
+            result.is_objective = True  # Questions seek truth
+
+        # Joke?
+        if any(m in content_lower for m in _JOKE_MARKERS):
+            result.speech_act = 'joke'
+            result.is_objective = False
+
+        # Sarcasm?
+        if any(m in content_lower for m in _SARCASM_MARKERS):
+            result.speech_act = 'sarcasm'
+            result.is_objective = False
+
+        # Agreement?
+        if re.search(r'^(yeah|yes|right|true|agreed|exactly|correct)\b', content_lower):
+            result.speech_act = 'agreement'
+
+        # Disagreement?
+        if re.search(r'^(no|nah|nope|wrong|nah)\b', content_lower) or \
+           re.search(r'\b(?:actually|but)\s+(?:no|that\'?s?\s+wrong|you\'?re?\s+wrong)\b', content_lower):
+            result.speech_act = 'disagreement'
+
+        # Evidence?
+        if self._detect_evidence(content):
+            result.speech_act = 'evidence'
+            result.is_objective = True
+
+        # Instruction?
+        if re.search(r'^(?:tell|show|explain|describe|list|give|do|say)\b', content_lower):
+            result.speech_act = 'instruction'
+
+        # ── 2. Extract evidence blocks ────────────────────────────────────
+        # Board states: |...|...|...| across multiple lines
+        board_match = re.search(r'(\|.*?\|.*?\|[^\n]*(\n\|.*?\|.*?\|[^\n]*)*)', content, re.DOTALL)
+        if board_match:
+            result.evidence_blocks.append({
+                'type': 'board',
+                'content': board_match.group(1).strip(),
+                'metadata': {},
+            })
+
+        # URLs
+        url_matches = re.findall(r'https?://\S+', content)
+        for url in url_matches:
+            result.evidence_blocks.append({
+                'type': 'url',
+                'content': url,
+                'metadata': {},
+            })
+
+        # Code blocks
+        code_match = re.search(r'```(\w*)\n([\s\S]*?)```', content)
+        if code_match:
+            result.evidence_blocks.append({
+                'type': 'code',
+                'content': code_match.group(2).strip(),
+                'metadata': {'language': code_match.group(1)},
+            })
+
+        # Long quotes
+        quote_matches = re.findall(r'"([^"]{20,})"', content)
+        for quote in quote_matches:
+            result.evidence_blocks.append({
+                'type': 'quote',
+                'content': quote,
+                'metadata': {},
+            })
+
+        # ── 3. Extract claims (subjective assertions) ─────────────────────
+        for pattern, category in _CLAIM_PATTERNS:
+            match = re.search(pattern, content_lower)
+            if match:
+                result.claims.append({
+                    'claimant': username or user_id,
+                    'content': match.group(0),
+                    'category': category,
+                })
+
+        # General first-person assertions
+        i_assertions = re.findall(r'\bI\s+(?:am|was|have|think|believe|feel|know|can|could|will|would)\s+(.+?)(?:\.|,|$)', content)
+        for assertion in i_assertions:
+            result.claims.append({
+                'claimant': username or user_id,
+                'content': f"I {assertion.strip()}",
+                'category': 'self_statement',
+            })
+
+        # General third-person about bot
+        you_assertions = re.findall(r'\byou\'(?:re|ve|are|were)\s+(.+?)(?:\.|,|$)', content_lower)
+        for assertion in you_assertions:
+            result.claims.append({
+                'claimant': username or user_id,
+                'content': f"you're {assertion.strip()}",
+                'category': 'other_directed',
+            })
+
+        # ── 4. Extract observations (verifiable content) ──────────────────
+        # Board states are always observations
+        for block in result.evidence_blocks:
+            if block['type'] == 'board':
+                result.observations.append(
+                    f"The board shows: {block['content']}"
+                )
+                # Board states become high-confidence facts
+                result.extracted_facts.append({
+                    'content': f"The board shows: {block['content']}",
+                    'category': 'board_state',
+                    'confidence': 0.9,
+                    'source_type': 'evidence_extracted',
+                })
+            elif block['type'] == 'url':
+                result.observations.append(f"A reference was shared: {block['content']}")
+                result.extracted_facts.append({
+                    'content': f"A reference was linked: {block['content']}",
+                    'category': 'reference',
+                    'confidence': 0.7,
+                    'source_type': 'evidence_extracted',
+                })
+            elif block['type'] == 'code':
+                result.observations.append(f"Code was shared: {block['content'][:100]}")
+                result.extracted_facts.append({
+                    'content': f"Code shown: {block['content'][:200]}",
+                    'category': 'code',
+                    'confidence': 0.8,
+                    'source_type': 'evidence_extracted',
+                })
+
+        # If the user is making claims about who won or lost, extract
+        # the *claim* as an observation of speech (not a fact about the game)
+        for claim in result.claims:
+            result.observations.append(
+                f"{claim['claimant']} claims: {claim['content']}"
+            )
+            # Claims become low-confidence facts — the *claim itself* is a fact
+            # of speech, but the *content* is not verified
+            if claim['category'] in ('win_claim', 'loss_attribution', 'self_assessment'):
+                result.extracted_facts.append({
+                    'content': f"{claim['claimant']} claimed: {claim['content']}",
+                    'category': 'speech_claim',
+                    'confidence': 0.2,
+                    'source_type': 'user_claim',
+                })
+
+        # ── 5. Derive facts from evidence — board parsing + rule application ──
+        for block in result.evidence_blocks:
+            if block['type'] == 'board':
+                derived = self._derive_from_board(block['content'])
+                for fact in derived:
+                    result.extracted_facts.append(fact)
+                    result.observations.append(
+                        f"Derived: {fact['content']}"
+                    )
+
+        # ── 6. Determine objectivity ──────────────────────────────────────
+        # Objective if: evidence blocks exist, or message is short factual statement
+        if result.evidence_blocks:
+            result.is_objective = True
+        elif result.claims:
+            result.is_objective = False
+
+        return result
+
+    def _parse_board(self, board_text: str) -> Optional[list[list[str]]]:
+        """Parse a pipe-delimited board into a 2D grid.
+
+        Handles:
+          Connect 4: 6 rows × 7 cols, |X|O| | | | | |
+          Tic-tac-toe: 3 rows × 3 cols, |X|O|X| or |X|O|X|
+        Returns None if not parseable.
+        """
+        lines = [l.strip() for l in board_text.split('\n') if l.strip()]
+        if not lines:
+            return None
+
+        grid = []
+        for line in lines:
+            # Strip leading/trailing pipes, split on |
+            cells = [c.strip() for c in line.strip('|').split('|')]
+            if not cells:
+                continue
+            grid.append(cells)
+
+        if len(grid) < 2:
+            return None
+
+        # Validate: all rows same width
+        widths = set(len(r) for r in grid)
+        if len(widths) > 1:
+            return None
+
+        return grid
+
+    def _derive_from_board(self, board_text: str) -> list[Dict]:
+        """Derive game-level facts from a parsed board state.
+
+        Applies known game rules:
+          - Connect 4: 4 in a row → win condition met
+          - Tic-tac-toe: 3 in a row → win condition met
+        Returns list of derived facts with confidence and category.
+        """
+        grid = self._parse_board(board_text)
+        if not grid:
+            return []
+
+        derived = []
+        rows, cols = len(grid), len(grid[0])
+
+        # Detect game type
+        is_connect4 = rows == 6 and cols == 7
+        is_tictactoe = rows == 3 and cols == 3
+        win_length = 4 if is_connect4 else (3 if is_tictactoe else 0)
+
+        if win_length == 0:
+            # Generic board: still store it, but can't derive much
+            derived.append({
+                'content': f"A {rows}×{cols} board was shown",
+                'category': 'board_state',
+                'confidence': 0.9,
+                'source_type': 'derived',
+            })
+            return derived
+
+        # Check for pieces
+        piece_positions = {'.': [], '_': []}
+        for r in range(rows):
+            for c in range(cols):
+                cell = grid[r][c]
+                if cell and cell not in ('.', '_', '', ' '):
+                    if cell not in piece_positions:
+                        piece_positions[cell] = []
+                    piece_positions[cell].append((r, c))
+
+        # Check for wins in all directions
+        for piece, positions in piece_positions.items():
+            pos_set = set(positions)
+
+            # Check horizontal
+            for r in range(rows):
+                for c in range(cols - win_length + 1):
+                    if all((r, c + i) in pos_set for i in range(win_length)):
+                        derived.append({
+                            'content': f"{piece} has {win_length} in a row horizontally at row {r+1} (columns {c+1}-{c+win_length})",
+                            'category': 'game_result',
+                            'confidence': 0.95,
+                            'source_type': 'derived',
+                        })
+
+            # Check vertical
+            for r in range(rows - win_length + 1):
+                for c in range(cols):
+                    if all((r + i, c) in pos_set for i in range(win_length)):
+                        derived.append({
+                            'content': f"{piece} has {win_length} in a row vertically at column {c+1} (rows {r+1}-{r+win_length})",
+                            'category': 'game_result',
+                            'confidence': 0.95,
+                            'source_type': 'derived',
+                        })
+
+            # Check diagonal (down-right)
+            for r in range(rows - win_length + 1):
+                for c in range(cols - win_length + 1):
+                    if all((r + i, c + i) in pos_set for i in range(win_length)):
+                        derived.append({
+                            'content': f"{piece} has {win_length} in a row diagonally (down-right) from ({r+1},{c+1})",
+                            'category': 'game_result',
+                            'confidence': 0.95,
+                            'source_type': 'derived',
+                        })
+
+            # Check diagonal (down-left)
+            for r in range(rows - win_length + 1):
+                for c in range(win_length - 1, cols):
+                    if all((r + i, c - i) in pos_set for i in range(win_length)):
+                        derived.append({
+                            'content': f"{piece} has {win_length} in a row diagonally (down-left) from ({r+1},{c+1})",
+                            'category': 'game_result',
+                            'confidence': 0.95,
+                            'source_type': 'derived',
+                        })
+
+        if not derived:
+            derived.append({
+                'content': f"Board state captured ({rows}×{cols}) — no win condition detected yet",
+                'category': 'board_state',
+                'confidence': 0.7,
+                'source_type': 'derived',
+            })
+
+        return derived
+
+    def _analyze_personality(self, user_id: str, content: str) -> list[str]:
+        """Analyze message and update personality traits. Returns detected traits."""
         traits = []
         interests = []
         content_lower = content.lower()
@@ -543,6 +964,8 @@ class EnhancedMessageManagerV3:
 
         if traits or interests:
             self.memory.update_user_traits(user_id, traits, interests)
+
+        return traits
 
     def _get_emotional_tone(self, sentiment_score: float) -> str:
         """Convert sentiment score to emotional tone"""

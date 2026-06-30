@@ -35,88 +35,121 @@ class ConversationContextBuilder:
         self,
         user_messages: List[Dict],
         channel_id: Optional[str] = None,
-        query_time_hint: Optional[str] = None
+        query_time_hint: Optional[str] = None,
+        mood_state: Optional[Dict] = None,
     ) -> Dict:
         """
-        Build context for LLM response.
-        Makes the bot feel like it's actually remembering, not searching a database.
-        
-        Args:
-            user_messages: Current conversation messages
-            channel_id: Channel ID for filtering
-            query_time_hint: Time reference from user query (e.g., "last Tuesday")
-        
-        Returns:
-            Context dict with memories, profiles, relationships
+        Build structured context using type-specific retrieval.
+        Each memory type gets its own query, its own limit, and its own
+        section in the returned dict. No single type can dominate.
         """
-        
+
         # Extract info from current messages
         participants = list(set(msg['user_id'] for msg in user_messages))
         primary_user_id = user_messages[-1]['user_id']
         primary_username = user_messages[-1]['user_name']
-        
-        # Get recent conversation history (sliding window)
-        recent_messages = self.memory.get_recent_conversation(
-            channel_id=channel_id,
-            limit=15
-        )
-        
-        # Build search query from recent messages
-        query_parts = []
-        for msg in user_messages[-3:]:  # Last 3 messages
-            query_parts.append(msg['content'])
+
+        # 1. Working memory — always present, from SQLite
+        recent_messages = []
+        if channel_id:
+            recent_messages = self.memory.get_recent_conversation_from_sqlite(
+                channel_id=channel_id,
+                limit=15,
+            )
+
+        # Build base query from recent messages
+        query_parts = [msg['content'] for msg in user_messages[-3:]]
         search_query = " ".join(query_parts)
-        
         logger.debug(f" Searching memories for: '{search_query[:60]}...'")
-        
-        # TIER 5: Check for time reference in query
-        time_range = None
-        if query_time_hint:
-            time_range = get_time_range(query_time_hint)
-            if time_range:
-                logger.info(f"[TIME] Time range filter: {time_range[0]} to {time_range[1]}")
-        
-        # Search semantic memories (with optional time filtering)
-        if time_range:
-            # Filter by time range (need to add this to memory_system)
-            relevant_memories = self._search_with_time_range(
-                search_query,
-                primary_user_id,
-                time_range
-            )
-        else:
-            relevant_memories = self.memory.search_memories(
-                query=search_query,
-                user_id=primary_user_id,
-                n_results=5
-            )
-        
-        logger.info(f"💭 Found {len(relevant_memories)} relevant memories")
-        
-        # Get user profiles
+
+        # 2. Evidence memories — high priority, separate retrieval
+        evidence_memories = self.memory.search_memories(
+            query=search_query,
+            user_id=primary_user_id,
+            n_results=3,
+            memory_type='evidence',
+            time_decay_days=90,
+        )
+
+        # 3. Episode memories (summaries) — secondary, separate retrieval
+        episode_memories = self.memory.search_memories(
+            query=search_query,
+            user_id=primary_user_id,
+            n_results=2,
+            memory_type='summary',
+            time_decay_days=90,
+        )
+
+        # 4. Regular utterance memories — lowest priority, limited to 2
+        utterance_memories = self.memory.search_memories(
+            query=search_query,
+            user_id=primary_user_id,
+            n_results=2,
+            memory_type='utterance',
+            time_decay_days=60,
+        )
+
+        # Mood-based filtering: when mood is chill/low-energy, strip argument
+        # memories so the model doesn't get pulled into debate mode
+        if mood_state:
+            tone = (mood_state.get("tone_modifier") or "").lower()
+            is_chill = any(w in tone for w in ["chill", "low-energy", "straightforward", "genuine"])
+            is_energetic = any(w in tone for w in ["energetic", "punchy", "sarcastic"])
+            if is_chill:
+                # Drop argument-like utterance memories
+                ARGUMENT_KW = ["lose", "lost", "win", "won", "admit", "wrong",
+                               "cope", "argue", "disagree", "disagreed"]
+                utterance_memories = [
+                    m for m in utterance_memories
+                    if not any(kw in m.get('content', '').lower() for kw in ARGUMENT_KW)
+                ]
+            elif is_energetic:
+                # Allow an extra utterance memory for debate
+                utterance_memories = self.memory.search_memories(
+                    query=search_query,
+                    user_id=primary_user_id,
+                    n_results=3,
+                    memory_type='utterance',
+                    time_decay_days=60,
+                )
+
+        # 5. Relationships
+        relationships = self.memory.get_user_relationships(
+            primary_user_id, min_strength=0.3,
+        )
+
+        # 6. User profiles
         profiles = {}
         for user_id in participants:
             profile = self.memory.get_user_profile(user_id)
             if profile:
                 profiles[user_id] = profile
-        
-        # Get relationships
-        relationships = self.memory.get_user_relationships(primary_user_id, min_strength=0.3)
-        
-        # Build natural context sections
+
+        # 7. Facts — from FactStore, highest priority, keyword-matched to query
+        facts = self.memory.get_relevant_facts(
+            query=search_query,
+            limit=5,
+        )
+
+        # 8. Beliefs — from BeliefStore, conclusions inferred from facts
+        beliefs = self.memory.get_relevant_beliefs(
+            query=search_query,
+            limit=3,
+        )
+
         return {
             'recent_conversation': recent_messages,
-            'relevant_memories': relevant_memories,
+            'facts': facts,
+            'beliefs': beliefs,
+            'evidence_memories': evidence_memories,
+            'episode_memories': episode_memories,
+            'utterance_memories': utterance_memories,
             'profiles': profiles,
             'relationships': relationships,
             'primary_user': {
                 'user_id': primary_user_id,
-                'username': primary_username
+                'username': primary_username,
             },
-            'time_context': {
-                'query_time_hint': query_time_hint,
-                'time_range': time_range
-            }
         }
     
     def _search_with_time_range(

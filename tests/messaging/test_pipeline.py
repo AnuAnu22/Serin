@@ -24,8 +24,12 @@ def _mock_memory_system():
 def _mock_retrieval():
     r = MagicMock()
     r.build_context.return_value = {
-        "relevant_memories": [],
+        "evidence_memories": [],
+        "episode_memories": [],
+        "utterance_memories": [],
         "recent_conversation": [],
+        "relationships": [],
+        "profiles": {},
     }
     return r
 

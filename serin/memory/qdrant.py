@@ -277,6 +277,53 @@ class QdrantMemorySystem:
             CREATE INDEX IF NOT EXISTS idx_recent_channel_time 
             ON recent_messages(channel_id, timestamp DESC)
         """)
+
+        # Fact Store — verifiable information extracted from messages
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS facts (
+                id TEXT PRIMARY KEY,
+                content TEXT NOT NULL,
+                category TEXT NOT NULL DEFAULT 'observation',
+                confidence REAL DEFAULT 0.5,
+                source_message_id TEXT,
+                source_user_id TEXT,
+                source_username TEXT DEFAULT '',
+                source_type TEXT DEFAULT 'user_claim',
+                timestamp TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                superseded_by TEXT,
+                is_active INTEGER DEFAULT 1
+            )
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_facts_category
+            ON facts(category, is_active)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_facts_active
+            ON facts(is_active, confidence DESC)
+        """)
+
+        # Belief Store — conclusions inferred from facts
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS beliefs (
+                id TEXT PRIMARY KEY,
+                content TEXT NOT NULL,
+                category TEXT NOT NULL DEFAULT 'inference',
+                confidence REAL DEFAULT 0.5,
+                supporting_fact_ids TEXT DEFAULT '[]',
+                contradicting_fact_ids TEXT DEFAULT '[]',
+                evidence_count INTEGER DEFAULT 1,
+                claim_count INTEGER DEFAULT 0,
+                timestamp TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                is_active INTEGER DEFAULT 1
+            )
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_beliefs_confidence
+            ON beliefs(confidence DESC)
+        """)
         
         self.conn.commit()
         logger.debug(" SQLite schema initialized")
@@ -391,6 +438,9 @@ class QdrantMemorySystem:
             "conversation_id": kwargs.get('conversation_id', ''),
             "source_message_id": kwargs.get('source_message_id', ''),
             "memory_type": kwargs.get('memory_type', 'utterance'),
+            "speech_act": kwargs.get('speech_act', 'statement'),
+            "is_objective": kwargs.get('is_objective', False),
+            "extracted_facts": kwargs.get('extracted_facts', []),
             "topics": kwargs.get('topics', []),
             "summary_extract": kwargs.get('summary_extract', ''),
             "summary_abstract": kwargs.get('summary_abstract', ''),
@@ -741,7 +791,11 @@ class QdrantMemorySystem:
         result_list = list(merged.values())
         for item in result_list:
             # Combined score: 60% vector + 40% BM25
-            item['combined_score'] = (item['vector_score'] * 0.6) + (item['bm25_score'] * 0.4)
+            # BM25 from SQLite FTS5 returns lower = better (0 = perfect match),
+            # so invert it: good keyword matches get a higher contribution.
+            bm25 = item.get('bm25_score', 0)
+            bm25_contribution = 1.0 / (1.0 + bm25) if bm25 != 0 else 0
+            item['combined_score'] = (item['vector_score'] * 0.6) + (bm25_contribution * 0.4)
         
         return result_list
     
@@ -849,13 +903,46 @@ class QdrantMemorySystem:
         )
     
     def search_memories(self, query: str, user_id: Optional[str] = None, channel_id: Optional[str] = None, 
-                       n_results: int = 5, time_decay_days: int = 60) -> List[Dict]:
+                       n_results: int = 5, time_decay_days: int = 60,
+                       memory_type: Optional[str] = None) -> List[Dict]:
         """Legacy compatibility method"""
         filters = {}
         if channel_id:
             filters['channel_id'] = channel_id
+        if memory_type:
+            filters['memory_type'] = memory_type
         
-        results = self.search_hybrid(query, user_id, n_results, **filters)
+        # Fetch extra candidates so post-filtering doesn't reduce below n_results
+        results = self.search_hybrid(query, user_id, n_results + 5, **filters)
+        
+        # Exclude bot's own responses so it doesn't argue with its past self
+        results = [r for r in results if r.get('memory_type') != 'bot_response']
+        
+        # Deduplicate by content prefix so the same argument repeated 5 times
+        # doesn't crowd out other memories
+        seen = set()
+        unique_results = []
+        for r in results:
+            key = r.get('content', '')[:80].strip().lower()
+            if key and key not in seen:
+                seen.add(key)
+                unique_results.append(r)
+        results = unique_results
+        
+        # Anti-loop: if all remaining results are argument-related, inject a
+        # non-argument memory so the model isn't trapped in an argument frame
+        ARGUMENT_KEYWORDS = ["lose", "lost", "win", "won", "admit", "wrong",
+                             "cope", "argue", "disagree", "disagreed"]
+        if results and user_id:
+            all_argument = all(
+                any(kw in r.get('content', '').lower() for kw in ARGUMENT_KEYWORDS)
+                for r in results
+            )
+            if all_argument:
+                non_argument = self._find_non_argument_memory(user_id, channel_id)
+                if non_argument:
+                    # Replace the last result with the diversity memory
+                    results[-1] = non_argument
         
         # Apply time decay filter
         filtered_results = []
@@ -866,7 +953,46 @@ class QdrantMemorySystem:
             if age_days <= time_decay_days:
                 filtered_results.append(result)
         
-        return filtered_results
+        return filtered_results[:n_results]
+    
+    def _find_non_argument_memory(self, user_id: str, channel_id: Optional[str] = None) -> Optional[Dict]:
+        """Find a non-argumentative memory to inject as diversity."""
+        ARGUMENT_KEYWORDS = ["lose", "lost", "win", "won", "admit", "wrong",
+                             "cope", "argue", "disagree", "disagreed"]
+        try:
+            if not self.qdrant_client or not self.embedding_model:
+                return None
+            filters = {'memory_type': 'utterance'}
+            if channel_id:
+                filters['channel_id'] = channel_id
+            qdrant_filter = self._build_qdrant_filter(user_id, filters)
+            # Use a neutral query to find non-argument memories
+            query_embedding = self.embedding_model.encode(["search_query: conversation"])[0].tolist()
+            results = self.qdrant_client.query_points(
+                collection_name="memories",
+                query=query_embedding,
+                query_filter=qdrant_filter,
+                limit=10,
+                with_payload=True
+            ).points
+            for r in results:
+                text = (r.payload.get('text', '') or '')
+                if not any(kw in text.lower() for kw in ARGUMENT_KEYWORDS):
+                    return {
+                        'content': text,
+                        'username': r.payload.get('person_display', ''),
+                        'timestamp': r.payload.get('timestamp', ''),
+                        'emotional_tone': r.payload.get('emotional_tone', 'neutral'),
+                        'relevance': 0.3,
+                        'age_days': self._calculate_age_days(r.payload.get('timestamp', '')),
+                        'channel_id': r.payload.get('channel_id', ''),
+                        'participants': r.payload.get('participants', []),
+                        'memory_type': 'utterance',
+                        'importance': r.payload.get('importance', 0.5),
+                    }
+        except Exception as e:
+            logger.debug("memory.diversity_search_failed", extra={"error": str(e)})
+        return None
     
     def get_recent_conversation(self, channel_id: str = None, user_id: str = None, limit: int = 20) -> List[Dict]:
         """Get recent conversation context"""
@@ -1145,6 +1271,31 @@ class QdrantMemorySystem:
         result = cursor.fetchone()
         return dict(result) if result else None
 
+    def get_recent_conversation_from_sqlite(self, channel_id: str, limit: int = 20) -> List[Dict]:
+        """Get recent conversation from SQLite (short-term buffer)."""
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute("""
+                SELECT user_id, username, content, timestamp
+                FROM recent_messages
+                WHERE channel_id = ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+            """, (channel_id, limit))
+            rows = cursor.fetchall()
+            messages = []
+            for row in reversed(rows):
+                messages.append({
+                    'user_id': row['user_id'],
+                    'username': row['username'],
+                    'content': row['content'],
+                    'timestamp': row['timestamp'],
+                })
+            return messages
+        except Exception as e:
+            logger.error(f" Error reading recent messages: {e}")
+            return []
+
     def get_message_count(self, channel_id: str) -> int:
         """Get total message count for a channel"""
         cursor = self.conn.cursor()
@@ -1273,6 +1424,285 @@ class QdrantMemorySystem:
         """Cleanup"""
         if hasattr(self, 'conn'):
             self.conn.close()
+
+    # ── Fact Store ─────────────────────────────────────────────────────────
+
+    def add_fact(self, content: str, category: str = 'observation',
+                 confidence: float = 0.5, source_message_id: str = '',
+                 source_user_id: str = '', source_username: str = '',
+                 source_type: str = 'user_claim') -> str:
+        """Store a fact extracted from a message.
+
+        Facts are verifiable pieces of information stored independently
+        of the conversation they came from. Source_type indicates reliability:
+          - evidence_extracted: extracted from board/URL/code/quote (0.8-1.0)
+          - user_claim: stated by a user without supporting evidence (0.1-0.3)
+          - bot_assertion: stated by the bot itself (0.7-0.9)
+          - verified: confirmed through multiple sources
+
+        Auto-supersedes: when a new board_state or game_result fact arrives,
+        any existing active fact of the same category is superseded — board
+        states are timestamped and the latest one is always authoritative.
+        """
+        fact_id = str(uuid.uuid4())
+        now = datetime.now().isoformat()
+        cursor = self.conn.cursor()
+
+        # ── Auto-supersede: later board states invalidate earlier ones ─────
+        if category in ('board_state', 'game_result', 'reference'):
+            old_facts = cursor.execute("""
+                SELECT id FROM facts
+                WHERE is_active = 1 AND category = ? AND id != ?
+                ORDER BY timestamp DESC
+            """, (category, '')).fetchall()
+            for row in old_facts:
+                cursor.execute("""
+                    UPDATE facts SET is_active = 0, superseded_by = ?,
+                                    updated_at = ?
+                    WHERE id = ?
+                """, (fact_id, now, row[0]))
+                logger.debug(
+                    f"Fact superseded: [{category}] {row[0]} → {fact_id}"
+                )
+
+        cursor.execute("""
+            INSERT INTO facts (id, content, category, confidence,
+                               source_message_id, source_user_id, source_username,
+                               source_type, timestamp, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (fact_id, content, category, confidence,
+              source_message_id, source_user_id, source_username,
+              source_type, now, now))
+        self.conn.commit()
+        logger.debug(f"Fact stored: [{category}] {content[:60]}...")
+        return fact_id
+
+    def get_active_facts(self, category: Optional[str] = None,
+                         limit: int = 10) -> List[Dict]:
+        """Retrieve active facts, optionally filtered by category."""
+        cursor = self.conn.cursor()
+        if category:
+            cursor.execute("""
+                SELECT * FROM facts
+                WHERE is_active = 1 AND category = ?
+                ORDER BY confidence DESC, timestamp DESC
+                LIMIT ?
+            """, (category, limit))
+        else:
+            cursor.execute("""
+                SELECT * FROM facts
+                WHERE is_active = 1
+                ORDER BY confidence DESC, timestamp DESC
+                LIMIT ?
+            """, (limit,))
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_relevant_facts(self, query: str, limit: int = 5) -> List[Dict]:
+        """Retrieve active facts relevant to a query using keyword overlap.
+
+        This is intentionally simple — facts are small, atomic, and keyword
+        matching works well for retrieval. Embedding-based fact retrieval
+        would over-amplify semantically similar claims.
+        """
+        cursor = self.conn.cursor()
+        keywords = [w.lower() for w in query.split()
+                    if len(w) > 3 and w.isalpha()]
+        if not keywords:
+            return []
+
+        # Build FTS-like keyword matching from the facts table
+        # For each keyword, check if it appears in the fact content
+        placeholders = ', '.join('?' for _ in keywords)
+        like_clauses = ' OR '.join('f.content LIKE ?' for _ in keywords)
+        like_params = [f'%{kw}%' for kw in keywords]
+
+        cursor.execute(f"""
+            SELECT f.*,
+                   ( {' + '.join(f"(CASE WHEN f.content LIKE ? THEN 1 ELSE 0 END)" for _ in keywords)} ) as relevance
+            FROM facts f
+            WHERE f.is_active = 1 AND ({like_clauses})
+            ORDER BY relevance DESC, f.confidence DESC, f.timestamp DESC
+            LIMIT ?
+        """, (*like_params, *like_params, limit))
+
+        return [dict(row) for row in cursor.fetchall()]
+
+    def supersede_fact(self, fact_id: str, superseded_by: str = '') -> None:
+        """Mark a fact as superseded (no longer active)."""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            UPDATE facts
+            SET is_active = 0, superseded_by = ?, updated_at = ?
+            WHERE id = ?
+        """, (superseded_by, datetime.now().isoformat(), fact_id))
+        self.conn.commit()
+
+    def deactivate_facts_by_message(self, source_message_id: str) -> None:
+        """Deactivate all facts extracted from a specific message."""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            UPDATE facts
+            SET is_active = 0, updated_at = ?
+            WHERE source_message_id = ?
+        """, (datetime.now().isoformat(), source_message_id))
+        self.conn.commit()
+
+    # ── Belief Store ─────────────────────────────────────────────────────────
+
+    def add_or_update_belief(self, content: str, category: str = 'inference',
+                             confidence: float = 0.5,
+                             supporting_fact_ids: Optional[list[str]] = None,
+                             contradicting_fact_ids: Optional[list[str]] = None,
+                             evidence_count: int = 1,
+                             claim_count: int = 0) -> str:
+        """Store or update a belief (a conclusion inferred from facts).
+
+        If a belief with the same content already exists, its confidence is
+        updated via Bayesian averaging — new supporting evidence raises
+        confidence, new contradicting evidence lowers it.
+        """
+        now = datetime.now().isoformat()
+        cursor = self.conn.cursor()
+
+        supporting_ids = json.dumps(supporting_fact_ids or [])
+        contradicting_ids = json.dumps(contradicting_fact_ids or [])
+
+        # Check existing belief with same content
+        existing = cursor.execute("""
+            SELECT id, confidence, evidence_count, claim_count
+            FROM beliefs
+            WHERE content = ? AND is_active = 1
+        """, (content,)).fetchone()
+
+        if existing:
+            belief_id = existing[0]
+            old_conf = existing[1]
+            old_evidence = existing[2]
+            old_claims = existing[3]
+
+            # Bayesian-inspired update: new evidence pulls confidence up,
+            # new claims pull it down, weighted by relative counts
+            total_evidence = old_evidence + evidence_count
+            total_claims = old_claims + claim_count
+            total = total_evidence + total_claims
+            evidence_ratio = total_evidence / max(total, 1)
+            updated_conf = 0.3 + 0.7 * evidence_ratio  # Maps 0-1 evidence ratio to 0.3-1.0
+
+            cursor.execute("""
+                UPDATE beliefs
+                SET confidence = ?, evidence_count = ?,
+                    claim_count = ?,
+                    supporting_fact_ids = ?,
+                    contradicting_fact_ids = ?,
+                    updated_at = ?
+                WHERE id = ?
+            """, (updated_conf, total_evidence, total_claims,
+                  supporting_ids, contradicting_ids, now, belief_id))
+            logger.debug(
+                f"Belief updated: [{category}] {content[:60]}... "
+                f"conf {old_conf:.2f} → {updated_conf:.2f}"
+            )
+        else:
+            belief_id = str(uuid.uuid4())
+            cursor.execute("""
+                INSERT INTO beliefs (id, content, category, confidence,
+                                     supporting_fact_ids, contradicting_fact_ids,
+                                     evidence_count, claim_count,
+                                     timestamp, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (belief_id, content, category, confidence,
+                  supporting_ids, contradicting_ids,
+                  evidence_count, claim_count, now, now))
+            logger.debug(
+                f"Belief created: [{category}] {content[:60]}... "
+                f"conf {confidence:.2f}"
+            )
+
+        self.conn.commit()
+        return belief_id
+
+    def infer_beliefs_from_facts(self, query: str = '') -> list[Dict]:
+        """Scan active facts and infer/update beliefs.
+
+        Looks for patterns in facts to derive meta-conclusions:
+          - If evidence says board shows a win and a claim denies it,
+            belief weights toward evidence
+          - If multiple evidence facts agree, belief confidence increases
+          - Returns list of inferred beliefs
+        """
+        cursor = self.conn.cursor()
+        facts = cursor.execute("""
+            SELECT * FROM facts
+            WHERE is_active = 1
+            ORDER BY confidence DESC
+            LIMIT 50
+        """).fetchall()
+
+        beliefs = []
+        fact_rows = [dict(f) for f in facts]
+
+        # Group related facts by category and content similarity
+        board_facts = [f for f in fact_rows if f['category'] == 'board_state']
+        claim_facts = [f for f in fact_rows if f['category'] == 'speech_claim'
+                       or f['category'].endswith('_claim')]
+
+        # Check for board-state wins
+        for bf in board_facts:
+            if '4' in bf['content'] or 'win' in bf['content'].lower():
+                # Evidence indicates a win
+                evidence_conf = bf['confidence']
+                supporting_ids = [bf['id']]
+                contradicting_ids = []
+                claim_count = 0
+
+                for cf in claim_facts:
+                    if 'won' in cf['content'].lower() or 'win' in cf['content'].lower():
+                        if cf['source_type'] == 'user_claim':
+                            contradicting_ids.append(cf['id'])
+                            claim_count += 1
+
+                belief_conf = 0.3 + 0.7 * (
+                    evidence_conf * (1 + len(supporting_ids)) /
+                    (1 + len(supporting_ids) + claim_count)
+                )
+                belief_content = f"Evidence suggests a win condition was met"
+                beliefs.append({
+                    'content': belief_content,
+                    'confidence': belief_conf,
+                    'category': 'game_outcome',
+                    'supporting_fact_ids': supporting_ids,
+                    'contradicting_fact_ids': contradicting_ids,
+                    'evidence_count': len(supporting_ids),
+                    'claim_count': claim_count,
+                })
+
+        return beliefs
+
+    def get_relevant_beliefs(self, query: str, limit: int = 3) -> List[Dict]:
+        """Retrieve active beliefs relevant to a query."""
+        cursor = self.conn.cursor()
+        keywords = [w.lower() for w in query.split()
+                    if len(w) > 3 and w.isalpha()]
+        if not keywords:
+            cursor.execute("""
+                SELECT * FROM beliefs
+                WHERE is_active = 1
+                ORDER BY confidence DESC
+                LIMIT ?
+            """, (limit,))
+            return [dict(row) for row in cursor.fetchall()]
+
+        like_clauses = ' OR '.join('content LIKE ?' for _ in keywords)
+        like_params = [f'%{kw}%' for kw in keywords]
+
+        cursor.execute(f"""
+            SELECT * FROM beliefs
+            WHERE is_active = 1 AND ({like_clauses})
+            ORDER BY confidence DESC
+            LIMIT ?
+        """, (*like_params, limit))
+
+        return [dict(row) for row in cursor.fetchall()]
 
 
 class SQLiteBM25Index:

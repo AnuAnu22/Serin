@@ -55,33 +55,56 @@ class MemoryRetrievalStage(PipelineStage):
             context_data = self.retrieval.build_context(
                 user_messages=user_messages_for_ctx,
                 channel_id=ctx.channel_id,
+                mood_state={"tone_modifier": ctx.tone_modifier},
             )
         else:
             context_data = {}
 
-        # Extract memories
-        raw_memories = context_data.get("relevant_memories", [])
-        clean_memories = []
-        for mem in raw_memories:
-            content = mem.get("content", "")
-            is_garbage = any(
-                pattern.lower() in content.lower()
-                for pattern in self.GARBAGE_PATTERNS
-            )
-            if is_garbage:
-                logger.warning("pipeline.memory_filtered_garbage", extra={
-                    "content_preview": content[:50],
-                })
-                continue
-            clean_memories.append(mem)
+        # Extract memories by type
+        facts = context_data.get("facts", [])
+        beliefs = context_data.get("beliefs", [])
+        evidence_memories = context_data.get("evidence_memories", [])
+        episode_memories = context_data.get("episode_memories", [])
+        utterance_memories = context_data.get("utterance_memories", [])
 
-        ctx.memories = clean_memories
+        # Apply garbage filter to facts and all memory types
+        def _clean_garbage(memories):
+            clean = []
+            for mem in memories:
+                content = mem.get("content", "")
+                is_garbage = any(
+                    pattern.lower() in content.lower()
+                    for pattern in self.GARBAGE_PATTERNS
+                )
+                if is_garbage:
+                    logger.warning("pipeline.memory_filtered_garbage", extra={
+                        "content_preview": content[:50],
+                    })
+                    continue
+                clean.append(mem)
+            return clean
+
+        ctx.facts = _clean_garbage(facts)
+        ctx.beliefs = _clean_garbage(beliefs)
+        ctx.evidence_memories = _clean_garbage(evidence_memories)
+        ctx.episode_memories = _clean_garbage(episode_memories)
+        ctx.utterance_memories = _clean_garbage(utterance_memories)
+
+        # Flatten all memories for backwards compatibility
+        ctx.memories = (ctx.evidence_memories + ctx.episode_memories + ctx.utterance_memories)
+
         ctx.recent_messages = context_data.get("recent_conversation", [])
+        ctx.relationships = context_data.get("relationships", [])
 
         logger.info("pipeline.memory_retrieval_complete", extra={
             "user": ctx.username,
-            "memories_found": len(ctx.memories),
+            "facts_found": len(ctx.facts),
+            "beliefs_found": len(ctx.beliefs),
+            "evidence_found": len(ctx.evidence_memories),
+            "episodes_found": len(ctx.episode_memories),
+            "utterances_found": len(ctx.utterance_memories),
             "recent_messages": len(ctx.recent_messages),
+            "relationships_found": len(ctx.relationships),
         })
 
         return ctx

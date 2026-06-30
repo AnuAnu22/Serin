@@ -311,13 +311,24 @@ class BackgroundProcessor:
             model_name = model_info.get('model_name', '').lower()
             is_thinking_model = 'thinking' in model_name or 'think' in model_name
             
-            # Build a simple, natural prompt - no meta-instructions that could leak
+            # Build a structured prompt that distinguishes observations from claims
             usernames = list(set(msg['username'] for msg in messages))
-            prompt = f"""Summarize this conversation in ONE sentence, mentioning who said what:
+            prompt = f"""Write a one-sentence memory based on what occurred.
 
+CRITICAL — distinguish these three types of information:
+  • Observations: objective content shown (board states, links, code, quoted text). 
+    These are things actually SEEN, not just claimed.
+  • Claims: subjective assertions someone made ("I won", "you lost", etc.). 
+    These are things someone SAID, not things that happened.
+  • Events: actual conversation events (topic changes, agreements, etc.).
+
+When a board state was shown, describe what was OBSERVED, not what someone claimed about it.
+Example: "Serin observed a board showing X has 4 in a row" NOT "NekoNeko claimed victory."
+
+Conversation:
 {conversation_text}
 
-Summary:"""
+Memory:"""
             
             # Query LLM for summary
             if is_thinking_model:

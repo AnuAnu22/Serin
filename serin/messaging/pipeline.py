@@ -35,6 +35,7 @@ class MessagePipeline:
         response_generator,
         thinking_filter,
         mention_translator,
+        mood_state=None,
     ) -> "MessagePipeline":
         """
         Factory method — wires all dependencies into stages.
@@ -54,7 +55,7 @@ class MessagePipeline:
             ResponseDecisionStage(response_controller),
             MemoryRetrievalStage(memory_system, retrieval),
             TemporalStage(temporal_context),
-            PersonalityStage(personality),
+            PersonalityStage(personality, mood_state=mood_state),
             PromptAssemblyStage(mention_translator),
             LLMCallStage(response_generator),
             ResponseCleaningStage(thinking_filter),
