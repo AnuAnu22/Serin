@@ -70,19 +70,19 @@ class AudioStreamProcessor:
       LLM response → TTS → Rust plays audio → TTS_DONE → _release_lock()
     """
 
-    def __init__(self, whisper_transcriber: Any, voice_pipeline: Any, silence_threshold: float = 3.0,
+    def __init__(self, transcriber: Any, voice_pipeline: Any, silence_threshold: float = 3.0,
                  voice_output_manager: Optional[Any] = None, llm_connector: Optional[Any] = None) -> None:
         """
         Initialize audio stream processor.
 
         Args:
-            whisper_transcriber: WhisperTranscriber instance (used for non-Gemma STT)
+            transcriber: WhisperTranscriber instance (used for non-Gemma STT)
             voice_pipeline: VoiceMemoryPipeline instance (stores messages, triggers responses)
             silence_threshold: Seconds of consecutive silence before a chunk is queued for transcription
             voice_output_manager: VoiceOutputManager instance (handles TTS playback, needed for interrupts)
             llm_connector: Optional LLM connector (used for direct Gemma input_audio transcription)
         """
-        self.transcriber = whisper_transcriber
+        self.transcriber = transcriber
         self.voice_pipeline = voice_pipeline
         self.silence_threshold = silence_threshold  # Seconds of silence before queueing
         self.voice_output_manager = voice_output_manager

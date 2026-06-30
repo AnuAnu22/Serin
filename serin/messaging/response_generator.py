@@ -109,12 +109,22 @@ async def get_response_natural(
         for msg in current_messages[-8:]:
             has_image = 'image_url' in msg
             
+            # Support two message formats:
+            # - Pipeline format: {"role": "user", "content": "username: text"}
+            # - Legacy format: {"user_name": "username", "content": "text"}
+            if 'user_name' in msg:
+                user_prefix = f"{msg['user_name']}: "
+                msg_content = msg.get('content', '')
+            else:
+                user_prefix = ''
+                msg_content = msg.get('content', '')
+            
             if has_image and main_llm_has_vision:
                 # Direct vision: send image_url to main LLM (gemma12b with mmproj)
                 messages.append({
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": f"{msg['user_name']}: {msg['content']}\nDescribe what you see in this image and respond naturally to the conversation."},
+                        {"type": "text", "text": f"{user_prefix}{msg_content}\nDescribe what you see in this image and respond naturally to the conversation."},
                         {"type": "image_url", "image_url": {"url": msg['image_url']}}
                     ]
                 })
@@ -128,14 +138,14 @@ async def get_response_natural(
                         ]}
                     ]
                     image_desc = await vision_llama.chat_completion(desc_prompt, max_tokens=150)
-                    content_str = f"{msg['user_name']}: {msg['content']}\n[Image: {image_desc}]"
+                    content_str = f"{user_prefix}{msg_content}\n[Image: {image_desc}]"
                 except Exception as e:
                     logger.warning(f" Vision description failed: {e}")
-                    content_str = f"{msg['user_name']}: {msg['content']}\n[Image: (could not analyze)]"
+                    content_str = f"{user_prefix}{msg_content}\n[Image: (could not analyze)]"
                 messages.append({"role": "user", "content": content_str})
             else:
                 # No vision available
-                content_str = f"{msg['user_name']}: {msg['content']}"
+                content_str = f"{user_prefix}{msg_content}"
                 if has_image:
                     content_str += "\n[Image attached]"
                 messages.append({"role": "user", "content": content_str})

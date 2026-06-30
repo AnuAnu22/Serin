@@ -1027,6 +1027,24 @@ async def clear_tts_voice() -> Any:
     except Exception as e:
         return {'success': False, 'error': str(e)}
 
+@app.post("/api/tts/voice/test")
+async def test_tts_voice() -> Any:
+    """Test TTS by synthesizing a test phrase"""
+    try:
+        tts = bot_state['tts_engine']
+        if not tts:
+            return {'success': False, 'error': 'TTS not initialized'}
+        if hasattr(tts, 'synthesize') and callable(tts.synthesize):
+            await tts.synthesize("Hello, I am Serin. This is a test of the text to speech system.")
+            return {'success': True}
+        if hasattr(tts, 'generate_speech') and callable(tts.generate_speech):
+            await tts.generate_speech("Hello, I am Serin. This is a test of the text to speech system.")
+            return {'success': True}
+        return {'success': False, 'error': 'No synthesize method available on TTS engine'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
 @app.post("/api/tts/settings/update")
 async def update_tts_settings(data: Dict[str, Any]) -> Any:
     """Update TTS settings (profile, speed, etc.)"""

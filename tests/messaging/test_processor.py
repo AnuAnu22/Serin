@@ -35,7 +35,7 @@ def test_constants_defined():
 def test_audio_stream_processor_instantiation():
     """AudioStreamProcessor should initialize without errors."""
     processor = AudioStreamProcessor(
-        whisper_transcriber=MagicMock(),
+        transcriber=MagicMock(),
         voice_pipeline=MagicMock(),
         llm_connector=MagicMock(),
     )
@@ -49,7 +49,7 @@ def test_audio_stream_processor_constants_wired():
     constants defined in voice/processor.py.
     """
     processor = AudioStreamProcessor(
-        whisper_transcriber=MagicMock(),
+        transcriber=MagicMock(),
         voice_pipeline=MagicMock(),
         llm_connector=MagicMock(),
     )
@@ -61,7 +61,7 @@ def test_silent_audio_does_not_queue():
     """Audio below VAD threshold should not queue for transcription."""
     with patch.object(AudioStreamProcessor, "_queue_for_transcription") as mock_q:
         processor = AudioStreamProcessor(
-            whisper_transcriber=MagicMock(),
+            transcriber=MagicMock(),
             voice_pipeline=MagicMock(),
             llm_connector=MagicMock(),
         )

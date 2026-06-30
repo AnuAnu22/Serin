@@ -176,7 +176,7 @@ stats = {
 async def on_ready():
     """Called when bot successfully connects to Discord"""
     global message_manager, background_processor, passive_monitor, message_crawler
-    global whisper_transcriber, audio_processor, voice_listener, voice_pipeline, tts_engine
+    global transcriber, audio_processor, voice_listener, voice_pipeline, tts_engine
     global voice_behavior_manager
 
     try:
@@ -291,7 +291,7 @@ async def on_ready():
             logger.info("=" * 60)
 
             # 1. Whisper Transcriber
-            whisper_transcriber = WhisperTranscriber()
+            transcriber = WhisperTranscriber()
 
             # 2. Voice Memory Pipeline
             voice_pipeline = VoiceMemoryPipeline(
@@ -302,7 +302,7 @@ async def on_ready():
 
             # 3. Audio Stream Processor
             audio_processor = AudioStreamProcessor(
-                whisper_transcriber=whisper_transcriber,
+                transcriber=transcriber,
                 voice_pipeline=voice_pipeline,
                 silence_threshold=1.5,
                 llm_connector=serin.messaging.response_generator.llama
