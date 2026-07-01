@@ -1,30 +1,4 @@
-"""
-Audio Stream Processor — Per-User Audio Buffer, VAD & Pipeline Orchestrator
-
-This is the core of the voice conversation pipeline. It:
-
-  1. Receives raw PCM audio chunks (48kHz stereo 16-bit) from the Rust songbird bridge
-  2. Runs energy-based Voice Activity Detection on each chunk
-  3. Buffers audio per-user while they speak
-  4. Detects when the user stops speaking (silence threshold = SILENCE_FRAMES_BEFORE_FLUSH / FRAMES_PER_SECOND)
-  5. Queues the buffered audio for transcription (either direct to Gemma or via Whisper STT)
-  6. Sets a processing lock so new speech during LLM/TTS is buffered silently
-  7. The lock is released by a TTS_DONE signal from Rust when playback actually finishes
-
-Noise filtering:
-  - Audio under 1 second total (192KB) is discarded entirely
-  - Brief voice bursts under 0.5s (25 frames) don't reset the silence counter
-  - This prevents pops, clicks, and Discord audio dropouts from extending the response window
-
-Processing lock lifecycle:
-  1. User stops speaking → silence timer fires → _queue_for_transcription → _set_lock(30s)
-  2. LLM generates, TTS synthesizes, audio sent to Rust bridge
-  3. Rust songbird plays TTS through the voice channel
-  4. When playback finishes, Rust sends TTS_DONE → Python receives it → _release_lock()
-  5. Next user utterance is processed immediately (no artificial delay)
-
-    The 30s lock duration is purely a safety net — TTS_DONE normally releases it much sooner.
-"""
+"""Audio stream processor — per-user PCM buffer, VAD, and transcription pipeline."""
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 VAD_AMPLITUDE_THRESHOLD = 150           # RMS amplitude below which is considered silence
