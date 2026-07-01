@@ -178,6 +178,3 @@ stats = {
     'errors': 0,
     'start_time': None
 }
-
-
-@client.event
