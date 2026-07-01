@@ -12,9 +12,6 @@ import sqlite3
 import time as time_mod
 from typing import Any
 
-import docker
-
-from serin.config.config import config
 from serin.logger import logger
 from serin.pipeline.remember.core.bm25_index import SQLiteBM25Index
 from serin.pipeline.remember.knowledge.beliefs import BeliefStore
@@ -22,7 +19,6 @@ from serin.pipeline.remember.knowledge.evidence import FactStore
 
 # Qdrant imports
 try:
-    from qdrant_client import QdrantClient
     from qdrant_client.http.models import Distance, VectorParams
     QDRANT_AVAILABLE = True
 except ImportError:
@@ -101,108 +97,24 @@ class QdrantMemorySystem:
 
     @staticmethod
     def _connect_with_retry(host: str, port: int, max_attempts: int = 3) -> Any | None:
-        """Try connecting to Qdrant, then fall back to Docker auto-start if configured."""
-        for attempt in range(max_attempts):
-            try:
-                client = QdrantClient(host=host, port=port, timeout=5.0)
-                client.get_collections()
-                logger.info(f" Qdrant client connected to {host}:{port}")
-                return client
-            except Exception as e:
-                if attempt < max_attempts - 1:
-                    logger.warning(f" Qdrant connection failed (attempt {attempt+1}/{max_attempts}): {e}. Retrying...")
-                    time_mod.sleep(2)
-                else:
-                    logger.error(f" Failed to connect to Qdrant after {max_attempts} attempts: {e}")
-
-        if config.QDRANT_USE_DOCKER or host in ("localhost", "127.0.0.1"):
-            logger.info(" Attempting Qdrant Docker auto-start...")
-            return QdrantMemorySystem._ensure_qdrant_docker(host, port)
-        return None
+        from serin.pipeline.remember.core.connection_store import (
+            connect_with_retry as _run,
+        )
+        return _run(host, port, max_attempts)
 
     @staticmethod
     def _find_qdrant_container() -> str | None:
-        """Find any existing Qdrant container (by configured name or image)."""
-        try:
-            client = docker.from_env()
-            containers = client.containers.list(
-                all=True,
-                filters={"name": config.QDRANT_DOCKER_CONTAINER_NAME},
-            )
-            for c in containers:
-                if config.QDRANT_DOCKER_CONTAINER_NAME in c.name:
-                    return config.QDRANT_DOCKER_CONTAINER_NAME
-        except Exception:
-            logger.exception("Failed to find Qdrant container by name")
-
-        try:
-            client = docker.from_env()
-            containers = client.containers.list(
-                all=True,
-                filters={"ancestor": config.QDRANT_DOCKER_IMAGE},
-            )
-            if containers:
-                return containers[0].name
-        except Exception:
-            logger.exception("Failed to find Qdrant container by image")
-
-        try:
-            client = docker.from_env()
-            containers = client.containers.list(all=True)
-            for c in containers:
-                image_tags = c.image.tags if hasattr(c.image, 'tags') else []
-                if any("qdrant" in tag.lower() for tag in image_tags):
-                    return c.name
-        except Exception:
-            logger.exception("Failed to list Docker containers for Qdrant search")
-
-        return None
+        from serin.pipeline.remember.core.connection_store import (
+            find_qdrant_container as _run,
+        )
+        return _run()
 
     @staticmethod
     def _ensure_qdrant_docker(host: str, port: int) -> Any | None:
-        """Auto-start Qdrant via Docker if container exists or can be created."""
-        container_name = QdrantMemorySystem._find_qdrant_container()
-        image = config.QDRANT_DOCKER_IMAGE
-
-        try:
-            client = docker.from_env()
-            if container_name:
-                logger.info(f" Starting Qdrant container '{container_name}'...")
-                container = client.containers.get(container_name)
-                container.start()
-            else:
-                logger.info(f" Creating Qdrant container '{config.QDRANT_DOCKER_CONTAINER_NAME}'...")
-                client.containers.run(
-                    image,
-                    name=config.QDRANT_DOCKER_CONTAINER_NAME,
-                    detach=True,
-                    restart_policy={"Name": "unless-stopped"},
-                    ports={"6333/tcp": port, "6334/tcp": 6334},
-                    volumes={f"{config.QDRANT_DOCKER_CONTAINER_NAME}_data": {"bind": "/qdrant/storage", "mode": "rw"}},
-                )
-                container_name = config.QDRANT_DOCKER_CONTAINER_NAME
-
-            logger.info(" Waiting for Qdrant to accept connections...")
-            for _ in range(30):
-                time_mod.sleep(1)
-                try:
-                    qclient = QdrantClient(host=host, port=port, timeout=5.0)
-                    qclient.get_collections()
-                    logger.success(f" Qdrant Docker container ready on {host}:{port}")
-                    return qclient
-                except Exception:
-                    logger.exception("Qdrant not accepting connections yet, retrying...")
-            logger.error(" Qdrant container started but not accepting connections after 30s")
-        except docker.errors.NotFound as e:  # type: ignore[attr-defined]
-            logger.warning(" Docker container not found: %s", e)
-        except docker.errors.APIError as e:  # type: ignore[attr-defined]
-            logger.error(f" Docker API error: {e}")
-        except FileNotFoundError:
-            logger.warning(" Docker not found — cannot auto-start Qdrant")
-        except Exception as e:
-            logger.error(f" Docker auto-start failed: {e}")
-
-        return None
+        from serin.pipeline.remember.core.connection_store import (
+            ensure_qdrant_docker as _run,
+        )
+        return _run(host, port)
 
     def _init_sqlite_robust(self):
         """Initialize SQLite with corruption handling"""
@@ -251,194 +163,10 @@ class QdrantMemorySystem:
                 logger.error(f" Error moving corrupt DB: {e}")
 
     def _init_sqlite_schema(self):
-        """Initialize SQLite tables for structured data"""
+        from serin.pipeline.remember.core.schema_store import init_sqlite_schema as _run
         cursor = self.conn.cursor()
-
-        # User profiles
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                user_id TEXT PRIMARY KEY,
-                username TEXT NOT NULL,
-                display_name TEXT,
-                total_messages INTEGER DEFAULT 0,
-                avg_message_length REAL DEFAULT 0,
-                personality_traits TEXT,
-                interests TEXT,
-                communication_style TEXT,
-                first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
-        # Relationships
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS relationships (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_a_id TEXT NOT NULL,
-                user_b_id TEXT NOT NULL,
-                interaction_count INTEGER DEFAULT 0,
-                direct_mentions INTEGER DEFAULT 0,
-                relationship_strength REAL DEFAULT 0.0,
-                last_interaction TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(user_a_id, user_b_id)
-            )
-        """)
-
-        # Activity logs
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS activity_log (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id TEXT NOT NULL,
-                channel_id TEXT,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                message_length INTEGER,
-                sentiment_score REAL,
-                hour_of_day INTEGER,
-                day_of_week INTEGER
-            )
-        """)
-
-        # BM25 Search Index (SQLite FTS)
-        cursor.execute("""
-            CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
-                id,
-                text,
-                person_id,
-                channel_id,
-                memory_type,
-                content=memories,
-                content_rowid=id
-            )
-        """)
-
-        # Background Job Queue
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS background_jobs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                job_type TEXT NOT NULL,
-                memory_id TEXT,
-                payload TEXT,
-                status TEXT DEFAULT 'pending',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                priority INTEGER DEFAULT 0,
-                retry_count INTEGER DEFAULT 0
-            )
-        """)
-
-        # Qdrant Collection Metadata
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS qdrant_collections (
-                collection_name TEXT PRIMARY KEY,
-                vector_size INTEGER NOT NULL,
-                distance_metric TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                status TEXT DEFAULT 'active'
-            )
-        """)
-
-        # Memory Statistics
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS memory_stats (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                date DATE NOT NULL,
-                total_memories INTEGER DEFAULT 0,
-                total_embeddings INTEGER DEFAULT 0,
-                avg_embedding_size REAL DEFAULT 0,
-                search_count INTEGER DEFAULT 0,
-                ingestion_count INTEGER DEFAULT 0,
-                UNIQUE(date)
-            )
-        """)
-
-        # Recent messages cache
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS recent_messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                message_id TEXT UNIQUE,
-                user_id TEXT NOT NULL,
-                username TEXT NOT NULL,
-                channel_id TEXT NOT NULL,
-                content TEXT NOT NULL,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_recent_channel_time
-            ON recent_messages(channel_id, timestamp DESC)
-        """)
-
-        # Fact Store
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS facts (
-                id TEXT PRIMARY KEY,
-                content TEXT NOT NULL,
-                category TEXT NOT NULL DEFAULT 'observation',
-                confidence REAL DEFAULT 0.5,
-                source_message_id TEXT,
-                source_user_id TEXT,
-                source_username TEXT DEFAULT '',
-                source_type TEXT DEFAULT 'user_claim',
-                timestamp TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                superseded_by TEXT,
-                is_active INTEGER DEFAULT 1
-            )
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_facts_category
-            ON facts(category, is_active)
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_facts_active
-            ON facts(is_active, confidence DESC)
-        """)
-
-        # Belief Store
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS beliefs (
-                id TEXT PRIMARY KEY,
-                content TEXT NOT NULL,
-                category TEXT NOT NULL DEFAULT 'inference',
-                state TEXT NOT NULL DEFAULT 'PENDING',
-                confidence REAL DEFAULT 0.5,
-                supporting_fact_ids TEXT DEFAULT '[]',
-                contradicting_fact_ids TEXT DEFAULT '[]',
-                evidence_count INTEGER DEFAULT 1,
-                claim_count INTEGER DEFAULT 0,
-                timestamp TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                last_contradicted_at TEXT DEFAULT '',
-                contradiction_resolved_at TEXT DEFAULT '',
-                is_active INTEGER DEFAULT 1
-            )
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_beliefs_confidence
-            ON beliefs(confidence DESC)
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_beliefs_state
-            ON beliefs(state, is_active)
-        """)
-
-        # Migration: add state column if table exists without it
-        try:
-            cursor.execute("ALTER TABLE beliefs ADD COLUMN state TEXT NOT NULL DEFAULT 'PENDING'")
-        except Exception:
-            logger.exception("Migration: ALTER TABLE beliefs.state failed (column may already exist)")
-        try:
-            cursor.execute("ALTER TABLE beliefs ADD COLUMN last_contradicted_at TEXT DEFAULT ''")
-        except Exception:
-            logger.exception("Migration: ALTER TABLE beliefs.last_contradicted_at failed (column may already exist)")
-        try:
-            cursor.execute("ALTER TABLE beliefs ADD COLUMN contradiction_resolved_at TEXT DEFAULT ''")
-        except Exception:
-            logger.exception("Migration: ALTER TABLE beliefs.contradiction_resolved_at failed (column may already exist)")
-
+        _run(self.conn, cursor)
         self.conn.commit()
-        logger.debug(" SQLite schema initialized")
 
     def _setup_collection(self):
         """Setup Qdrant collection with optimized configuration"""

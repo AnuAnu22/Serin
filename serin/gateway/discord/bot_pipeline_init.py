@@ -1,13 +1,14 @@
 """MessagePipeline and behavior manager initialization."""
 import asyncio
 from datetime import datetime
-from typing import Any, cast
+from typing import cast
 
 import aiohttp
 import discord
 
 import serin.pipeline.think.response_generator
 from serin.config.config import config
+from serin.gateway.discord import event_handlers  # noqa: F401  registers event handlers
 from serin.gateway.discord.bot import (
     background_processor,
     client,
@@ -17,8 +18,13 @@ from serin.gateway.discord.bot import (
     message_manager,
     passive_monitor,
     stats,
-    voice_behavior_manager,
-    voice_listener,
+    voice_behavior_manager,  # noqa: F401  used via global in on_ready
+    voice_listener,  # noqa: F401  used via global in on_ready
+)
+from serin.gateway.discord.command_handlers import (
+    handle_help_command,
+    handle_profile_command,
+    handle_stats_command,
 )
 from serin.logger import logger
 from serin.ops.control_panel.panel_lifecycle import init_bot_state, start_server
@@ -330,119 +336,11 @@ async def on_message(message: discord.Message) -> None:
             return
 
         # === HANDLE COMMANDS ===
-        content_lower = content.lower()
-
-        # !profile command
-        if content_lower.startswith("!profile"):
-            stats['commands_executed'] += 1
-            logger.info(f"Command: !profile from {message.author.display_name}")
-
-            try:
-                mentioned_users = message.mentions
-                target_id = str(mentioned_users[0].id) if mentioned_users else str(message.author.id)
-                target_name = mentioned_users[0].display_name if mentioned_users else message.author.display_name
-
-                profile = message_manager.get_user_profile(target_id)
-
-                if profile:
-                    traits = profile.get('personality_traits', [])[:5]
-                    interests = profile.get('interests', [])[:5]
-
-                    response = (
-                        f"**Profile: {target_name}**\n"
-                        f"Traits: {', '.join(traits) or 'None detected'}\n"
-                        f"Interests: {', '.join(interests) or 'None detected'}\n"
-                        f"Messages: {profile.get('total_messages', 0)}\n"
-                        f"Avg. Length: {round(profile.get('avg_message_length', 0), 1)} chars\n"
-                        f"Last seen: {profile.get('last_seen', 'Unknown')}"
-                    )
-                else:
-                    response = f"No profile data found for {target_name}."
-
-                await message.channel.send(response)
-
-            except Exception as e:
-                logger.error(f"Error in !profile command: {e}")
-                await message.channel.send("Error retrieving profile.")
-
+        if await handle_profile_command(message, message_manager, stats):
             return
-
-        # !stats command
-        if content_lower.startswith("!stats"):
-            stats['commands_executed'] += 1
-            logger.info(f"Command: !stats from {message.author.display_name}")
-
-            try:
-                uptime = asyncio.get_running_loop().time() - stats['start_time']
-                hours = int(uptime // 3600)
-                minutes = int((uptime % 3600) // 60)
-
-                mem_stats = message_manager.get_memory_stats()
-                mgr_stats = mem_stats.get('manager_stats', {})
-
-                bg_stats = background_processor.get_stats() if background_processor else {}
-                passive_stats = passive_monitor.get_stats() if passive_monitor else {}
-                voice_stats = message_manager.voice_tracker.get_stats()
-                crawler_stats = message_crawler.get_stats() if message_crawler else {}
-
-                response = (
-                    "**Bot Statistics**\n"
-                    f"Uptime: {hours}h {minutes}m\n"
-                    f"Messages Received: {stats['messages_received']}\n"
-                    f"Active Processed: {stats['messages_processed']}\n"
-                    f"Passive Monitored: {stats['passive_messages']}\n"
-                    f"Responses Generated: {mgr_stats.get('responses_generated', 0)}\n"
-                    f"Corrections Learned: {mgr_stats.get('corrections_detected', 0)}\n\n"
-                    "**Memory System**\n"
-                    f"Total Memories: {mem_stats.get('total_memories', 0)}\n"
-                    f"Total Users: {mem_stats.get('total_users', 0)}\n"
-                    f"Strong Relationships: {mem_stats.get('strong_relationships', 0)}\n\n"
-                    "**Background Processing**\n"
-                    f"Queue Size: {bg_stats.get('queue_size', 0)}\n"
-                    f"Summaries Created: {bg_stats.get('summaries_created', 0)}\n"
-                    f"Processed: {bg_stats.get('total_processed', 0)}\n\n"
-                    "**Voice Tracking**\n"
-                    f"Users in Voice: {voice_stats.get('users_in_voice', 0)}\n"
-                    f"Active Sessions: {voice_stats.get('active_sessions', 0)}\n\n"
-                    "**Cross-Server**\n"
-                    f"Servers: {passive_stats.get('servers_monitored', 0)}\n"
-                    f"Channels: {passive_stats.get('channels_monitored', 0)}\n\n"
-                    "**Message Crawler**\n"
-                    f"Quick Syncs: {crawler_stats.get('quick_syncs', 0)}\n"
-                    f"Deep Validations: {crawler_stats.get('deep_validations', 0)}\n"
-                    f"Messages Backfilled: {crawler_stats.get('messages_backfilled', 0)}\n"
-                    f"Gaps Found: {crawler_stats.get('gaps_found', 0)}\n\n"
-                )
-
-                await message.channel.send(response)
-
-            except Exception as e:
-                logger.error(f"Error in !stats command: {e}")
-                await message.channel.send("Error retrieving stats.")
-
+        if await handle_stats_command(message, message_manager, background_processor, passive_monitor, message_crawler, stats):
             return
-
-        # !help command
-        if content_lower.startswith("!help"):
-            stats['commands_executed'] += 1
-
-            response = (
-                "**Serin Bot Commands**\n"
-                "`!profile [@user]` - View personality profile\n"
-                "`!stats` - View bot statistics\n"
-                "`!help` - Show this help message\n\n"
-                "**How I Work:**\n"
-                "- I monitor ALL channels across ALL servers (one shared memory)\n"
-                "- I learn from everything I see\n"
-                "- I only respond in allowed channels\n"
-                "- Mention me with @ for immediate responses\n\n"
-                "**Features:**\n"
-                "Multi-Model Support - Works with any LLM\n"
-                "Temporal Awareness - Understands 'last Tuesday'\n"
-                "Correction Learning - Learns when you correct me\n"
-                "Voice Tracking - Aware of voice channel activity"
-            )
-            await message.channel.send(response)
+        if await handle_help_command(message, stats):
             return
 
         # === PROCESS REGULAR MESSAGE ===
@@ -459,79 +357,6 @@ async def on_message(message: discord.Message) -> None:
     except Exception as e:
         stats['errors'] += 1
         logger.exception(f"Error in on_message: {e}")
-
-@client.event
-async def on_voice_state_update(member: discord.Member, before: discord.VoiceState, after: discord.VoiceState) -> None:
-    """Handle voice state changes - track + auto-join decisions"""
-    global stats, voice_behavior_manager
-
-    try:
-        stats['voice_events'] += 1
-
-        if message_manager and hasattr(message_manager, 'voice_tracker'):
-            await message_manager.voice_tracker.on_voice_update(member, before, after)
-
-        # Trigger auto-join when user joins a voice channel
-        if after.channel and not before.channel:
-            if voice_behavior_manager and voice_listener:
-                await voice_behavior_manager.on_user_joined_vc(
-                    user_id=str(member.id),
-                    username=member.display_name,
-                    guild_id=after.channel.guild.id,
-                    channel_id=after.channel.id,
-                    channel_name=after.channel.name,
-                )
-
-    except Exception as e:
-        logger.exception(f"Error in voice state update: {e}")
-
-
-@client.event
-async def on_error(event: str, *args: Any, **kwargs: Any) -> None:
-    """Handle Discord.py errors"""
-    stats['errors'] += 1
-    logger.exception(f"Discord error in event '{event}'")
-
-
-async def maintenance_task() -> None:
-    """Periodic maintenance task"""
-    maintenance_count = 0
-    while True:
-        try:
-            await asyncio.sleep(config.MAINTENANCE_INTERVAL_HOURS * 3600)
-            maintenance_count += 1
-            logger.info("Running periodic maintenance...")
-
-            if background_processor:
-                await background_processor.run_maintenance()
-
-            # Database backup
-            try:
-                backup_path = db_protector.create_backup(backup_type="scheduled")
-                logger.info(f"Scheduled backup created: {backup_path}")
-            except Exception as e:
-                logger.error(f"Backup failed: {e}")
-
-            # Memory cleanup
-            if message_manager:
-                try:
-                    stats_before = message_manager.get_memory_stats()
-                    logger.info(f"Before: {stats_before.get('total_memories', 0)} memories")
-
-                    if hasattr(message_manager.memory, 'cleanup_old_memories'):
-                        cleaned = message_manager.memory.cleanup_old_memories(days_old=90, min_importance=0.3)
-                        logger.info(f"Removed {cleaned} old memories")
-
-                    stats_after = message_manager.get_memory_stats()
-                    logger.info(f"After: {stats_after.get('total_memories', 0)} memories")
-                except Exception as e:
-                    logger.error(f"Memory cleanup failed: {e}")
-
-            logger.info(f"Maintenance task #{maintenance_count} complete!")
-
-        except Exception as e:
-            logger.error(f"Error in maintenance task: {e}")
-            await asyncio.sleep(3600)
 
 async def main() -> None:
     """Main async function with database protection"""
@@ -569,7 +394,7 @@ async def main() -> None:
                 async with client:
                     # Start maintenance task (only here, not in on_ready)
                     logger.info("Starting maintenance task...")
-                    asyncio.create_task(maintenance_task())
+                    asyncio.create_task(event_handlers.run_maintenance())
                     logger.debug("Maintenance task scheduled")
 
                     # Start Discord client with retry
