@@ -468,13 +468,3 @@ from typing import Optional
                 'chroma': self.chroma_dir.exists()
             }
         }
-
-# Global instance
-_database_protector = None
-
-def get_database_protector() -> DatabaseProtector:
-    """Get global database protector instance"""
-    global _database_protector
-    if _database_protector is None:
-        _database_protector = DatabaseProtector()
-    return _database_protector

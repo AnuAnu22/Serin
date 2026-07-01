@@ -39,7 +39,7 @@ from serin.pipeline.ingest.context.mention_translator import MentionTranslator
 # TIER 3: Background Processing
 from serin.ops.passive_monitor import PassiveMonitor
 from serin.ops.background import BackgroundProcessor
-from serin.ops.validation.database_protector import get_database_protector
+from serin.state.db_protect import get_database_protector
 
 # TIER 4: Message Crawler
 from serin.pipeline.ingest.sync.crawler import MessageCrawler
@@ -69,7 +69,7 @@ from serin.ops.control_panel.server import init_bot_state, start_server
 from serin.gateway.voice_system.tts_engine import TTSEngine
 
 # Database Protection
-from serin.ops.validation.database_protector import DatabaseProtector, DatabaseValidationError, DatabaseRecoveryError
+from serin.state.db_protect import DatabaseProtector, DatabaseValidationError, DatabaseRecoveryError
 
 
 # Load environment variables
