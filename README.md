@@ -46,10 +46,10 @@ maturin develop --release
 cd ..
 
 # 5. Start the bot
-python3 hot_reloader.py
+python discord_bot.py
 ```
 
-The bot runs in a tmux-compatible hot-reload loop. Changes to `.py` files, `serin_core/src/lib.rs`, or `voice/rust_receiver/src/*.rs` trigger automatic rebuild + restart.
+The bot runs directly. For auto-reload during development, use `python hot_reloader.py` instead — it watches for file changes and restarts automatically.
 
 ### Environment Variables
 

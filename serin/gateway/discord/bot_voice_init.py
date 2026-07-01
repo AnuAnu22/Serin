@@ -42,7 +42,7 @@
                 tts_engine = TTSEngine()
 
                 # Initialize Voice Manager (for cloning)
-                from tts_voice_manager import TTSVoiceManager
+                from serin.ops.tts_voice_manager import TTSVoiceManager
                 voice_manager = TTSVoiceManager()
 
                 # Initialize Voice Output Manager
