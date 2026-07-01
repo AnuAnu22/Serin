@@ -5,28 +5,21 @@ This file owns the connection to external storage (Qdrant, SQLite) and exposes
 it via QdrantMemorySystem. Pure domain logic (fact extraction, belief state
 machines) lives in sibling modules evidence.py and beliefs.py.
 """
+import importlib
 import os
-import json
 import shutil
-import time as time_mod
 import sqlite3
-import hashlib
-import uuid
-import asyncio
-import numpy as np
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Tuple, Any
-from serin.state.thinking_filter import filter_for_memory
-from serin.state.logger import logger
-from serin.config.debug_logger import log_memory
-from serin.state.memory.evidence_store import FactStore
+import time as time_mod
+
+from serin.logger import logger
+from serin.pipeline.remember.core.bm25_index import SQLiteBM25Index
 from serin.state.memory.belief_store import BeliefStore
+from serin.state.memory.evidence_store import FactStore
 
 # Qdrant imports
 try:
     from qdrant_client import QdrantClient
-    from qdrant_client.http import models
-    from qdrant_client.http.models import Distance, VectorParams, HnswConfig, OptimizersConfig, WalConfig, QuantizationConfig, ScalarQuantizationConfig, ScalarQuantization, ScalarType
+    from qdrant_client.http.models import Distance, VectorParams
     QDRANT_AVAILABLE = True
 except ImportError:
     QDRANT_AVAILABLE = False
@@ -41,11 +34,8 @@ except ImportError:
     logger.warning("Sentence transformers not available")
 
 # BM25 implementation
-try:
-    import rank_bm25
-    BM25_AVAILABLE = True
-except ImportError:
-    BM25_AVAILABLE = False
+BM25_AVAILABLE = importlib.util.find_spec("rank_bm25") is not None
+if not BM25_AVAILABLE:
     logger.warning("Rank BM25 not available")
 
 
@@ -53,10 +43,10 @@ class QdrantMemorySystem:
     def __init__(self, data_dir: str = "./bot_data", qdrant_host: str = "localhost", qdrant_port: int = 6333) -> None:
         """Initialize Qdrant-based memory system with hybrid search capabilities"""
         logger.info(" Initializing Qdrant Memory System")
-        
+
         self.data_dir = data_dir
         os.makedirs(data_dir, exist_ok=True)
-        
+
         # Initialize Qdrant client with retry
         if QDRANT_AVAILABLE:
             for attempt in range(3):
@@ -75,7 +65,7 @@ class QdrantMemorySystem:
                         self.qdrant_client = None
         else:
             self.qdrant_client = None
-        
+
         # Initialize embedding service
         if EMBEDDING_AVAILABLE:
             try:
@@ -89,7 +79,7 @@ class QdrantMemorySystem:
         else:
             self.embedding_model = None
             self.embedding_dim = 384
-        
+
         # Initialize BM25 index
         if BM25_AVAILABLE:
             try:
@@ -100,24 +90,24 @@ class QdrantMemorySystem:
                 self.bm25_index = None
         else:
             self.bm25_index = None
-        
+
         # Initialize SQLite for structured data
         self.db_path = os.path.join(data_dir, "bot_data.db")
         self._init_sqlite_robust()
-        
+
         # Domain-logic stores (delegated to evidence.py / beliefs.py)
         self.fact_store = FactStore(self.conn)
         self.belief_store = BeliefStore(self.conn)
-        
+
         # Setup collection if needed
         if self.qdrant_client:
             self._setup_collection()
-        
+
         # Background job queue (simplified implementation)
         self.background_jobs = []
-        
+
         logger.info(" Qdrant Memory System ready")
-    
+
     def _init_sqlite_robust(self):
         """Initialize SQLite with corruption handling"""
         try:
@@ -132,14 +122,14 @@ class QdrantMemorySystem:
         """Connect to DB and initialize schema"""
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=30.0)
         self.conn.row_factory = sqlite3.Row
-        
+
         # Test connection with a simple query
         try:
             self.conn.execute("SELECT 1")
         except sqlite3.DatabaseError:
             self.conn.close()
             raise
-            
+
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA synchronous=NORMAL")
         self._init_sqlite_schema()
@@ -154,7 +144,7 @@ class QdrantMemorySystem:
                 if self.conn:
                     try:
                         self.conn.close()
-                    except:
+                    except Exception:
                         pass
                 shutil.move(self.db_path, backup_path)
                 # Also move WAL/SHM files if they exist
@@ -163,11 +153,11 @@ class QdrantMemorySystem:
                         shutil.move(self.db_path + ext, backup_path + ext)
             except Exception as e:
                 logger.error(f" Error moving corrupt DB: {e}")
-    
+
     def _init_sqlite_schema(self):
         """Initialize SQLite tables for structured data"""
         cursor = self.conn.cursor()
-        
+
         # User profiles
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
@@ -183,7 +173,7 @@ class QdrantMemorySystem:
                 last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        
+
         # Relationships
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS relationships (
@@ -197,7 +187,7 @@ class QdrantMemorySystem:
                 UNIQUE(user_a_id, user_b_id)
             )
         """)
-        
+
         # Activity logs
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS activity_log (
@@ -211,7 +201,7 @@ class QdrantMemorySystem:
                 day_of_week INTEGER
             )
         """)
-        
+
         # BM25 Search Index (SQLite FTS)
         cursor.execute("""
             CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
@@ -224,7 +214,7 @@ class QdrantMemorySystem:
                 content_rowid=id
             )
         """)
-        
+
         # Background Job Queue
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS background_jobs (
@@ -238,7 +228,7 @@ class QdrantMemorySystem:
                 retry_count INTEGER DEFAULT 0
             )
         """)
-        
+
         # Qdrant Collection Metadata
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS qdrant_collections (
@@ -250,7 +240,7 @@ class QdrantMemorySystem:
                 status TEXT DEFAULT 'active'
             )
         """)
-        
+
         # Memory Statistics
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS memory_stats (
@@ -277,9 +267,9 @@ class QdrantMemorySystem:
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        
+
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_recent_channel_time 
+            CREATE INDEX IF NOT EXISTS idx_recent_channel_time
             ON recent_messages(channel_id, timestamp DESC)
         """)
 
@@ -350,17 +340,17 @@ class QdrantMemorySystem:
             cursor.execute("ALTER TABLE beliefs ADD COLUMN contradiction_resolved_at TEXT DEFAULT ''")
         except Exception:
             pass
-        
+
         self.conn.commit()
         logger.debug(" SQLite schema initialized")
-    
+
     def _setup_collection(self):
         """Setup Qdrant collection with optimized configuration"""
         logger.debug("Entering _setup_collection")
         if not self.qdrant_client:
             logger.debug("No qdrant_client")
             return
-        
+
         try:
             try:
                 self.qdrant_client.get_collection("memories")
@@ -370,7 +360,7 @@ class QdrantMemorySystem:
             except Exception as e:
                 logger.debug("Collection does not exist (%s), creating...", e)
                 pass
-            
+
             logger.debug("Calling create_collection with defaults...")
             self.qdrant_client.create_collection(
                 collection_name="memories",
@@ -380,47 +370,47 @@ class QdrantMemorySystem:
                     on_disk=True
                 )
             )
-            
+
             logger.debug("Recording metadata...")
             cursor = self.conn.cursor()
             cursor.execute("""
-                INSERT OR REPLACE INTO qdrant_collections 
+                INSERT OR REPLACE INTO qdrant_collections
                 (collection_name, vector_size, distance_metric, status)
                 VALUES (?, ?, ?, ?)
             """, ("memories", self.embedding_dim, "cosine", "active"))
             self.conn.commit()
-            
+
             logger.info(" Qdrant collection 'memories' created with optimized settings")
             logger.debug("Collection created successfully")
-            
+
         except Exception as e:
             logger.error(f" Failed to setup Qdrant collection: {e}")
             import traceback
             traceback.print_exc()
-    
+
 
     # ========================================================================
     # Stats & Maintenance
     # ========================================================================
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get memory system statistics"""
         cursor = self.conn.cursor()
-        
+
         try:
             cursor.execute("SELECT COUNT(*) as count FROM users")
             total_users = cursor.fetchone()['count']
-            
+
             cursor.execute("SELECT COUNT(*) as count FROM relationships WHERE relationship_strength > 0.5")
             strong_relationships = cursor.fetchone()['count']
-            
+
             memory_count = 0
             if self.qdrant_client:
                 try:
                     memory_count = self.qdrant_client.count("memories").count
-                except:
+                except Exception:
                     pass
-            
+
             return {
                 'total_users': total_users,
                 'total_memories': memory_count,
@@ -439,12 +429,5 @@ class QdrantMemorySystem:
         """Cleanup"""
         if hasattr(self, 'conn'):
             self.conn.close()
-
-"""SQLiteBM25Index — BM25 full-text search over SQLite.
-Extracted from store.py.
-"""
-import sqlite3
-from typing import List, Optional
-from serin.state.logger import logger
 
 

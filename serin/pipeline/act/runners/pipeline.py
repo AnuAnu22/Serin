@@ -13,11 +13,10 @@ Usage:
     ctx = await pipeline.process(ctx)
 """
 from __future__ import annotations
+
+from serin.logger import logger
 from serin.pipeline.act.stages_base import PipelineStage
-
 from serin.state.message_context import MessageContext
-
-from serin.state.logger import logger
 
 
 class MessagePipeline:
@@ -37,21 +36,23 @@ class MessagePipeline:
         thinking_filter,
         mention_translator,
         mood_state=None,
-    ) -> "MessagePipeline":
+    ) -> MessagePipeline:
         """
         Factory method — wires all dependencies into stages.
         Call this once at bot startup. Keep the instance for the bot's lifetime.
         """
-        from serin.pipeline.act.stages.decision_temporal import ResponseDecisionStage
-        from serin.pipeline.act.stages.memory_retrieval import MemoryRetrievalStage
-        from serin.pipeline.think.response_planner import ResponsePlannerStage
-        from serin.pipeline.act.stages.decision_temporal import TemporalStage
-        from serin.pipeline.act.stages.personality_stage import PersonalityStage
-        from serin.pipeline.act.runners.prompt_assembly import PromptAssemblyStage
         from serin.pipeline.act.runners.llm_call import LLMCallStage
+        from serin.pipeline.act.runners.prompt_assembly import PromptAssemblyStage
         from serin.pipeline.act.runners.response_cleaning import ResponseCleaningStage
         from serin.pipeline.act.runners.send import SendStage
+        from serin.pipeline.act.stages.decision_temporal import (
+            ResponseDecisionStage,
+            TemporalStage,
+        )
+        from serin.pipeline.act.stages.memory_retrieval import MemoryRetrievalStage
         from serin.pipeline.act.stages.memory_write import MemoryWriteStage
+        from serin.pipeline.act.stages.personality_stage import PersonalityStage
+        from serin.pipeline.think.response_planner import ResponsePlannerStage
 
         return cls(stages=[
             ResponseDecisionStage(response_controller),

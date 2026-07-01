@@ -11,10 +11,9 @@ but it cannot ignore high-confidence beliefs or direct evidence.
 """
 from __future__ import annotations
 
-from serin.state.logger import logger
-from serin.state.message_context import MessageContext
+from serin.logger import logger
 from serin.pipeline.act.runners.pipeline import PipelineStage
-
+from serin.state.message_context import MessageContext
 
 # Intent → default strategy
 _INTENT_STRATEGY = {
@@ -61,7 +60,6 @@ class ResponsePlannerStage(PipelineStage):
 
         # ── 1. Gather inputs ─────────────────────────────────────────────
         beliefs = ctx.beliefs or []
-        facts = ctx.facts or []
         user_claim = _detect_user_claim(ctx.raw_content)
 
         # ── 2. Determine stance ──────────────────────────────────────────
@@ -96,7 +94,7 @@ class ResponsePlannerStage(PipelineStage):
 
                     if belief_lower and claim_lower:
                         contradiction_flags.append({
-                            "belief": content,
+                            "belie": content,
                             "user_says": user_claim,
                             "confidence": conf,
                             "state": state,
@@ -109,7 +107,7 @@ class ResponsePlannerStage(PipelineStage):
                             ) else "disagree_gently"
                             constraints.append(
                                 f"You are confident that {content}. "
-                                f"The user claims otherwise, but the evidence supports you."
+                                "The user claims otherwise, but the evidence supports you."
                             )
                         elif is_agreement:
                             stance = "agree"
@@ -137,7 +135,7 @@ class ResponsePlannerStage(PipelineStage):
             elif state == "SUPERSEDED":
                 constraints.append(
                     f"Your prior belief about {content} has been superseded "
-                    f"by new evidence. Do not assert it."
+                    "by new evidence. Do not assert it."
                 )
                 forbidden_moves.append(f"asserting that {content}")
 

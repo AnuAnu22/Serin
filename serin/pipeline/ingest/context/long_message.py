@@ -3,8 +3,9 @@ Long Message Handler - React naturally to walls of text
 Humans don't always process long messages well - they react to length
 """
 import random
-from typing import Optional, Dict, Any
-from serin.state.logger import logger
+from typing import Any
+
+from serin.logger import logger
 
 
 class LongMessageHandler:
@@ -12,12 +13,12 @@ class LongMessageHandler:
     Detects and reacts to long/complex messages naturally.
     Humans say things like "damn that's an essay" or "wait slow down"
     """
-    
+
     # Thresholds
     LONG_MESSAGE_WORDS = 80  # 80+ words = long
     WALL_OF_TEXT_WORDS = 150  # 150+ words = wall of text
     MANY_SENTENCES = 8  # 8+ sentences = complex
-    
+
     # Natural reactions to long messages
     REACTIONS = {
         "acknowledge": [
@@ -40,15 +41,15 @@ class LongMessageHandler:
             "alright lemme think about all that"
         ]
     }
-    
+
     def __init__(self):
         self.reaction_chance = 0.15  # 15% chance to react to long messages
         logger.info(" Long message handler initialized")
-    
-    def analyze_message_length(self, content: str) -> Dict[str, Any]:
+
+    def analyze_message_length(self, content: str) -> dict[str, Any]:
         """
         Analyze message length and complexity.
-        
+
         Returns:
             {
                 'word_count': int,
@@ -60,14 +61,14 @@ class LongMessageHandler:
         """
         words = content.split()
         word_count = len(words)
-        
+
         # Count sentences (rough)
         sentences = content.count('.') + content.count('!') + content.count('?')
         sentence_count = max(1, sentences)
-        
+
         is_long = word_count >= self.LONG_MESSAGE_WORDS
         is_wall = word_count >= self.WALL_OF_TEXT_WORDS
-        
+
         # Determine complexity
         if sentence_count >= self.MANY_SENTENCES or is_wall:
             complexity = "complex"
@@ -75,7 +76,7 @@ class LongMessageHandler:
             complexity = "medium"
         else:
             complexity = "simple"
-        
+
         return {
             'word_count': word_count,
             'sentence_count': sentence_count,
@@ -83,11 +84,11 @@ class LongMessageHandler:
             'is_wall': is_wall,
             'complexity': complexity
         }
-    
+
     def should_react_to_length(
         self,
         message_analysis: dict,
-        personality_state: Optional[dict] = None
+        personality_state: dict | None = None
     ) -> bool:
         """
         Decide if bot should react to message length.
@@ -97,26 +98,26 @@ class LongMessageHandler:
         """
         if not message_analysis['is_long']:
             return False
-        
+
         # Base chance
         chance = self.reaction_chance
-        
+
         # Increase for walls of text
         if message_analysis['is_wall']:
             chance += 0.15  # Up to 30% for walls
-        
+
         # Decrease if highly engaged
         if personality_state:
             engagement = personality_state.get('engagement', 0.5)
             if engagement > 0.7:
                 chance *= 0.5  # Less likely to complain if engaged
-        
+
         return random.random() < chance
-    
-    def get_length_reaction(self, message_analysis: dict) -> Optional[str]:
+
+    def get_length_reaction(self, message_analysis: dict) -> str | None:
         """
         Get natural reaction to long message.
-        
+
         Returns:
             Natural reaction string, or None if no reaction
         """
@@ -128,18 +129,18 @@ class LongMessageHandler:
             reaction_type = "casual_long"
         else:
             return None
-        
+
         reaction = random.choice(self.REACTIONS[reaction_type])
         logger.debug(f" Length reaction: '{reaction}'")
         return reaction
-    
+
     def should_add_length_note_to_context(self, message_analysis: dict) -> bool:
         """
         Check if we should note message length in context for LLM.
         Helps LLM understand to acknowledge or summarize.
         """
         return message_analysis['is_wall']
-    
+
     def get_context_note(self, message_analysis: dict) -> str:
         """
         Get context note for LLM about message length.
@@ -165,7 +166,7 @@ def get_length_handler() -> LongMessageHandler:
 def analyze_message_length(content: str) -> dict:
     """
     Convenience function to analyze message length.
-    
+
     Usage:
         analysis = analyze_message_length(message_content)
         if analysis['is_long']:

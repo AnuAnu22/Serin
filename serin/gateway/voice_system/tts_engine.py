@@ -1,4 +1,33 @@
-from typing import Any, Dict, List, Optional
+from __future__ import annotations
+
+import asyncio
+import io
+import os
+import wave
+from typing import Any
+
+import numpy as np
+
+from serin.gateway.voice_system.output import (
+    COQUI_TTS_AVAILABLE,
+    EDGE_RATE_MAP,
+    EDGE_TTS_AVAILABLE,
+    EDGE_VOICE_PRESETS,
+)
+from serin.logger import logger
+
+# Try importing backends
+try:
+    import edge_tts
+except ImportError:
+    pass
+
+try:
+    import torch
+    from TTS.api import TTS
+except ImportError:
+    pass
+
 
 class TTSEngine:
     def __init__(
@@ -21,7 +50,7 @@ class TTSEngine:
             self.voice = EDGE_VOICE_PRESETS['default']
             logger.info(" TTS engine initialized (edge-tts backend)")
             logger.info(f"    Voice: {self.voice}")
-            logger.info(f"    Backend: Microsoft Edge TTS (cloud, free)")
+            logger.info("    Backend: Microsoft Edge TTS (cloud, free)")
         elif COQUI_TTS_AVAILABLE:
             self.backend = "coqui"
             if device == "cuda" and not torch.cuda.is_available():
@@ -68,7 +97,7 @@ class TTSEngine:
                 return False
 
             try:
-                logger.info(f" Loading XTTS v2 model...")
+                logger.info(" Loading XTTS v2 model...")
                 logger.info(f"   Device: {self.device}")
                 self.tts = await asyncio.to_thread(
                     TTS,
@@ -78,7 +107,7 @@ class TTSEngine:
                 )
                 if self.device == "cuda":
                     self.tts.to(self.device)
-                logger.info(f" XTTS v2 model ready!")
+                logger.info(" XTTS v2 model ready!")
                 return True
             except Exception as e:
                 logger.error(f" Error loading Coqui TTS: {e}")
@@ -90,10 +119,10 @@ class TTSEngine:
     async def synthesize(
         self,
         text: str,
-        profile: Optional[str] = None,
-        speaker: Optional[str] = None,
+        profile: str | None = None,
+        speaker: str | None = None,
         language: str = "en"
-    ) -> Optional[bytes]:
+    ) -> bytes | None:
         """
         Synthesize speech from text.
 
@@ -118,7 +147,7 @@ class TTSEngine:
             return await self._synthesize_coqui(text, profile, speaker, language)
         return None
 
-    async def _synthesize_edge(self, text: str, profile: str) -> Optional[bytes]:
+    async def _synthesize_edge(self, text: str, profile: str) -> bytes | None:
         """Synthesize using edge-tts (Microsoft Edge cloud TTS)"""
         try:
             voice = EDGE_VOICE_PRESETS.get(profile, EDGE_VOICE_PRESETS['default'])
@@ -160,12 +189,12 @@ class TTSEngine:
             self.stats['errors'] += 1
             return None
 
-    async def _mp3_to_wav(self, mp3_data: bytes) -> Optional[bytes]:
+    async def _mp3_to_wav(self, mp3_data: bytes) -> bytes | None:
         """Convert MP3 bytes to WAV bytes using ffmpeg"""
         try:
             proc = await asyncio.create_subprocess_exec(
                 'ffmpeg', '-i', 'pipe:0',
-                '-f', 'wav', '-acodec', 'pcm_s16le',
+                '-', 'wav', '-acodec', 'pcm_s16le',
                 '-ar', '16000', '-ac', '1',
                 'pipe:1',
                 stdin=asyncio.subprocess.PIPE,
@@ -187,8 +216,8 @@ class TTSEngine:
             return mp3_data
 
     async def _synthesize_coqui(
-        self, text: str, profile: str, speaker: Optional[str], language: str
-    ) -> Optional[bytes]:
+        self, text: str, profile: str, speaker: str | None, language: str
+    ) -> bytes | None:
         """Synthesize using Coqui XTTS v2"""
         if not self.tts:
             logger.error(" Coqui TTS model not loaded")
@@ -271,7 +300,7 @@ class TTSEngine:
         else:
             logger.warning(f" Unknown profile: {profile}")
 
-    def get_available_speakers(self) -> List[str]:
+    def get_available_speakers(self) -> list[str]:
         """Get list of available speakers"""
         if self.backend == "coqui" and self.tts and hasattr(self.tts, 'speakers'):
             return self.tts.speakers or []
@@ -279,7 +308,7 @@ class TTSEngine:
             return list(set(EDGE_VOICE_PRESETS.values()))
         return []
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get TTS statistics"""
         return {
             'total_generations': self.stats['total_generations'],

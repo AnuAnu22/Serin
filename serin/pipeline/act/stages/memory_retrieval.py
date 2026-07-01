@@ -7,9 +7,9 @@ ctx.recent_messages, and ctx.user_profile.
 """
 from __future__ import annotations
 
-from serin.state.logger import logger
-from serin.state.message_context import MessageContext
+from serin.logger import logger
 from serin.pipeline.act.stages_base import PipelineStage
+from serin.state.message_context import MessageContext
 
 
 class MemoryRetrievalStage(PipelineStage):

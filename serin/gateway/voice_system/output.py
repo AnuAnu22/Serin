@@ -1,3 +1,10 @@
+import asyncio
+import importlib
+from typing import Any
+
+from serin.logger import logger
+
+
 class VoiceOutputManager:
     """
     Manages TTS generation, queuing, and playback via the Rust bridge.
@@ -25,7 +32,7 @@ class VoiceOutputManager:
 
         # Current state
         self.is_speaking = False
-        self.current_guild_id: Optional[int] = None
+        self.current_guild_id: int | None = None
 
         # Interrupt event: set when user speaks during TTS playback.
         # Checked before each TTS synthesis call to avoid wasted compute.
@@ -188,7 +195,7 @@ class VoiceOutputManager:
         logger.info(f" Sending {len(audio_data)} bytes to Rust bridge for playback")
         await bridge.send_tts_audio(audio_data)
 
-    def _split_sentences(self, text: str) -> List[str]:
+    def _split_sentences(self, text: str) -> list[str]:
         """
         Split text into sentences for batching.
 
@@ -221,13 +228,6 @@ Join philosophy:
 - This makes Serin feel like it's "noticing" and "deciding" to come in.
 - Explicit invites to join VC are handled by the structured output pipeline (voice_action_decider.py).
 """
-import asyncio
-import random
-from datetime import datetime
-from typing import Any, Dict, Optional, Set
-from serin.state.logger import logger
-
-
 """
 TTS Engine - Text-to-Speech with multiple backends
 
@@ -240,30 +240,13 @@ Features:
 - Voice cloning support (Coqui only)
 - Natural prosody
 """
-import asyncio
-import io
-import wave
-from typing import Any, Dict, List, Optional, Tuple, Union
-import os
-from serin.state.logger import logger
-
-# Try importing backends
-EDGE_TTS_AVAILABLE = False
-COQUI_TTS_AVAILABLE = False
-
-try:
-    import edge_tts
-    EDGE_TTS_AVAILABLE = True
-except ImportError:
-    pass
-
-try:
-    from TTS.api import TTS
-    import numpy as np
-    import torch
-    COQUI_TTS_AVAILABLE = True
-except ImportError:
-    pass
+# Check TTS backend availability
+EDGE_TTS_AVAILABLE = importlib.util.find_spec("edge_tts") is not None
+COQUI_TTS_AVAILABLE = (
+    importlib.util.find_spec("numpy") is not None
+    and importlib.util.find_spec("torch") is not None
+    and importlib.util.find_spec("TTS") is not None
+)
 
 
 # edge-tts voice presets by mood/style

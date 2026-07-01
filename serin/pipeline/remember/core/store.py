@@ -5,28 +5,24 @@ This file owns the connection to external storage (Qdrant, SQLite) and exposes
 it via QdrantMemorySystem. Pure domain logic (fact extraction, belief state
 machines) lives in sibling modules evidence.py and beliefs.py.
 """
+import importlib
 import os
-import json
 import shutil
-import time as time_mod
 import sqlite3
-import hashlib
-import uuid
-import asyncio
-import numpy as np
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Tuple, Any
-from serin.state.thinking_filter import filter_for_memory
-from serin.state.logger import logger
-from serin.config.debug_logger import log_memory
-from serin.pipeline.remember.knowledge.evidence import FactStore
+import subprocess
+import time as time_mod
+from typing import Any
+
+from serin.config.config import config
+from serin.logger import logger
+from serin.pipeline.remember.core.bm25_index import SQLiteBM25Index
 from serin.pipeline.remember.knowledge.beliefs import BeliefStore
+from serin.pipeline.remember.knowledge.evidence import FactStore
 
 # Qdrant imports
 try:
     from qdrant_client import QdrantClient
-    from qdrant_client.http import models
-    from qdrant_client.http.models import Distance, VectorParams, HnswConfig, OptimizersConfig, WalConfig, QuantizationConfig, ScalarQuantizationConfig, ScalarQuantization, ScalarType
+    from qdrant_client.http.models import Distance, VectorParams
     QDRANT_AVAILABLE = True
 except ImportError:
     QDRANT_AVAILABLE = False
@@ -41,11 +37,8 @@ except ImportError:
     logger.warning("Sentence transformers not available")
 
 # BM25 implementation
-try:
-    import rank_bm25
-    BM25_AVAILABLE = True
-except ImportError:
-    BM25_AVAILABLE = False
+BM25_AVAILABLE = importlib.util.find_spec("rank_bm25") is not None
+if not BM25_AVAILABLE:
     logger.warning("Rank BM25 not available")
 
 
@@ -53,29 +46,16 @@ class QdrantMemorySystem:
     def __init__(self, data_dir: str = "./bot_data", qdrant_host: str = "localhost", qdrant_port: int = 6333) -> None:
         """Initialize Qdrant-based memory system with hybrid search capabilities"""
         logger.info(" Initializing Qdrant Memory System")
-        
+
         self.data_dir = data_dir
         os.makedirs(data_dir, exist_ok=True)
-        
-        # Initialize Qdrant client with retry
+
+        # Initialize Qdrant client with retry + Docker auto-start
         if QDRANT_AVAILABLE:
-            for attempt in range(3):
-                try:
-                    self.qdrant_client = QdrantClient(host=qdrant_host, port=qdrant_port, timeout=5.0)
-                    # Test connection
-                    self.qdrant_client.get_collections()
-                    logger.info(f" Qdrant client connected to {qdrant_host}:{qdrant_port}")
-                    break
-                except Exception as e:
-                    if attempt < 2:
-                        logger.warning(f" Qdrant connection failed (attempt {attempt+1}/3): {e}. Retrying...")
-                        time_mod.sleep(2)
-                    else:
-                        logger.error(f" Failed to connect to Qdrant after 3 attempts: {e}")
-                        self.qdrant_client = None
+            self.qdrant_client = self._connect_with_retry(qdrant_host, qdrant_port)
         else:
             self.qdrant_client = None
-        
+
         # Initialize embedding service
         if EMBEDDING_AVAILABLE:
             try:
@@ -89,7 +69,7 @@ class QdrantMemorySystem:
         else:
             self.embedding_model = None
             self.embedding_dim = 384
-        
+
         # Initialize BM25 index
         if BM25_AVAILABLE:
             try:
@@ -100,24 +80,132 @@ class QdrantMemorySystem:
                 self.bm25_index = None
         else:
             self.bm25_index = None
-        
+
         # Initialize SQLite for structured data
         self.db_path = os.path.join(data_dir, "bot_data.db")
         self._init_sqlite_robust()
-        
+
         # Domain-logic stores (delegated to evidence.py / beliefs.py)
         self.fact_store = FactStore(self.conn)
         self.belief_store = BeliefStore(self.conn)
-        
+
         # Setup collection if needed
         if self.qdrant_client:
             self._setup_collection()
-        
+
         # Background job queue (simplified implementation)
         self.background_jobs = []
-        
+
         logger.info(" Qdrant Memory System ready")
-    
+
+    @staticmethod
+    def _connect_with_retry(host: str, port: int, max_attempts: int = 3) -> Any | None:
+        """Try connecting to Qdrant, then fall back to Docker auto-start if configured."""
+        for attempt in range(max_attempts):
+            try:
+                client = QdrantClient(host=host, port=port, timeout=5.0)
+                client.get_collections()
+                logger.info(f" Qdrant client connected to {host}:{port}")
+                return client
+            except Exception as e:
+                if attempt < max_attempts - 1:
+                    logger.warning(f" Qdrant connection failed (attempt {attempt+1}/{max_attempts}): {e}. Retrying...")
+                    time_mod.sleep(2)
+                else:
+                    logger.error(f" Failed to connect to Qdrant after {max_attempts} attempts: {e}")
+
+        if config.QDRANT_USE_DOCKER or host in ("localhost", "127.0.0.1"):
+            logger.info(" Attempting Qdrant Docker auto-start...")
+            return QdrantMemorySystem._ensure_qdrant_docker(host, port)
+        return None
+
+    @staticmethod
+    def _find_qdrant_container() -> str | None:
+        """Find any existing Qdrant container (by configured name or image)."""
+        try:
+            result = subprocess.run(
+                ["docker", "ps", "-a", "--filter", f"name={config.QDRANT_DOCKER_CONTAINER_NAME}", "--format", "{{.Names}}"],
+                capture_output=True, text=True, timeout=10,
+            )
+            if config.QDRANT_DOCKER_CONTAINER_NAME in result.stdout:
+                return config.QDRANT_DOCKER_CONTAINER_NAME
+        except Exception:
+            pass
+
+        try:
+            result = subprocess.run(
+                ["docker", "ps", "-a", "--filter", f"ancestor={config.QDRANT_DOCKER_IMAGE}", "--format", "{{.Names}}"],
+                capture_output=True, text=True, timeout=10,
+            )
+            names = result.stdout.strip().splitlines()
+            if names:
+                return names[0]
+        except Exception:
+            pass
+
+        try:
+            result = subprocess.run(
+                ["docker", "ps", "-a", "--format", "{{.Names}}\t{{.Image}}"],
+                capture_output=True, text=True, timeout=10,
+            )
+            for line in result.stdout.strip().splitlines():
+                parts = line.split("\t")
+                if len(parts) == 2 and "qdrant" in parts[1].lower():
+                    return parts[0]
+        except Exception:
+            pass
+
+        return None
+
+    @staticmethod
+    def _ensure_qdrant_docker(host: str, port: int) -> Any | None:
+        """Auto-start Qdrant via Docker if container exists or can be created."""
+        container_name = QdrantMemorySystem._find_qdrant_container()
+        image = config.QDRANT_DOCKER_IMAGE
+
+        try:
+            if container_name:
+                logger.info(f" Starting Qdrant container '{container_name}'...")
+                subprocess.run(["docker", "start", container_name], check=True, capture_output=True, timeout=30)
+            else:
+                logger.info(f" Creating Qdrant container '{config.QDRANT_DOCKER_CONTAINER_NAME}'...")
+                subprocess.run(
+                    [
+                        "docker", "run", "-d",
+                        "--name", config.QDRANT_DOCKER_CONTAINER_NAME,
+                        "--restart", "unless-stopped",
+                        "-p", f"{port}:6333",
+                        "-p", "6334:6334",
+                        "-v", f"{config.QDRANT_DOCKER_CONTAINER_NAME}_data:/qdrant/storage",
+                        image,
+                    ],
+                    check=True, capture_output=True, timeout=120,
+                )
+                container_name = config.QDRANT_DOCKER_CONTAINER_NAME
+
+            logger.info(" Waiting for Qdrant to accept connections...")
+            for _ in range(30):
+                time_mod.sleep(1)
+                try:
+                    client = QdrantClient(host=host, port=port, timeout=5.0)
+                    client.get_collections()
+                    logger.success(f" Qdrant Docker container ready on {host}:{port}")
+                    return client
+                except Exception:
+                    pass
+            logger.error(" Qdrant container started but not accepting connections after 30s")
+        except FileNotFoundError:
+            logger.warning(" Docker not found — cannot auto-start Qdrant")
+        except subprocess.TimeoutExpired:
+            logger.warning(" Docker command timed out")
+        except subprocess.CalledProcessError as e:
+            stderr = e.stderr.decode().strip() if e.stderr else str(e)
+            logger.error(f" Docker command failed (exit {e.returncode}): {stderr}")
+        except Exception as e:
+            logger.error(f" Docker auto-start failed: {e}")
+
+        return None
+
     def _init_sqlite_robust(self):
         """Initialize SQLite with corruption handling"""
         try:
@@ -132,14 +220,14 @@ class QdrantMemorySystem:
         """Connect to DB and initialize schema"""
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=30.0)
         self.conn.row_factory = sqlite3.Row
-        
+
         # Test connection with a simple query
         try:
             self.conn.execute("SELECT 1")
         except sqlite3.DatabaseError:
             self.conn.close()
             raise
-            
+
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA synchronous=NORMAL")
         self._init_sqlite_schema()
@@ -154,7 +242,7 @@ class QdrantMemorySystem:
                 if self.conn:
                     try:
                         self.conn.close()
-                    except:
+                    except Exception:
                         pass
                 shutil.move(self.db_path, backup_path)
                 # Also move WAL/SHM files if they exist
@@ -163,11 +251,11 @@ class QdrantMemorySystem:
                         shutil.move(self.db_path + ext, backup_path + ext)
             except Exception as e:
                 logger.error(f" Error moving corrupt DB: {e}")
-    
+
     def _init_sqlite_schema(self):
         """Initialize SQLite tables for structured data"""
         cursor = self.conn.cursor()
-        
+
         # User profiles
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
@@ -183,7 +271,7 @@ class QdrantMemorySystem:
                 last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        
+
         # Relationships
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS relationships (
@@ -197,7 +285,7 @@ class QdrantMemorySystem:
                 UNIQUE(user_a_id, user_b_id)
             )
         """)
-        
+
         # Activity logs
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS activity_log (
@@ -211,7 +299,7 @@ class QdrantMemorySystem:
                 day_of_week INTEGER
             )
         """)
-        
+
         # BM25 Search Index (SQLite FTS)
         cursor.execute("""
             CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
@@ -224,7 +312,7 @@ class QdrantMemorySystem:
                 content_rowid=id
             )
         """)
-        
+
         # Background Job Queue
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS background_jobs (
@@ -238,7 +326,7 @@ class QdrantMemorySystem:
                 retry_count INTEGER DEFAULT 0
             )
         """)
-        
+
         # Qdrant Collection Metadata
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS qdrant_collections (
@@ -250,7 +338,7 @@ class QdrantMemorySystem:
                 status TEXT DEFAULT 'active'
             )
         """)
-        
+
         # Memory Statistics
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS memory_stats (
@@ -277,9 +365,9 @@ class QdrantMemorySystem:
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        
+
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_recent_channel_time 
+            CREATE INDEX IF NOT EXISTS idx_recent_channel_time
             ON recent_messages(channel_id, timestamp DESC)
         """)
 
@@ -350,17 +438,17 @@ class QdrantMemorySystem:
             cursor.execute("ALTER TABLE beliefs ADD COLUMN contradiction_resolved_at TEXT DEFAULT ''")
         except Exception:
             pass
-        
+
         self.conn.commit()
         logger.debug(" SQLite schema initialized")
-    
+
     def _setup_collection(self):
         """Setup Qdrant collection with optimized configuration"""
         logger.debug("Entering _setup_collection")
         if not self.qdrant_client:
             logger.debug("No qdrant_client")
             return
-        
+
         try:
             try:
                 self.qdrant_client.get_collection("memories")
@@ -370,7 +458,7 @@ class QdrantMemorySystem:
             except Exception as e:
                 logger.debug("Collection does not exist (%s), creating...", e)
                 pass
-            
+
             logger.debug("Calling create_collection with defaults...")
             self.qdrant_client.create_collection(
                 collection_name="memories",
@@ -380,47 +468,47 @@ class QdrantMemorySystem:
                     on_disk=True
                 )
             )
-            
+
             logger.debug("Recording metadata...")
             cursor = self.conn.cursor()
             cursor.execute("""
-                INSERT OR REPLACE INTO qdrant_collections 
+                INSERT OR REPLACE INTO qdrant_collections
                 (collection_name, vector_size, distance_metric, status)
                 VALUES (?, ?, ?, ?)
             """, ("memories", self.embedding_dim, "cosine", "active"))
             self.conn.commit()
-            
+
             logger.info(" Qdrant collection 'memories' created with optimized settings")
             logger.debug("Collection created successfully")
-            
+
         except Exception as e:
             logger.error(f" Failed to setup Qdrant collection: {e}")
             import traceback
             traceback.print_exc()
-    
+
 
     # ========================================================================
     # Stats & Maintenance
     # ========================================================================
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get memory system statistics"""
         cursor = self.conn.cursor()
-        
+
         try:
             cursor.execute("SELECT COUNT(*) as count FROM users")
             total_users = cursor.fetchone()['count']
-            
+
             cursor.execute("SELECT COUNT(*) as count FROM relationships WHERE relationship_strength > 0.5")
             strong_relationships = cursor.fetchone()['count']
-            
+
             memory_count = 0
             if self.qdrant_client:
                 try:
                     memory_count = self.qdrant_client.count("memories").count
-                except:
+                except Exception:
                     pass
-            
+
             return {
                 'total_users': total_users,
                 'total_memories': memory_count,
@@ -442,37 +530,41 @@ class QdrantMemorySystem:
 
     # ── Delegation to split-out modules ────────────────────────────────────
     from serin.pipeline.remember.core.search_store import (
-        search_hybrid as _search_hybrid,
         _build_qdrant_filter,
+        _condense_results,
         _merge_candidates,
         _rerank_results_simple,
-        _condense_results,
+    )
+    from serin.pipeline.remember.core.search_store import (
+        search_hybrid as _search_hybrid,
+    )
+    from serin.pipeline.remember.core.sqlite_store import (
+        cleanup_old_memories,
+        get_latest_message,
+        get_message_at_position,
+        get_message_by_id,
+        get_message_count,
+        get_messages_around_timestamp,
+        get_recent_conversation_from_sqlite,
+        get_user_profile,
+        get_user_relationships,
+        log_activity,
+        store_recent_message,
+        update_relationship,
+        update_user_activity,
+        update_user_traits,
+        upsert_user,
+    )
+    from serin.pipeline.remember.core.write_store import (
+        _build_payload,
+        _chunk_content,
+        _get_existing_memory_id,
+        _is_duplicate,
+        _queue_background_jobs,
+        generate_memory_id,
     )
     from serin.pipeline.remember.core.write_store import (
         add_memory_enhanced as _add_memory_enhanced,
-        generate_memory_id,
-        _chunk_content,
-        _build_payload,
-        _is_duplicate,
-        _get_existing_memory_id,
-        _queue_background_jobs,
-    )
-    from serin.pipeline.remember.core.sqlite_store import (
-        upsert_user,
-        update_user_activity,
-        get_user_profile,
-        update_user_traits,
-        log_activity,
-        update_relationship,
-        get_user_relationships,
-        store_recent_message,
-        get_latest_message,
-        get_recent_conversation_from_sqlite,
-        get_message_count,
-        get_message_at_position,
-        get_messages_around_timestamp,
-        get_message_by_id,
-        cleanup_old_memories,
     )
 
     def search_hybrid(self, query, user_id=None, n_results=5, **filters):

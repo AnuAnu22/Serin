@@ -1,0 +1,3 @@
+[bandit]
+exclude: /tests/,/.venv/,/build/
+skips: B101,B108,B202,B311,B404,B603,B607,B608

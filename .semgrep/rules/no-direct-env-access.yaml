@@ -1,0 +1,11 @@
+rules:
+  - id: no-direct-env-access
+    pattern: "os.environ[$KEY]"
+    message: "Direct os.environ access bypasses BotConfig. Use config.KEY from serin.config.config instead."
+    severity: ERROR
+    languages: [python]
+    paths:
+      exclude:
+        - "**/serin/config/config.py"
+        - "**/setup.sh"
+        - "**/serin/__main__.py"

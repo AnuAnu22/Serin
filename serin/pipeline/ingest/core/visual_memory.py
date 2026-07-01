@@ -11,16 +11,15 @@ Responsibilities:
 Key classes:
 - VisualMemorySystem: main class, requires Qdrant client
 """
-import os
 import logging
-from typing import List, Dict, Optional, Union
-from PIL import Image
-import requests
+from datetime import datetime
 from io import BytesIO
-from sentence_transformers import SentenceTransformer
+
+import requests
+from PIL import Image
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
-from datetime import datetime
+from sentence_transformers import SentenceTransformer
 
 logger = logging.getLogger("serin_ai")
 
@@ -32,7 +31,7 @@ class VisualMemorySystem:
     def __init__(self, qdrant_client: QdrantClient, collection_name: str = "visual_memory") -> None:
         self.client = qdrant_client
         self.collection_name = collection_name
-        
+
         # Load CLIP model (lightweight, runs on CPU/GPU)
         # clip-ViT-B-32 is a good balance of speed and performance
         logger.info(" Initializing Visual Cortex (CLIP model)...")
@@ -51,7 +50,7 @@ class VisualMemorySystem:
         try:
             collections = self.client.get_collections().collections
             exists = any(c.name == self.collection_name for c in collections)
-            
+
             if not exists:
                 logger.info(f"Creating visual memory collection: {self.collection_name}")
                 # CLIP ViT-B-32 output dimension is 512
@@ -65,7 +64,7 @@ class VisualMemorySystem:
         except Exception as e:
             logger.error(f" Error checking/creating visual collection: {e}")
 
-    def _download_image(self, url: str) -> Optional[Image.Image]:
+    def _download_image(self, url: str) -> Image.Image | None:
         """Download image from URL"""
         try:
             response = requests.get(url, timeout=10)
@@ -75,11 +74,11 @@ class VisualMemorySystem:
             logger.error(f" Failed to download image: {e}")
             return None
 
-    def embed_image(self, image: Union[Image.Image, str]) -> Optional[List[float]]:
+    def embed_image(self, image: Image.Image | str) -> list[float] | None:
         """Generate embedding for an image (URL or PIL Image)"""
         if not self.model:
             return None
-            
+
         try:
             if isinstance(image, str):
                 img_obj = self._download_image(image)
@@ -87,7 +86,7 @@ class VisualMemorySystem:
                     return None
             else:
                 img_obj = image
-                
+
             # Generate embedding
             embedding = self.model.encode(img_obj)
             return embedding.tolist()
@@ -95,7 +94,7 @@ class VisualMemorySystem:
             logger.error(f" Error embedding image: {e}")
             return None
 
-    def analyze_image(self, image_url: str) -> Optional[str]:
+    def analyze_image(self, image_url: str) -> str | None:
         """
         Deprecated: Image analysis is now handled by the VLM directly.
         Raises NotImplementedError to signal callers to use VLM instead.
@@ -115,11 +114,11 @@ class VisualMemorySystem:
             embedding = self.embed_image(image_url)
             if not embedding:
                 return False
-            
+
             # Create unique ID based on timestamp (must be integer for Qdrant)
             import uuid
             point_id = str(uuid.uuid4())
-            
+
             payload = {
                 "type": "image",
                 "url": image_url,
@@ -129,7 +128,7 @@ class VisualMemorySystem:
                 "context": context_text,
                 "timestamp": datetime.now().isoformat()
             }
-            
+
             self.client.upsert(
                 collection_name=self.collection_name,
                 points=[
@@ -146,7 +145,7 @@ class VisualMemorySystem:
             logger.error(f" Error storing visual memory: {e}")
             return False
 
-    def recall_image(self, image_url: str, threshold: float = 0.85) -> List[Dict]:
+    def recall_image(self, image_url: str, threshold: float = 0.85) -> list[dict]:
         """
         Recall similar images from memory.
         Returns list of matches with metadata.
@@ -155,7 +154,7 @@ class VisualMemorySystem:
             embedding = self.embed_image(image_url)
             if not embedding:
                 return []
-            
+
             # Use query_points instead of deprecated search
             results = self.client.query_points(
                 collection_name=self.collection_name,
@@ -163,7 +162,7 @@ class VisualMemorySystem:
                 limit=3,
                 score_threshold=threshold
             )
-            
+
             matches = []
             for hit in results.points:
                 matches.append({
@@ -173,13 +172,13 @@ class VisualMemorySystem:
                     "timestamp": hit.payload.get("timestamp"),
                     "url": hit.payload.get("url")
                 })
-            
+
             return matches
         except Exception as e:
             logger.error(f" Error recalling visual memory: {e}")
             return []
 
-    def recall_image_from_bytes(self, image_bytes: bytes, threshold: float = 0.85) -> List[Dict]:
+    def recall_image_from_bytes(self, image_bytes: bytes, threshold: float = 0.85) -> list[dict]:
         """
         Recall similar images from raw bytes (avoids re-downloading).
         Returns list of matches with metadata.

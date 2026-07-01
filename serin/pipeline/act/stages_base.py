@@ -1,7 +1,9 @@
 """PipelineStage base class."""
 from __future__ import annotations
+
 import time
 from abc import ABC, abstractmethod
+
 from serin.state.message_context import MessageContext
 
 

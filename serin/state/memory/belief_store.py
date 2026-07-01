@@ -13,9 +13,8 @@ Confidence is computed from the evidence/claim ratio using Bayesian update.
 import json
 import uuid
 from datetime import datetime
-from typing import List, Dict, Optional
 
-from serin.state.logger import logger
+from serin.logger import logger
 
 
 class BeliefStore:
@@ -28,8 +27,8 @@ class BeliefStore:
 
     def add_or_update_belief(self, content: str, category: str = 'inference',
                              confidence: float = 0.5,
-                             supporting_fact_ids: Optional[list[str]] = None,
-                             contradicting_fact_ids: Optional[list[str]] = None,
+                             supporting_fact_ids: list[str] | None = None,
+                             contradicting_fact_ids: list[str] | None = None,
                              evidence_count: int = 1,
                              claim_count: int = 0) -> str:
         """Store or update a belief (a conclusion inferred from facts)."""
@@ -131,7 +130,7 @@ class BeliefStore:
 
     # ── Inference ───────────────────────────────────────────────────────────
 
-    def infer_beliefs_from_facts(self, query: str = '') -> list[Dict]:
+    def infer_beliefs_from_facts(self, query: str = '') -> list[dict]:
         """Scan active facts and infer/update beliefs with state."""
         cursor = self.conn.cursor()
         facts = cursor.execute("""
@@ -198,7 +197,7 @@ class BeliefStore:
 
     # ── Retrieval ───────────────────────────────────────────────────────────
 
-    def get_relevant_beliefs(self, query: str, limit: int = 3) -> List[Dict]:
+    def get_relevant_beliefs(self, query: str, limit: int = 3) -> list[dict]:
         """Retrieve active beliefs relevant to a query."""
         cursor = self.conn.cursor()
         keywords = [w.lower() for w in query.split()

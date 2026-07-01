@@ -1,0 +1,10 @@
+rules:
+  - id: no-bare-except
+    pattern: |
+      try:
+          ...
+      except:
+          ...
+    message: "Bare except: catches BaseException including SystemExit/KeyboardInterrupt. Use 'except Exception:' instead."
+    severity: ERROR
+    languages: [python]

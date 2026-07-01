@@ -8,20 +8,20 @@ Features:
 - Integration with background processor
 - Voice-specific metadata
 """
-import asyncio
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
-import sys
 import os
+import sys
+from datetime import datetime
+from typing import Any
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from serin.state.logger import logger
+from serin.logger import logger
 
 
 class VoiceMemoryPipeline:
-    def __init__(self, memory_system: Any, background_processor: Any, message_manager: Optional[Any] = None) -> None:
+    def __init__(self, memory_system: Any, background_processor: Any, message_manager: Any | None = None) -> None:
         """
         Initialize voice memory pipeline.
-        
+
         Args:
             memory_system: UnifiedMemorySystem instance
             background_processor: BackgroundProcessor instance
@@ -30,10 +30,10 @@ class VoiceMemoryPipeline:
         self.memory = memory_system
         self.bg_processor = background_processor
         self.message_manager = message_manager
-        
+
         # Track recent voice messages for context
         self.recent_voice_messages = {}  # channel_id -> list of recent messages
-        
+
         # Stats
         self.stats = {
             'total_voice_messages': 0,
@@ -42,9 +42,9 @@ class VoiceMemoryPipeline:
             'responses_triggered': 0,
             'errors': 0
         }
-        
+
         logger.info(" Voice memory pipeline initialized")
-    
+
     async def process_voice_message(
         self,
         user_id: str,
@@ -52,12 +52,12 @@ class VoiceMemoryPipeline:
         guild_id: str,
         channel_id: str,
         transcription: str,
-        wav_b64: Optional[str] = None,
-        timestamp: Optional[datetime] = None
+        wav_b64: str | None = None,
+        timestamp: datetime | None = None
     ) -> None:
         """
         Process a voice message transcription.
-        
+
         Args:
             user_id: User ID
             username: Username
@@ -69,13 +69,13 @@ class VoiceMemoryPipeline:
         """
         try:
             timestamp = timestamp or datetime.now()
-            
+
             logger.info(f" Processing voice message from {username}: '{transcription}'")
-            
+
             # Update user profile
             self.memory.upsert_user(user_id, username, username)
             self.memory.update_user_activity(user_id, len(transcription))
-            
+
             # Store as memory (with voice metadata)
             self.memory.add_memory(
                 content=f"[Voice] {transcription}",
@@ -87,24 +87,24 @@ class VoiceMemoryPipeline:
                 importance=0.7,
                 message_id=None
             )
-            
+
             self.stats['stored_in_memory'] += 1
-            
+
             # Add to recent messages for context
             if channel_id not in self.recent_voice_messages:
                 self.recent_voice_messages[channel_id] = []
-            
+
             self.recent_voice_messages[channel_id].append({
                 'user_id': user_id,
                 'username': username,
                 'content': transcription,
                 'timestamp': timestamp.isoformat()
             })
-            
+
             # Keep only last 10 messages
             if len(self.recent_voice_messages[channel_id]) > 10:
                 self.recent_voice_messages[channel_id] = self.recent_voice_messages[channel_id][-10:]
-            
+
             # Queue for background processing
             self.bg_processor.queue_message(
                 content=transcription,
@@ -114,10 +114,10 @@ class VoiceMemoryPipeline:
                 server_id=guild_id,
                 timestamp=timestamp
             )
-            
+
             self.stats['queued_for_processing'] += 1
             self.stats['total_voice_messages'] += 1
-            
+
             # Generate voice response
             if self.message_manager and hasattr(self.message_manager, 'process_voice_input'):
                 logger.info(f" Triggering voice response for {username}")
@@ -129,13 +129,13 @@ class VoiceMemoryPipeline:
                     wav_b64=wav_b64
                 )
                 self.stats['responses_triggered'] += 1
-            
-            logger.debug(f" Voice message processed and stored")
-        
+
+            logger.debug(" Voice message processed and stored")
+
         except Exception as e:
             logger.error(f" Error processing voice message: {e}")
             self.stats['errors'] += 1
-    
+
     async def _should_respond_to_voice(
         self,
         user_id: str,
@@ -148,23 +148,23 @@ class VoiceMemoryPipeline:
         Voice is conversational — always respond.
         """
         return True
-    
-    def get_recent_context(self, channel_id: str, limit: int = 5) -> List[Dict[str, Any]]:
+
+    def get_recent_context(self, channel_id: str, limit: int = 5) -> list[dict[str, Any]]:
         """
         Get recent voice messages for context.
-        
+
         Args:
             channel_id: Channel ID
             limit: Number of recent messages
-        
+
         Returns:
             List of recent messages
         """
         if channel_id in self.recent_voice_messages:
             return self.recent_voice_messages[channel_id][-limit:]
         return []
-    
-    def get_stats(self) -> Dict[str, Any]:
+
+    def get_stats(self) -> dict[str, Any]:
         """Get pipeline statistics"""
         return {
             'total_voice_messages': self.stats['total_voice_messages'],

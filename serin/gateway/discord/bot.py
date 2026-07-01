@@ -15,65 +15,56 @@ PRODUCTION DATABASE PROTECTION:
 - Corruption recovery
 - Graceful shutdown handlers
 """
-import os
-from serin.state.logger import logger
-import asyncio
-import traceback
-import aiohttp
-from typing import cast, Optional, Set
-from dotenv import load_dotenv
-logger.info("Loading Discord.py...")
+
+from datetime import datetime
+
 import discord
-logger.info("Loading AI components...")
-from datetime import datetime, timedelta
+from dotenv import load_dotenv
 
 # Import centralized config
 from serin.config.config import config
 
 # TIER 1: Core Message Processing
-from serin.pipeline.think.response_generator import initialize_llama
-import serin.pipeline.think.response_generator
-from serin.pipeline.ingest.core.manager import EnhancedMessageManagerV3
-from serin.pipeline.ingest.context.mention_translator import MentionTranslator
+from serin.gateway.voice_system.tts_engine import TTSEngine
+from serin.logger import logger
+from serin.ops.background import BackgroundProcessor
 
 # TIER 3: Background Processing
 from serin.ops.passive_monitor import PassiveMonitor
-from serin.ops.background import BackgroundProcessor
-from serin.state.db_protect import get_database_protector
+from serin.pipeline.ingest.context.mention_translator import MentionTranslator
+from serin.pipeline.ingest.core.manager import EnhancedMessageManagerV3
 
 # TIER 4: Message Crawler
 from serin.pipeline.ingest.sync.crawler import MessageCrawler
-
-# TIER 5: Memory System
-from serin.pipeline.remember.qdrant import QdrantMemorySystem
-from serin.pipeline.remember.sync_monitor import MemorySyncMonitor
+from serin.state.db_protect import (
+    DatabaseProtector,
+    DatabaseRecoveryError,
+    DatabaseValidationError,
+    get_database_protector,
+)
 
 # TIER 6: Import voice and control panel components
 voice_available = False
 try:
     from serin.gateway.voice_system.listener import VoiceListener
-    from serin.gateway.voice_system.processor import AudioStreamProcessor
-    from serin.gateway.voice_transcribe.transcriber import WhisperTranscriber
+    from serin.gateway.voice_system.output import VoiceOutputManager
+    from serin.gateway.voice_system.processor import (
+        AudioStreamProcessor,
+        VoiceBehaviorManager,
+    )
     from serin.gateway.voice_transcribe.pipeline import VoiceMemoryPipeline
-    from serin.gateway.voice_system.listener import VoiceOutputManager
-    from serin.gateway.voice_system.processor import VoiceBehaviorManager
+    from serin.gateway.voice_transcribe.transcriber import WhisperTranscriber
     voice_available = True
 except Exception:
-    VoiceListener = AudioStreamProcessor = WhisperTranscriber = None
-    VoiceMemoryPipeline = VoiceOutputManager = VoiceBehaviorManager = None
+    VoiceListener = AudioStreamProcessor = WhisperTranscriber = None  # type: ignore[assignment,misc]
+    VoiceMemoryPipeline = VoiceOutputManager = VoiceBehaviorManager = None  # type: ignore[assignment,misc]
     logger.warning("Voice dependencies not available. Voice features disabled.")
-
-from serin.ops.control_panel.panel_lifecycle import init_bot_state, start_server
-
-# TIER 7: TTS preparation
-from serin.gateway.voice_system.tts_engine import TTSEngine
-
-# Database Protection
-from serin.state.db_protect import DatabaseProtector, DatabaseValidationError, DatabaseRecoveryError
-
 
 # Load environment variables
 load_dotenv()
+
+logger.info("Loading Discord.py...")
+logger.info("Loading AI components...")
 
 # ==================================================================================
 # CONFIGURATION
@@ -81,7 +72,7 @@ load_dotenv()
 
 # Validate token
 if not config.DISCORD_TOKEN:
-    raise EnvironmentError("DISCORD_TOKEN environment variable not set")
+    raise OSError("DISCORD_TOKEN environment variable not set")
 
 # Allowed channels (where bot can RESPOND)
 if not config.ALLOWED_CHANNEL_IDS:
@@ -95,7 +86,7 @@ if not config.ALLOWED_CHANNEL_IDS:
 
 logger.info(f"Starting bot in {'DEBUG' if config.DEBUG_MODE else 'PRODUCTION'} mode")
 logger.info(f"Will RESPOND in {len(config.ALLOWED_CHANNEL_IDS)} channels")
-logger.info(f"Will MONITOR all channels (passive learning)")
+logger.info("Will MONITOR all channels (passive learning)")
 logger.info(f"Voice input: {'ENABLED' if config.ENABLE_VOICE else 'DISABLED'} ({config.VOICE_RECEIVER_MODE} mode)")
 logger.info(f"Voice output: {'ENABLED' if config.ENABLE_TTS else 'DISABLED'}")
 logger.info(f"Control panel: http://127.0.0.1:{config.CONTROL_PANEL_PORT}")
@@ -113,18 +104,18 @@ client = discord.Client(intents=intents)
 mention_translator = MentionTranslator(client)
 
 # Global State
-start_time = datetime.now()
-message_manager = None
-background_processor = None
-passive_monitor = None
-message_crawler = None
-voice_listener = None
-audio_processor = None
-voice_pipeline = None
-tts_engine = None
-voice_output_manager = None
-voice_manager = None
-voice_behavior_manager = None
+start_time: datetime = datetime.now()
+message_manager: EnhancedMessageManagerV3 | None = None
+background_processor: BackgroundProcessor | None = None
+passive_monitor: PassiveMonitor | None = None
+message_crawler: MessageCrawler | None = None
+voice_listener: "VoiceListener | None" = None
+audio_processor: "AudioStreamProcessor | None" = None
+voice_pipeline: "VoiceMemoryPipeline | None" = None
+tts_engine: TTSEngine | None = None
+voice_output_manager: "VoiceOutputManager | None" = None
+voice_manager: "VoiceMemoryPipeline | None" = None
+voice_behavior_manager: "VoiceBehaviorManager | None" = None
 
 # Database Protector
 db_protector = DatabaseProtector("./bot_data")
@@ -166,7 +157,7 @@ except Exception as e:
 database_protector.setup_graceful_shutdown()
 
 # Bot statistics
-stats = {
+stats: dict[str, int | float | None] = {
     'messages_received': 0,
     'messages_processed': 0,
     'messages_ignored': 0,
@@ -176,5 +167,5 @@ stats = {
     'voice_events': 0,
     'voice_messages': 0,
     'errors': 0,
-    'start_time': None
+    'start_time': None,
 }

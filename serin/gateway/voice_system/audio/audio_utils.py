@@ -1,11 +1,12 @@
 """Audio utilities — PCM conversion, Gemma transcription."""
+import asyncio
 import base64
 import io
-import struct
 import wave
+
 import numpy as np
-from typing import Optional
-from serin.state.logger import logger
+
+from serin.logger import logger
 
 
 def _pcm_to_wav_base64(audio_data: bytes, sample_rate: int = 16000) -> str:
@@ -60,7 +61,7 @@ def _pcm_to_wav_base64(audio_data: bytes, sample_rate: int = 16000) -> str:
 
     return base64.b64encode(buf.getvalue()).decode('ascii')
 
-async def _transcribe_with_gemma(self, audio_data: bytes, username: str = "User") -> Optional[str]:
+async def _transcribe_with_gemma(self, audio_data: bytes, username: str = "User") -> str | None:
     """
     Transcribe audio using Gemma's direct input_audio support.
 
@@ -81,10 +82,10 @@ async def _transcribe_with_gemma(self, audio_data: bytes, username: str = "User"
     try:
         # Gemma4 audio limit: truncate to 30 seconds max.
         # 48kHz × 2ch × 2bytes × 30s = 5,760,000 bytes
-        MAX_AUDIO_BYTES = 5_760_000
-        if len(audio_data) > MAX_AUDIO_BYTES:
-            logger.info(f" Truncating audio from {len(audio_data)} to {MAX_AUDIO_BYTES} bytes (30s limit)")
-            audio_data = audio_data[:MAX_AUDIO_BYTES]
+        max_audio_bytes = 5_760_000
+        if len(audio_data) > max_audio_bytes:
+            logger.info(f" Truncating audio from {len(audio_data)} to {max_audio_bytes} bytes (30s limit)")
+            audio_data = audio_data[:max_audio_bytes]
         wav_b64 = self._pcm_to_wav_base64(audio_data)
 
         # Build the message with text + audio content.

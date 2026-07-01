@@ -1,5 +1,16 @@
 """Audio stream processor — per-user PCM buffer, VAD, and transcription pipeline."""
 
+import asyncio
+import os
+import random
+import sys
+from datetime import datetime
+from typing import Any
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from serin.config.config import config
+from serin.logger import logger
+
 # ── Constants ──────────────────────────────────────────────────────────────────
 VAD_AMPLITUDE_THRESHOLD = 150           # RMS amplitude below which is considered silence
 SILENCE_FRAMES_BEFORE_FLUSH = 75        # 1.5s at 50 frames/sec
@@ -8,20 +19,6 @@ MAX_BUFFER_BYTES_GEMMA = 5_760_000      # ~30 seconds (Gemma audio limit)
 MAX_BUFFER_BYTES_WHISPER = 50_000_000   # ~260 seconds (Whisper limit)
 PROCESSING_LOCK_SECONDS = 30            # How long to lock after queueing audio
 VOICE_BURST_IGNORE_FRAMES = 25          # Ignore bursts shorter than 0.5s
-import asyncio
-import base64
-import io
-import numpy as np
-import os
-import struct
-import time
-import wave
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Set, Union
-from collections import deque
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from serin.state.logger import logger
 
 
 class AudioStreamProcessor:
@@ -45,7 +42,7 @@ class AudioStreamProcessor:
     """
 
     def __init__(self, transcriber: Any, voice_pipeline: Any, silence_threshold: float = 3.0,
-                 voice_output_manager: Optional[Any] = None, llm_connector: Optional[Any] = None) -> None:
+                 voice_output_manager: Any | None = None, llm_connector: Any | None = None) -> None:
         """
         Initialize audio stream processor.
 
@@ -63,29 +60,29 @@ class AudioStreamProcessor:
         self.llm_connector = llm_connector
         # LLM_SUPPORTS_AUDIO=true means the LLM accepts direct audio input (Gemma unified format).
         # When True, audio is sent directly to the model instead of going through Whisper STT.
-        self.supports_audio = os.environ.get("LLM_SUPPORTS_AUDIO", "false").lower() in ("true", "1", "yes")
+        self.supports_audio = config.LLM_SUPPORTS_AUDIO
 
         # Per-user audio buffers — accumulate raw PCM (48kHz stereo 16-bit) until silence triggers processing.
-        self.user_buffers: Dict[str, bytearray] = {}
+        self.user_buffers: dict[str, bytearray] = {}
 
         # Per-user silence counters (in frames at 50 fps = 20ms each).
         # Incremented on every non-voice frame. When >= SILENCE_FRAMES_THRESHOLD, buffer is queued.
-        self.user_silence_frames: Dict[str, int] = {}
+        self.user_silence_frames: dict[str, int] = {}
 
         # Per-user silence timers — a fallback for when the Rust bridge stops sending chunks entirely.
         # The timer fires after silence_threshold seconds. If audio arrives, the timer is cancelled/rescheduled.
-        self._silence_timers: Dict[str, Optional[asyncio.Task]] = {}
+        self._silence_timers: dict[str, asyncio.Task | None] = {}
 
         # Per-user voice burst counter — counts consecutive voice frames to distinguish real speech from noise.
         # Only resets the silence counter if the burst reaches 25 frames (0.5s of continuous voice).
         # Brief pops/clicks are buffered but don't extend the silence window.
-        self.user_voice_burst: Dict[str, int] = {}
+        self.user_voice_burst: dict[str, int] = {}
 
         # Per-guild processing lock — prevents cascading response cycles.
         # Set when audio is queued for transcription; released by TTS_DONE signal from Rust.
         # During the lock window, new audio is silently buffered but not processed.
         # The lock is keyed by guild_id (string) to support multiple voice channels.
-        self._processing_lock_until: Dict[str, float] = {}
+        self._processing_lock_until: dict[str, float] = {}
 
         # Set of user IDs currently flagged as speaking (used for interrupt detection).
         # When a user is in this set and the bot is speaking, an interrupt is triggered.
@@ -126,44 +123,39 @@ class AudioStreamProcessor:
         })
 
     # ── Delegation to split-out modules ────────────────────────────────────
-    from serin.gateway.voice_system.audio.audio_vad import (
-        _detect_voice_activity,
-        _queue_for_transcription,
-        _cancel_silence_timer,
-        _schedule_silence_timer,
-        _is_locked,
-        _release_lock,
-        _set_lock,
-    )
-    from serin.gateway.voice_system.audio.audio_utils import (
-        _pcm_to_wav_base64,
-        process_audio_chunk as _process_audio_chunk,
-        _transcribe_with_gemma,
-    )
-
     def _detect_voice_activity(self, audio_data):
-        return type(self)._detect_voice_activity(self, audio_data)
+        from serin.gateway.voice_system.audio.audio_vad import _detect_voice_activity
+        return _detect_voice_activity(self, audio_data)
 
     def process_audio_chunk(self, user_id, username, guild_id, channel_id, audio_data):
-        return type(self)._process_audio_chunk(self, user_id, username, guild_id, channel_id, audio_data)
+        from serin.gateway.voice_system.audio.audio_utils import (
+            process_audio_chunk as _process_audio_chunk,
+        )
+        return _process_audio_chunk(self, user_id, username, guild_id, channel_id, audio_data)
 
     def _queue_for_transcription(self, user_id, audio_data, username):
-        return type(self)._queue_for_transcription(self, user_id, audio_data, username)
+        from serin.gateway.voice_system.audio.audio_vad import _queue_for_transcription
+        return _queue_for_transcription(self, user_id, audio_data, username)
 
     def _cancel_silence_timer(self, user_id):
-        return type(self)._cancel_silence_timer(self, user_id)
+        from serin.gateway.voice_system.audio.audio_vad import _cancel_silence_timer
+        return _cancel_silence_timer(self, user_id)
 
     def _schedule_silence_timer(self, user_id, username, audio_data, channel_id):
-        return type(self)._schedule_silence_timer(self, user_id, username, audio_data, channel_id)
+        from serin.gateway.voice_system.audio.audio_vad import _schedule_silence_timer
+        return _schedule_silence_timer(self, user_id, username, audio_data, channel_id)
 
     def _is_locked(self, guild_id):
-        return type(self)._is_locked(self, guild_id)
+        from serin.gateway.voice_system.audio.audio_vad import _is_locked
+        return _is_locked(self, guild_id)
 
     def _release_lock(self, guild_id):
-        return type(self)._release_lock(self, guild_id)
+        from serin.gateway.voice_system.audio.audio_vad import _release_lock
+        return _release_lock(self, guild_id)
 
     def _set_lock(self, guild_id, duration=20.0):
-        return type(self)._set_lock(self, guild_id, duration)
+        from serin.gateway.voice_system.audio.audio_vad import _set_lock
+        return _set_lock(self, guild_id, duration)
 
     @staticmethod
     def _pcm_to_wav_base64(audio_data, sample_rate=16000):
@@ -173,6 +165,42 @@ class AudioStreamProcessor:
     async def _transcribe_with_gemma(self, audio_data, username="User"):
         from serin.gateway.voice_system.audio.audio_utils import _transcribe_with_gemma
         return await _transcribe_with_gemma(self, audio_data, username)
+
+    async def _process_queue(self) -> None:
+        from serin.gateway.voice_system.audio.audio_vad import _process_queue
+        return await _process_queue(self)
+
+    async def _transcribe_and_store(self, item: dict) -> None:
+        from serin.gateway.voice_system.audio.audio_transcribe import (
+            _transcribe_and_store,
+        )
+        return await _transcribe_and_store(self, item)
+
+    def check_interrupt(self, user_id: str) -> bool:
+        from serin.gateway.voice_system.audio.audio_transcribe import check_interrupt
+        return check_interrupt(self, user_id)
+
+    def get_active_speakers(self):
+        from serin.gateway.voice_system.audio.audio_transcribe import (
+            get_active_speakers,
+        )
+        return get_active_speakers(self)
+
+    def get_buffer_size(self, user_id: str) -> int:
+        from serin.gateway.voice_system.audio.audio_transcribe import get_buffer_size
+        return get_buffer_size(self, user_id)
+
+    def get_stats(self):
+        from serin.gateway.voice_system.audio.audio_transcribe import get_stats
+        return get_stats(self)
+
+    async def start(self) -> None:
+        from serin.gateway.voice_system.audio.audio_utils import start as _start
+        return await _start(self)
+
+    async def stop(self) -> None:
+        from serin.gateway.voice_system.audio.audio_utils import stop as _stop
+        return await _stop(self)
 
 
 class VoiceBehaviorManager:
@@ -200,7 +228,7 @@ class VoiceBehaviorManager:
         personality: Any,
         voice_listener: Any,
         voice_tracker: Any = None,
-        guild_text_channels: Optional[Dict[int, Any]] = None,
+        guild_text_channels: dict[int, Any] | None = None,
     ) -> None:
         """
         Initialize voice behavior manager.
@@ -220,20 +248,20 @@ class VoiceBehaviorManager:
         self.join_aggressiveness: float = 0.5
         self.leave_after_silence_seconds: int = 180
         self.max_session_minutes: int = 60
-        self.creator_user_ids: Set[str] = set()
+        self.creator_user_ids: set[str] = set()
 
         # Runtime state
-        self._behavior_check_task: Optional[asyncio.Task] = None
+        self._behavior_check_task: asyncio.Task | None = None
         self._is_running: bool = False
-        self._vc_join_time: Dict[int, datetime] = {}
-        self._last_speech_time: Dict[int, datetime] = {}
-        self._voice_session_guilds: Set[int] = set()
+        self._vc_join_time: dict[int, datetime] = {}
+        self._last_speech_time: dict[int, datetime] = {}
+        self._voice_session_guilds: set[int] = set()
 
         # Pending join considerations: guild_id -> {channel_id, user_id, username, timestamp, delay_until}
-        self._pending_joins: Dict[int, Dict[str, Any]] = {}
+        self._pending_joins: dict[int, dict[str, Any]] = {}
 
         # Stats
-        self.stats: Dict[str, Any] = {
+        self.stats: dict[str, Any] = {
             'auto_joins': 0,
             'auto_leaves': 0,
             'join_decisions': 0,
@@ -273,7 +301,7 @@ class VoiceBehaviorManager:
     ) -> None:
         """
         Called when a user joins a voice channel.
-        
+
         Does NOT join immediately. Instead, records the event as a pending
         consideration. The behavior check loop will evaluate it after
         a random delay (45-90s) to decide if Serin should wander in.
@@ -448,7 +476,7 @@ class VoiceBehaviorManager:
                     self._last_speech_time.pop(guild_id, None)
                     self.stats['auto_leaves'] += 1
 
-    def get_settings(self) -> Dict[str, Any]:
+    def get_settings(self) -> dict[str, Any]:
         """Get current behavior settings for API exposure."""
         return {
             'join_aggressiveness': self.join_aggressiveness,
@@ -457,7 +485,7 @@ class VoiceBehaviorManager:
             'creator_user_ids': list(self.creator_user_ids),
         }
 
-    def update_settings(self, settings: Dict[str, Any]) -> None:
+    def update_settings(self, settings: dict[str, Any]) -> None:
         """Update behavior settings from API."""
         if 'join_aggressiveness' in settings:
             self.join_aggressiveness = max(0.0, min(1.0, float(settings['join_aggressiveness'])))
@@ -472,6 +500,6 @@ class VoiceBehaviorManager:
             self.max_session_minutes,
         )
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get voice behavior stats for API exposure."""
         return dict(self.stats)

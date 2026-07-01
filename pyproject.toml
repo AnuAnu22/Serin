@@ -16,7 +16,6 @@ dependencies = [
     # Embedding models (CPU-only torch — the LLM runs in llama-swap externally)
     "sentence-transformers>=5.1.2",
     "torch>=2.9.1",
-    "torchvision>=0.24.1",
     # Discord
     "py-cord[voice]>=2.6.1",
     "audioop-lts>=0.2.0; python_version>='3.13'",  # audioop removed in 3.13
@@ -56,10 +55,58 @@ dev = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests/messaging", "tests/integration"]
+testpaths = ["tests"]
 
 [project.scripts]
 dev = "dev:main"
+
+[tool.ruff.lint]
+select = ["F", "E", "W", "I", "N", "UP", "YTT"]
+ignore = ["E501"]
+fixable = ["I", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+warn_unused_ignores = false
+follow_imports = "silent"
+exclude = [
+    "tests/",
+    "build/",
+    "dist/",
+]
+
+[tool.importlinter]
+root_packages = ["serin"]
+
+[[tool.importlinter.contracts]]
+name = "Layer boundaries"
+type = "layers"
+layers = [
+    "serin.ops",       # highest layer — can import everything below
+    "serin.gateway",   # can import pipeline, state, config
+    "serin.pipeline",  # can import state, config
+    "serin.state",     # can import config
+    "serin.config",    # lowest layer — imports nothing external
+]
+ignore_imports = [
+    # Known architecture violations — need layer refactoring:
+    # state imports BM25Index from pipeline — move to state or define interface in state
+    "serin.state.memory_store -> serin.pipeline.remember.core.bm25_index",
+    # gateway initializes ops-layer components — inject through pipeline/state
+    "serin.gateway.discord.bot -> serin.ops.background",
+    "serin.gateway.discord.bot_pipeline_init -> serin.ops.background",
+    "serin.gateway.discord.bot -> serin.ops.passive_monitor",
+    "serin.gateway.discord.bot_pipeline_init -> serin.ops.passive_monitor",
+    "serin.gateway.discord.bot -> serin.ops.control_panel.panel_lifecycle",
+    "serin.gateway.discord.bot_pipeline_init -> serin.ops.control_panel.panel_lifecycle",
+    "serin.gateway.discord.bot_pipeline_init -> serin.ops.control_panel.server",
+    "serin.gateway.discord.bot_pipeline_init -> serin.ops.tts_voice_manager",
+]
+
+[tool.wily]
+cache = ".wily"
 
 # Use CPU-only PyTorch — the LLM runs in llama-swap, not in this process.
 # Saves ~3GB of CUDA downloads.
@@ -70,7 +117,6 @@ explicit = true
 
 [tool.uv.sources]
 torch = [{ index = "pytorch-cpu" }]
-torchvision = [{ index = "pytorch-cpu" }]
 
 [dependency-groups]
 dev = [

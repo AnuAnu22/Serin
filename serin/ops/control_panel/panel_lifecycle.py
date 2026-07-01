@@ -2,13 +2,14 @@
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 import uvicorn
-from serin.state.logger import logger
-from serin.config.config import config
 
-bot_state: dict = {}
+from serin.config.config import config
+from serin.logger import logger
+from serin.ops.control_panel.server import bot_state, broadcast_log
+
 
 def init_bot_state(
     discord_client: Any,
@@ -17,9 +18,9 @@ def init_bot_state(
     passive_monitor: Any,
     message_crawler: Any,
     memory_system: Any,
-    voice_listener: Optional[Any] = None,
-    tts_engine: Optional[Any] = None,
-    voice_manager: Optional[Any] = None
+    voice_listener: Any | None = None,
+    tts_engine: Any | None = None,
+    voice_manager: Any | None = None
 ) -> None:
     bot_state['discord_client'] = discord_client
     bot_state['message_manager'] = message_manager
@@ -32,8 +33,11 @@ def init_bot_state(
     bot_state['voice_manager'] = voice_manager
     logger.info(" Control panel state initialized")
 
-async def start_server(app, host: str = "127.0.0.1", port: int = 8080) -> None:
+async def start_server(app: Any = None, host: str = "127.0.0.1", port: int = 8080) -> None:
     """Start web server with port retry logic"""
+    if app is None:
+        from serin.ops.control_panel.server import app as _app
+        app = _app
     if host != "127.0.0.1" and not config.CONTROL_PANEL_KEY:
         logger.warning("Control panel exposed to network without authentication!")
     max_retries = 5
@@ -85,7 +89,6 @@ class WebSocketLogHandler(logging.Handler):
             }
 
             try:
-                loop = asyncio.get_running_loop()
                 asyncio.create_task(broadcast_log(log_entry))
             except RuntimeError:
                 pass

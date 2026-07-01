@@ -2,12 +2,13 @@
 Extracted from store.py.
 """
 from datetime import datetime
-from typing import List, Dict, Optional
+
 from qdrant_client.http import models
-from serin.state.logger import logger
+
+from serin.logger import logger
 
 
-def search_hybrid(store, query: str, user_id: Optional[str] = None, n_results: int = 5, **filters) -> List[Dict]:
+def search_hybrid(store, query: str, user_id: str | None = None, n_results: int = 5, **filters) -> list[dict]:
         """Hybrid search: BM25 + Vector + Rerank"""
         logger.debug("memory.search_start", extra={
             "query_preview": query[:50],
@@ -64,47 +65,47 @@ def search_hybrid(store, query: str, user_id: Optional[str] = None, n_results: i
                 "query_preview": query[:50],
             }, exc_info=True)
             return []
-    
-def _build_qdrant_filter(store, user_id: Optional[str], filters: Dict) -> models.Filter:
+
+def _build_qdrant_filter(store, user_id: str | None, filters: dict) -> models.Filter:
         """Build Qdrant payload filter"""
         conditions = []
-        
+
         if user_id:
             conditions.append(models.FieldCondition(key="person_id", match=models.MatchValue(value=user_id)))
-        
+
         if filters.get('channel_id'):
             conditions.append(models.FieldCondition(key="channel_id", match=models.MatchValue(value=filters['channel_id'])))
-        
+
         if filters.get('start_time'):
             start_ts = filters['start_time']
             if isinstance(start_ts, str):
                 try:
                     start_ts = datetime.fromisoformat(start_ts.replace('Z', '+00:00')).timestamp()
-                except:
+                except Exception:
                     pass
             conditions.append(models.FieldCondition(key="timestamp_ts", range=models.Range(gte=start_ts)))
-        
+
         if filters.get('end_time'):
             end_ts = filters['end_time']
             if isinstance(end_ts, str):
                 try:
                     end_ts = datetime.fromisoformat(end_ts.replace('Z', '+00:00')).timestamp()
-                except:
+                except Exception:
                     pass
             conditions.append(models.FieldCondition(key="timestamp_ts", range=models.Range(lte=end_ts)))
-        
+
         if filters.get('min_importance'):
             conditions.append(models.FieldCondition(key="importance", range=models.Range(gte=filters['min_importance'])))
-        
+
         if filters.get('memory_type'):
             conditions.append(models.FieldCondition(key="memory_type", match=models.MatchValue(value=filters['memory_type'])))
-        
+
         return models.Filter(must=conditions) if conditions else None
-    
-def _merge_candidates(store, bm25_candidates: List[Dict], vector_candidates: List[Dict]) -> List[Dict]:
+
+def _merge_candidates(store, bm25_candidates: list[dict], vector_candidates: list[dict]) -> list[dict]:
         """Merge results from BM25 and vector search"""
         merged = {}
-        
+
         for candidate in bm25_candidates:
             candidate_id = candidate.get('id')
             if candidate_id:
@@ -122,7 +123,7 @@ def _merge_candidates(store, bm25_candidates: List[Dict], vector_candidates: Lis
                         'memory_type': 'utterance',
                     }
                 }
-        
+
         for candidate in vector_candidates:
             candidate_id = candidate.get('id')
             if candidate_id:
@@ -137,16 +138,16 @@ def _merge_candidates(store, bm25_candidates: List[Dict], vector_candidates: Lis
                         'vector_score': candidate.get('score', 0),
                         'payload': candidate.get('payload', {})
                     }
-        
+
         result_list = list(merged.values())
         for item in result_list:
             bm25 = item.get('bm25_score', 0)
             bm25_contribution = 1.0 / (1.0 + bm25) if bm25 != 0 else 0
             item['combined_score'] = (item['vector_score'] * 0.6) + (bm25_contribution * 0.4)
-        
+
         return result_list
-    
-def _rerank_results_simple(store, query: str, candidates: List[Dict], top_k: int = 30) -> List[Dict]:
+
+def _rerank_results_simple(store, query: str, candidates: list[dict], top_k: int = 30) -> list[dict]:
         """Simple reranking based on recency and importance"""
         if len(candidates) <= top_k:
             return candidates
@@ -186,11 +187,11 @@ def _rerank_results_simple(store, query: str, candidates: List[Dict], top_k: int
                 candidate['rerank_score'] += (importance - 0.5) * 0.1
             top_candidates.sort(key=lambda x: x['rerank_score'], reverse=True)
             return top_candidates
-    
-def _condense_results(store, results: List[Dict]) -> List[Dict]:
+
+def _condense_results(store, results: list[dict]) -> list[dict]:
         """Condense results to final format"""
         condensed = []
-        
+
         for result in results:
             payload = result.get('payload', {})
             condensed.append({
@@ -205,30 +206,30 @@ def _condense_results(store, results: List[Dict]) -> List[Dict]:
                 'memory_type': payload.get('memory_type', 'utterance'),
                 'importance': payload.get('importance', 0.5)
             })
-        
+
         return condensed
-    
+
 def _calculate_age_days(store, timestamp: str) -> int:
         """Calculate age in days from timestamp"""
         try:
             dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
             return (datetime.now() - dt).days
-        except:
+        except Exception:
             return 0
-    
+
 def _update_ingestion_stats(store, count: int):
         """Update ingestion statistics"""
         today = datetime.now().date().isoformat()
-        
+
         cursor = store.conn.cursor()
         cursor.execute("""
-            INSERT OR REPLACE INTO memory_stats 
+            INSERT OR REPLACE INTO memory_stats
             (date, total_memories, ingestion_count)
             VALUES (?, COALESCE((SELECT total_memories FROM memory_stats WHERE date = ?), 0) + ?, ?)
         """, (today, today, count, count))
         store.conn.commit()
-    
+
     # ========================================================================
     # Legacy compatibility methods
     # ========================================================================
-    
+

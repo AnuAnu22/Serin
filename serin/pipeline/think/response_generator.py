@@ -4,47 +4,46 @@ Natural, Human-like System Prompt. No robotic rules. Just personality.
 
 UPDATED: Uses model factory for maximum modularity.
 """
-import re
 import random
-import asyncio
-import os
-from typing import List, Dict, Optional
-from serin.state.model_system.interface import ModelInterface
+import re
+
+from serin.config.config import config
+from serin.logger import logger
+from serin.pipeline.think.humanization import (
+    add_conversational_fillers,
+    add_realistic_typos,
+)
 from serin.state.model_system.factory import get_model_connector
-from serin.state.logger import logger
-from serin.pipeline.think.humanization import add_conversational_fillers
-from serin.pipeline.think.humanization import add_realistic_typos
+from serin.state.model_system.interface import ModelInterface
 from serin.state.thinking_filter import filter_thinking
 
 # Global instance (single connector)
-llama: Optional[ModelInterface] = None
-vision_llama: Optional[ModelInterface] = None
+llama: ModelInterface | None = None
+vision_llama: ModelInterface | None = None
 discord_client = None
 
-async def initialize_llama():
+async def initialize_llama() -> None:
     """Initialize single vLLM connector via model factory."""
     global llama, vision_llama
-    try:
-        llama = get_model_connector()
-        llama.load_model()
+    llama = get_model_connector()
+    llama.load_model()
+    if llama.is_connected:
         info = llama.get_model_info()
         logger.info(f" LLM ready: {info.get('model_name')} ({info.get('provider')})")
-    except Exception as e:
-        logger.error(f" Failed to initialize LLM: {e}")
-        raise
-    
+    else:
+        logger.info(" LLM not connected — will retry in background every 15s")
+
     # Initialize vision model (SmolVLM) if enabled
-    supports_vision = os.environ.get("LLM_SUPPORTS_VISION", "false").lower() in ("true", "1", "yes")
-    vision_model = os.environ.get("VISION_MODEL", "smolvlm256m")
+    supports_vision = config.LLM_SUPPORTS_VISION
+    vision_model = config.VISION_MODEL
     if supports_vision:
-        try:
-            from models.vllm import VLLMConnector
-            vision_llama = VLLMConnector(model_name=vision_model)
-            vision_llama.load_model()
+        from serin.state.model_system.connector import LLMConnector
+        vision_llama = LLMConnector(model_name=vision_model)
+        vision_llama.load_model()
+        if vision_llama.is_connected:
             logger.info(f" Vision LLM ready: {vision_model}")
-        except Exception as e:
-            logger.warning(f" Vision model '{vision_model}' not available: {e}")
-            vision_llama = None
+        else:
+            logger.warning(f" Vision model '{vision_model}' not available — will retry in background")
 
 
 def _should_use_thinking(message: str, complexity: str = "simple") -> bool:
@@ -62,24 +61,24 @@ def _should_use_thinking(message: str, complexity: str = "simple") -> bool:
 
 
 async def get_response_natural(
-    current_messages: List[Dict],
+    current_messages: list[dict],
     context: str,
-    resolved_last_message: Optional[str] = None,
-    tone_modifier: Optional[str] = None,
-    personality_state: Optional[dict] = None,
+    resolved_last_message: str | None = None,
+    tone_modifier: str | None = None,
+    personality_state: dict | None = None,
     message_complexity: str = "simple",
     is_instruction: bool = False
 ) -> str:
     """Generate response using the single vLLM connector"""
     global llama
 
-    if llama is None:
+    if llama is None or not llama.is_connected:
         await initialize_llama()
 
     try:
         # Build messages
         messages = []
-        
+
         # System prompt
         if is_instruction:
             system_prompt = build_instruction_system_prompt()
@@ -88,26 +87,26 @@ async def get_response_natural(
             system_prompt = build_natural_system_prompt()
             if tone_modifier:
                 system_prompt += f"\n\nCurrent mood: {tone_modifier}"
-        
+
         messages.append({
             "role": "system",
             "content": system_prompt
         })
-        
+
         # Context
         if context:
             messages.append({
                 "role": "system",
                 "content": context
             })
-        
+
         # Current conversation
         # Vision: if main LLM has mmproj (LLM_SUPPORTS_VISION=true), send image_url directly.
         # Otherwise, use SmolVLM fallback if available.
-        main_llm_has_vision = os.environ.get("LLM_SUPPORTS_VISION", "false").lower() in ("true", "1", "yes")
+        main_llm_has_vision = config.LLM_SUPPORTS_VISION
         for msg in current_messages[2:][-8:]:
             has_image = 'image_url' in msg
-            
+
             # Support two message formats:
             # - Pipeline format: {"role": "user", "content": "username: text"}
             # - Legacy format: {"user_name": "username", "content": "text"}
@@ -117,7 +116,7 @@ async def get_response_natural(
             else:
                 user_prefix = ''
                 msg_content = msg.get('content', '')
-            
+
             if has_image and main_llm_has_vision:
                 # Direct vision: send image_url to main LLM (gemma12b with mmproj)
                 messages.append({
@@ -148,19 +147,19 @@ async def get_response_natural(
                 if has_image:
                     content_str += "\n[Image attached]"
                 messages.append({"role": "user", "content": content_str})
-        
+
         # Check if this is a thinking model
         model_info = llama.get_model_info()
         model_name = model_info.get('model_name', '').lower()
         is_thinking_model = 'thinking' in model_name or 'think' in model_name or 'gemma' in model_name
-        
+
         # Determine if thinking should be enabled for this message
         # gemma12b with mmproj can think — enable for complex questions, disable for simple
         use_thinking = False
         if is_thinking_model:
             last_msg = current_messages[-1]['content'] if current_messages else ""
             use_thinking = _should_use_thinking(last_msg, message_complexity)
-        
+
         # For thinking models: more tokens, no special instructions (they confuse the model)
         # The model naturally uses <think>...</think> tags
         if is_thinking_model and use_thinking:
@@ -169,12 +168,12 @@ async def get_response_natural(
             max_tokens = 600  # No thinking, but still a thinking-capable model
         else:
             max_tokens = 500  # Normal token limit for instruct models
-        
+
         # Pass thinking override per-request if this is a thinking model
         extra = {}
         if is_thinking_model:
             extra["chat_template_kwargs"] = {"enable_thinking": use_thinking}
-        
+
         # Debug: log exact prompt fed to the model
         prompt_preview = "\n".join(
             f"===== {m.get('role','?')} ====="
@@ -182,9 +181,9 @@ async def get_response_natural(
             for m in messages
         )
         logger.info("PROMPT_DEBUG\n%s", prompt_preview)
-        
+
         raw_text = await llama.chat_completion(messages, max_tokens=max_tokens, extra_body=extra)
-        
+
         # Extract response based on model type
         if is_thinking_model:
             # Look for content after </think> tag - this is the actual response
@@ -196,21 +195,21 @@ async def get_response_natural(
         else:
             # Normal instruct model - just filter thinking tags if any
             response_text = filter_thinking(raw_text)
-        
+
         # Clean response
         cleaned = clean_response(response_text)
-        
+
         if not is_instruction:
             cleaned = apply_natural_variations(cleaned, tone_modifier)
             # Add fillers/typos
             cleaned = add_conversational_fillers(cleaned, personality_state, message_complexity)
             cleaned = add_realistic_typos(cleaned, personality_state, False)
-        
+
         return cleaned
-        
+
     except Exception as e:
         logger.exception(f" Generation error: {e}")
-        
+
         # Fallback
         return random.choice([
             "brain.exe stopped working",
@@ -224,7 +223,7 @@ def build_natural_system_prompt() -> str:
     Personality anchors so the LLM has concrete behavior to emulate,
     while permitting belief updating when presented with evidence.
     """
-    
+
     return """You are Serin. You're a real person in this Discord server — not an AI assistant, not a chatbot, just someone who hangs out here.
 
 Who you are:
@@ -267,9 +266,9 @@ def clean_response(response: str) -> str:
     try:
         if not response:
             return ""
-        
+
         cleaned = response.strip()
-        
+
         # Remove special tokens (adapter handles most, but catch any extras)
         special_tokens = [
             "<|assistant|>", "<|user|>", "<|system|>",
@@ -277,41 +276,41 @@ def clean_response(response: str) -> str:
             "<|eot_id|>", "<|im_start|>", "<|im_end|>",
             "<|begin_of_text|>", "<|end_of_text|>"
         ]
-        
+
         for token in special_tokens:
             cleaned = cleaned.replace(token, "")
-        
+
         # Remove name prefixes (Serin:, Assistant:, etc.)
         cleaned = re.sub(r"(?im)^\s*\w+:\s*", "", cleaned)
-        
+
         # Convert Discord mentions
         cleaned = re.sub(r"<@!?\d+>", "", cleaned)
-        
+
         # Clean excessive whitespace
         cleaned = re.sub(r"\n\s*\n\s*\n+", "\n\n", cleaned)
         cleaned = re.sub(r" +", " ", cleaned)
-        
+
         # Truncate to realistic Discord message length
         if len(cleaned) > 400:
             # Find natural break point
             truncated = cleaned[:400]
             last_period = truncated.rfind(".")
             last_newline = truncated.rfind("\n")
-            
+
             if last_period > 250:
                 cleaned = cleaned[:last_period + 1]
             elif last_newline > 250:
                 cleaned = cleaned[:last_newline]
             else:
                 cleaned = truncated.rstrip() + "..."
-        
+
         return cleaned.strip()
-        
+
     except Exception as e:
         logger.error(f" Error cleaning response: {e}")
         return response.strip() if response else ""
 
-def apply_natural_variations(text: str, tone_modifier: Optional[str] = None) -> str:
+def apply_natural_variations(text: str, tone_modifier: str | None = None) -> str:
     """
     Apply natural language variations to make text feel more human.
     - Sometimes lowercase
@@ -319,15 +318,15 @@ def apply_natural_variations(text: str, tone_modifier: Optional[str] = None) -> 
     - Add casual contractions
     """
     import random
-    
+
     # 30% chance to make first letter lowercase (casual)
     if random.random() < 0.3 and len(text) > 0:
         text = text[0].lower() + text[1:]
-    
+
     # 20% chance to drop final period (casual)
     if text.endswith('.') and random.random() < 0.2:
         text = text[:-1]
-    
+
     # Add contractions if not already present
     try:
         import serin_core
@@ -356,7 +355,7 @@ def apply_natural_variations(text: str, tone_modifier: Optional[str] = None) -> 
         )
         contraction_lookup = {k.strip().lower(): v.strip() for k, v in contractions.items()}
         text = contraction_pattern.sub(lambda m: contraction_lookup[m.group(0).lower()], text)
-    
+
     # 10% chance to add "lol" or "haha" if tone is casual/energetic
     if tone_modifier and ('energetic' in tone_modifier.lower() or 'witty' in tone_modifier.lower()):
         if random.random() < 0.1:
@@ -367,7 +366,7 @@ def apply_natural_variations(text: str, tone_modifier: Optional[str] = None) -> 
                 text = text[:-1] + f' {addition}.'
             else:
                 text = text + f' {addition}'
-    
+
     return text
 def build_instruction_system_prompt() -> str:
     """

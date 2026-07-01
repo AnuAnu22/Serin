@@ -1,3 +1,8 @@
+from typing import Any
+
+from serin.logger import logger
+
+
 def register_control_routes(app):
     """Register TTS, profile, settings routes."""
     """TTS, voice profiles, behavior, settings, and background endpoints."""
@@ -5,6 +10,7 @@ def register_control_routes(app):
     async def list_tts_voices() -> Any:
         """List available TTS voice files"""
         try:
+            from serin.ops.control_panel.server import bot_state
             # Try voice_manager first (TTSVoiceManager)
             manager = bot_state['voice_manager']
             if manager and hasattr(manager, 'list_voices') and callable(manager.list_voices):
@@ -26,6 +32,7 @@ def register_control_routes(app):
     async def get_current_tts() -> Any:
         """Get current TTS engine status"""
         try:
+            from serin.ops.control_panel.server import bot_state, make_json_safe
             tts = bot_state['tts_engine']
             if not tts:
                 return {'error': 'TTS not initialized'}
@@ -42,9 +49,10 @@ def register_control_routes(app):
             return {'error': str(e)}
 
     @app.post("/api/tts/voice/load")
-    async def load_tts_voice(data: Dict[str, Any]) -> Any:
+    async def load_tts_voice(data: dict[str, Any]) -> Any:
         """Load a TTS voice file"""
         try:
+            from serin.ops.control_panel.server import bot_state
             tts = bot_state['tts_engine']
             if not tts:
                 return {'success': False, 'error': 'TTS not initialized'}
@@ -60,6 +68,7 @@ def register_control_routes(app):
     async def clear_tts_voice() -> Any:
         """Clear custom TTS voice, revert to default"""
         try:
+            from serin.ops.control_panel.server import bot_state
             tts = bot_state['tts_engine']
             if not tts:
                 return {'success': False, 'error': 'TTS not initialized'}
@@ -74,6 +83,7 @@ def register_control_routes(app):
     async def test_tts_voice() -> Any:
         """Test TTS by synthesizing a test phrase"""
         try:
+            from serin.ops.control_panel.server import bot_state
             tts = bot_state['tts_engine']
             if not tts:
                 return {'success': False, 'error': 'TTS not initialized'}
@@ -89,9 +99,10 @@ def register_control_routes(app):
 
 
     @app.post("/api/tts/settings/update")
-    async def update_tts_settings(data: Dict[str, Any]) -> Any:
+    async def update_tts_settings(data: dict[str, Any]) -> Any:
         """Update TTS settings (profile, speed, etc.)"""
         try:
+            from serin.ops.control_panel.server import bot_state
             tts = bot_state['tts_engine']
             if not tts:
                 return {'success': False, 'error': 'TTS not initialized'}
@@ -110,6 +121,7 @@ def register_control_routes(app):
     async def get_audio_settings() -> Any:
         """Get audio processing settings"""
         try:
+            from serin.ops.control_panel.server import bot_state
             listener = bot_state['voice_listener']
             if not listener:
                 return {'vad_threshold': -40, 'silence_threshold': 3.0, 'transcription_enabled': True}
@@ -123,9 +135,10 @@ def register_control_routes(app):
             return {'error': str(e)}
 
     @app.post("/api/audio/settings/update")
-    async def update_audio_settings(data: Dict[str, Any]) -> Any:
+    async def update_audio_settings(data: dict[str, Any]) -> Any:
         """Update audio processing settings"""
         try:
+            from serin.ops.control_panel.server import bot_state
             listener = bot_state['voice_listener']
             if not listener:
                 return {'success': False, 'error': 'Voice listener not initialized'}
@@ -145,6 +158,7 @@ def register_control_routes(app):
     async def get_audio_stats() -> Any:
         """Get audio processing statistics"""
         try:
+            from serin.ops.control_panel.server import bot_state
             listener = bot_state['voice_listener']
             if not listener:
                 return {'chunks_received': 0, 'chunks_processed': 0, 'queue_size': 0, 'transcriptions_completed': 0, 'vad_detections': 0}
@@ -165,6 +179,7 @@ def register_control_routes(app):
     async def get_active_speakers() -> Any:
         """Get currently active/streaming speakers"""
         try:
+            from serin.ops.control_panel.server import bot_state
             listener = bot_state['voice_listener']
             if not listener:
                 return {'speakers': []}
@@ -184,7 +199,10 @@ def register_control_routes(app):
     async def list_voice_profiles() -> Any:
         """List all voice profiles"""
         try:
-            from serin.state.voice.voice_profiles import get_voice_profiles, get_active_profile_name
+            from serin.state.voice.voice_profiles import (
+                get_active_profile_name,
+                get_voice_profiles,
+            )
             profiles = get_voice_profiles()
             active = get_active_profile_name()
             return {
@@ -203,7 +221,7 @@ def register_control_routes(app):
             return {'error': str(e), 'profiles': [], 'active': 'default'}
 
     @app.post("/api/voice-profiles/create")
-    async def create_voice_profile(data: Dict[str, Any]) -> Any:
+    async def create_voice_profile(data: dict[str, Any]) -> Any:
         """Create a new voice profile"""
         try:
             from serin.state.voice.voice_profiles import create_profile
@@ -257,6 +275,7 @@ def register_control_routes(app):
     async def get_background_queue() -> Any:
         """Get background processor queue status"""
         try:
+            from serin.ops.control_panel.server import bot_state
             bg = bot_state['background_processor']
             if not bg:
                 return {'size': 0, 'is_running': False}
@@ -271,6 +290,7 @@ def register_control_routes(app):
     async def clear_background_queue() -> Any:
         """Clear all pending background tasks"""
         try:
+            from serin.ops.control_panel.server import bot_state
             bg = bot_state['background_processor']
             if not bg:
                 return {'success': False, 'error': 'Not initialized'}
@@ -285,7 +305,7 @@ def register_control_routes(app):
                     while not q.empty():
                         try:
                             q.get_nowait()
-                        except:
+                        except Exception:
                             break
             logger.info(" Cleared %d background tasks", cleared)
             return {'success': True, 'cleared': cleared}
@@ -300,6 +320,7 @@ def register_control_routes(app):
     async def get_voice_behavior_settings() -> Any:
         """Get voice auto-join/leave behavior settings"""
         try:
+            from serin.ops.control_panel.server import bot_state
             vbm = bot_state['voice_behavior_manager']
             if not vbm:
                 return {
@@ -315,9 +336,10 @@ def register_control_routes(app):
             return {'error': str(e)}
 
     @app.post("/api/voice/behavior/settings")
-    async def update_voice_behavior_settings(data: Dict[str, Any]) -> Any:
+    async def update_voice_behavior_settings(data: dict[str, Any]) -> Any:
         """Update voice auto-join/leave behavior settings"""
         try:
+            from serin.ops.control_panel.server import bot_state
             vbm = bot_state['voice_behavior_manager']
             if not vbm:
                 return {'success': False, 'error': 'Voice behavior manager not initialized'}
@@ -330,6 +352,7 @@ def register_control_routes(app):
     async def get_voice_behavior_stats() -> Any:
         """Get voice behavior statistics"""
         try:
+            from serin.ops.control_panel.server import bot_state
             vbm = bot_state['voice_behavior_manager']
             if not vbm:
                 return {'auto_joins': 0, 'auto_leaves': 0, 'rejected_joins': 0}

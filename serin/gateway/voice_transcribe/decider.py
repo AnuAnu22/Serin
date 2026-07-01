@@ -5,15 +5,16 @@ Decides if Serin should join/leave a voice channel based on conversation context
 """
 import json
 import re
-from typing import Any, Dict, Optional
-from serin.state.logger import logger
+from typing import Any
+
+from serin.logger import logger
 
 
 class VoiceActionDecider:
     """
     Decides if Serin should join/leave/none in voice channels.
     Uses a lightweight LLM call with structured JSON output.
-    
+
     Returns: {"action": "join"|"leave"|"none", "reason": "..."}
     """
 
@@ -25,11 +26,11 @@ class VoiceActionDecider:
         self,
         user_message: str,
         context: str,
-        personality_state: Optional[Dict[str, float]] = None,
-    ) -> Dict[str, str]:
+        personality_state: dict[str, float] | None = None,
+    ) -> dict[str, str]:
         """
         Decide voice action based on conversation context.
-        
+
         Returns:
             {"action": "join" | "leave" | "none", "reason": "..."}
         """
@@ -73,12 +74,10 @@ class VoiceActionDecider:
         self,
         message: str,
         context: str,
-        personality: Dict[str, float],
+        personality: dict[str, float],
     ) -> str:
-        energy = personality.get("energy_level", 0.5)
-        sass = personality.get("sass_level", 0.5)
 
-        return f"""You are Serin's internal voice action system. Decide if Serin should join or leave a voice channel.
+        return """You are Serin's internal voice action system. Decide if Serin should join or leave a voice channel.
 
 CONTEXT:
 {context}
@@ -103,7 +102,7 @@ OUTPUT FORMAT (JSON ONLY):
 RESPONSE:
 {{"""
 
-    def _parse_decision(self, response: str) -> Dict[str, str]:
+    def _parse_decision(self, response: str) -> dict[str, str]:
         """Parse JSON decision from LLM response."""
         try:
             raw = response.strip()
@@ -127,6 +126,6 @@ RESPONSE:
                 raw += "}"
 
             return json.loads(raw)
-        except (json.JSONDecodeError, AttributeError) as e:
+        except (json.JSONDecodeError, AttributeError):
             logger.warning(f" Failed to parse voice decision: {response[:120]}...")
             return {"action": "none", "reason": "parsing_fallback"}

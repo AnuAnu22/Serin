@@ -1,0 +1,10 @@
+rules:
+  - id: no-stale-kwargs
+    patterns:
+      - pattern-either:
+          - pattern: "$OBJ.search_memories(n_results=$X)"
+          - pattern: "$OBJ.search_memories(limit=$X, n_results=$Y)"
+          - pattern: "$OBJ.search_memories(n_results=$X, limit=$Y)"
+    message: "search_memories uses 'limit=', not 'n_results='. n_results was renamed."
+    severity: ERROR
+    languages: [python]

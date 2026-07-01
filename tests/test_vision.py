@@ -17,13 +17,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Override env vars for SmolVLM test (don't affect main bot config)
-os.environ["VLLM_BASE_URL"] = "http://localhost:8080/v1"
+os.environ["LLM_BASE_URL"] = "http://localhost:8080/v1"
 os.environ["LLM_MODEL"] = "smolvlm256m"
 os.environ["LLM_TEMPERATURE"] = "0.3"
 os.environ["LLM_TOP_P"] = "0.9"
 os.environ["LLM_MAX_TOKENS"] = "500"
 
-from serin.state.model_system.vllm_sglang import VLLMConnector
+from serin.state.model_system.connector import LLMConnector
 
 
 async def test_vision(image_url: str):
@@ -34,7 +34,7 @@ async def test_vision(image_url: str):
     print(f"  Image: {image_url[:80]}...")
     print()
 
-    connector = VLLMConnector(model_name="smolvlm256m")
+    connector = LLMConnector(model_name="smolvlm256m")
 
     print("Loading model...")
     start = time.time()
@@ -89,7 +89,7 @@ async def test_base64():
         print("  PIL not available, skipping base64 test")
         return True
 
-    connector = VLLMConnector(model_name="smolvlm256m")
+    connector = LLMConnector(model_name="smolvlm256m")
     connector.load_model()
 
     messages = [

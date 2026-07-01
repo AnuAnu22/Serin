@@ -36,21 +36,13 @@ TTS_DONE Lifecycle:
   5. Python _read_loop receives TTS_DONE → _handle_tts_done() → _release_lock()
   6. Processing lock released → next user utterance is processed immediately
 """
-import asyncio
-import collections
-import json
 import os
 import queue
-import struct
 import subprocess
 import sys
 import threading
-import time
-from typing import Any, Callable, Dict, Optional
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from serin.state.logger import logger
-
 
 # ---------------------------------------------------------------------------
 # Stdout protocol reader — runs in a background daemon thread
@@ -103,7 +95,8 @@ class RustStdoutReader:
         doesn't have enough). This is why we buffer at the bytearray level.
         """
         stdout = self.proc.stdout
-        assert stdout is not None
+        if stdout is None:
+            raise RuntimeError("Process stdout is None")
         buf = bytearray()
 
         while True:
@@ -164,7 +157,7 @@ class RustStdoutReader:
                     # Unknown lines are treated as log messages from Rust.
                     self.events.put(('log', line))
 
-    def get(self, timeout: float = 0.5) -> Optional[tuple]:
+    def get(self, timeout: float = 0.5) -> tuple | None:
         """
         Read next event from the queue.
 

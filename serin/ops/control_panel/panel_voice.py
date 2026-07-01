@@ -1,26 +1,42 @@
+import asyncio
+import os
+from typing import Any
+
+from pydantic import BaseModel
+
+from serin.config.config import config
+from serin.logger import logger
+
+
 def register_voice_routes(app):
     """Register voice management routes."""
-    """Voice channel and audio management endpoints."""
-
+    from serin.ops.control_panel.server import (
+        ChannelControl,
+        MemoryQuery,
+        SettingsUpdate,
+        VoiceChannelControl,
+        VoiceLoad,
+        bot_state,
+        broadcast_event,
+    )
 
     @app.post("/api/channels/allowed")
     async def update_allowed_channels(control: ChannelControl) -> Any:
         """Add or remove allowed channel"""
         try:
-            import discord_bot
             channel_id = int(control.channel_id)
-        
+
             if control.action == 'add':
-                discord_bot.ALLOWED_CHANNEL_IDS.add(channel_id)
+                config.ALLOWED_CHANNEL_IDS.add(channel_id)
             elif control.action == 'remove':
-                discord_bot.ALLOWED_CHANNEL_IDS.discard(channel_id)
+                config.ALLOWED_CHANNEL_IDS.discard(channel_id)
             else:
                 return {'success': False, 'error': 'Invalid action'}
-        
+
             logger.info(f" Channel {control.action}: {channel_id}")
             return {
                 'success': True,
-                'channels': [str(cid) for cid in discord_bot.ALLOWED_CHANNEL_IDS]
+                'channels': [str(cid) for cid in config.ALLOWED_CHANNEL_IDS]
             }
         except Exception as e:
             return {'success': False, 'error': str(e)}
@@ -37,7 +53,7 @@ def register_voice_routes(app):
             client = bot_state['discord_client']
             if not client:
                 return {'channels': []}
-        
+
             channels = []
             for guild in client.guilds:
                 for vc in guild.voice_channels:
@@ -49,7 +65,7 @@ def register_voice_routes(app):
                         'members': len(vc.members),
                         'connected': False  # Will update when voice listener implemented
                     })
-        
+
             return {'channels': channels}
         except Exception as e:
             return {'error': str(e)}
@@ -62,19 +78,19 @@ def register_voice_routes(app):
             voice_listener = bot_state['voice_listener']
             if not voice_listener:
                 return {'success': False, 'error': 'Voice listener not initialized'}
-        
+
             success = await voice_listener.join_channel(
                 int(control.guild_id),
                 int(control.channel_id)
             )
-        
+
             if success:
                 logger.info(f" Joined voice channel: {control.channel_id}")
                 await broadcast_event('voice_joined', {
                     'guild_id': control.guild_id,
                     'channel_id': control.channel_id
                 })
-        
+
             return {'success': success}
         except Exception as e:
             logger.error(f"Error joining voice: {e}")
@@ -88,15 +104,15 @@ def register_voice_routes(app):
             voice_listener = bot_state['voice_listener']
             if not voice_listener:
                 return {'success': False, 'error': 'Voice listener not initialized'}
-        
+
             success = await voice_listener.leave_channel(int(control.guild_id))
-        
+
             if success:
                 logger.info(f" Left voice channel in guild: {control.guild_id}")
                 await broadcast_event('voice_left', {
                     'guild_id': control.guild_id
                 })
-        
+
             return {'success': success}
         except Exception as e:
             return {'success': False, 'error': str(e)}
@@ -109,7 +125,7 @@ def register_voice_routes(app):
             voice_listener = bot_state['voice_listener']
             if not voice_listener:
                 return {'connected': False}
-        
+
             return voice_listener.get_status()
         except Exception as e:
             return {'error': str(e)}
@@ -123,7 +139,7 @@ def register_voice_routes(app):
             manager = bot_state['voice_manager']
             if not manager:
                 return {'voices': []}
-        
+
             return {'voices': manager.list_voices()}
         except Exception as e:
             return {'error': str(e)}
@@ -134,10 +150,10 @@ def register_voice_routes(app):
         try:
             manager = bot_state['voice_manager']
             tts = bot_state['tts_engine']
-        
+
             if not manager or not tts:
                 return {'success': False, 'error': 'Voice system not initialized'}
-        
+
             success = manager.load_voice(tts, data.filename)
             return {'success': success}
         except Exception as e:
@@ -149,10 +165,10 @@ def register_voice_routes(app):
         try:
             manager = bot_state['voice_manager']
             tts = bot_state['tts_engine']
-        
+
             if not manager or not tts:
                 return {'success': False, 'error': 'Voice system not initialized'}
-        
+
             success = manager.clear_voice(tts)
             return {'success': success}
         except Exception as e:
@@ -170,13 +186,13 @@ def register_voice_routes(app):
             memory = bot_state['memory_system']
             if not memory:
                 return {'memories': []}
-        
+
             results = memory.search_memories(
                 query=query.query,
                 user_id=query.user_id,
                 n_results=query.limit
             )
-        
+
             return {'memories': results}
         except Exception as e:
             return {'error': str(e)}
@@ -189,10 +205,10 @@ def register_voice_routes(app):
             memory = bot_state['memory_system']
             if not memory:
                 return {'users': []}
-        
+
             cursor = memory.conn.cursor()
             cursor.execute("SELECT user_id, username, total_messages FROM users ORDER BY total_messages DESC LIMIT 100")
-        
+
             users = [dict(row) for row in cursor.fetchall()]
             return {'users': users}
         except Exception as e:
@@ -206,7 +222,7 @@ def register_voice_routes(app):
             memory = bot_state['memory_system']
             if not memory:
                 return {'error': 'Memory not initialized'}
-        
+
             profile = memory.get_user_profile(user_id)
             if profile:
                 return profile
@@ -231,7 +247,7 @@ def register_voice_routes(app):
             manager = bot_state['message_manager']
             if not manager:
                 return {'status': 'OFFLINE'}
-        
+
             return manager.current_state
         except Exception as e:
             return {'error': str(e)}
@@ -243,7 +259,7 @@ def register_voice_routes(app):
             manager = bot_state['message_manager']
             if not manager:
                 return {'success': False, 'error': 'Manager not initialized'}
-        
+
             manager.abort_current_generation()
             return {'success': True}
         except Exception as e:
@@ -258,8 +274,7 @@ def register_voice_routes(app):
     async def restart_bot() -> Any:
         """Restart the bot process (hot-reloads code changes). The hot_reloader.py wrapper will auto-restart."""
         try:
-            import os
-            open("/tmp/serin-restart.signal", "w").close()
+            open("/tmp/serin-restart.signal", "w").close()  # nosec B108 — IPC signaling, needs well-known path
             logger.warning(" Restart signal sent to hot-reloader")
             return {'success': True, 'message': 'Restart signal sent'}
         except Exception as e:
@@ -276,7 +291,7 @@ def register_voice_routes(app):
             manager = bot_state['message_manager']
             if not manager:
                 return {'success': False, 'error': 'Manager not initialized'}
-        
+
             # Access personality state directly
             if hasattr(manager, 'personality'):
                 if request.mood == 'high_energy':
@@ -287,9 +302,9 @@ def register_voice_routes(app):
                     manager.personality.sass_level = 0.5
                 elif request.mood == 'sass':
                     manager.personality.sass_level = 1.0
-            
+
                 return {'success': True, 'mood': request.mood}
-            
+
             return {'success': False, 'error': 'Personality module not found'}
         except Exception as e:
             return {'success': False, 'error': str(e)}
@@ -304,13 +319,13 @@ def register_voice_routes(app):
             manager = bot_state['message_manager']
             if not manager or not hasattr(manager, 'response_controller'):
                  return {'success': False, 'error': 'Manager not initialized'}
-             
+
             rc = manager.response_controller
             if request.channel_id in rc.active_conversations:
                 del rc.active_conversations[request.channel_id]
                 logger.info(f"✂ Severed context for {request.channel_id}")
                 return {'success': True}
-            
+
             return {'success': False, 'error': 'Context not found'}
         except Exception as e:
             return {'success': False, 'error': str(e)}
@@ -322,19 +337,19 @@ def register_voice_routes(app):
             manager = bot_state['message_manager']
             if not manager:
                 return {'prompt': ''}
-        
+
             return {'prompt': manager.system_prompt}
         except Exception as e:
             return {'error': str(e)}
 
     @app.post("/api/system_prompt")
-    async def update_system_prompt(data: Dict[str, str]) -> Any:
+    async def update_system_prompt(data: dict[str, str]) -> Any:
         """Update system prompt"""
         try:
             manager = bot_state['message_manager']
             if not manager:
                 return {'success': False, 'error': 'Manager not initialized'}
-        
+
             new_prompt = data.get('prompt')
             if new_prompt:
                 manager.system_prompt = new_prompt
@@ -357,7 +372,7 @@ def register_voice_routes(app):
             return {'error': str(e)}
 
     @app.post("/api/config")
-    async def update_full_config(data: Dict[str, Any]) -> Any:
+    async def update_full_config(data: dict[str, Any]) -> Any:
         """Update bot configuration"""
         try:
             config.update_from_dict(data)
@@ -385,11 +400,11 @@ def register_voice_routes(app):
                 'trace_messages': 'TRACE_MESSAGES',
                 'maintenance_interval': 'MAINTENANCE_INTERVAL_HOURS'
             }
-        
+
             if update.setting_key in key_map:
                 config.update_from_dict({key_map[update.setting_key]: update.setting_value})
                 return {'success': True}
-        
+
             return {'success': False, 'error': 'Unknown setting key'}
         except Exception as e:
             return {'success': False, 'error': str(e)}
@@ -407,10 +422,10 @@ def register_voice_routes(app):
             log_file = "bot.log"
             if not os.path.exists(log_file):
                 return {'logs': []}
-        
-            with open(log_file, 'r') as f:
+
+            with open(log_file) as f:
                 lines = f.readlines()[-100:]
-        
+
             return {'logs': lines}
         except Exception as e:
             return {'error': str(e)}
@@ -427,10 +442,10 @@ def register_voice_routes(app):
             crawler = bot_state['message_crawler']
             if not crawler:
                 return {'success': False, 'error': 'Crawler not initialized'}
-        
+
             # Trigger sync in background
             asyncio.create_task(_run_manual_sync(crawler))
-        
+
             return {'success': True, 'message': 'Sync started'}
         except Exception as e:
             return {'success': False, 'error': str(e)}
@@ -441,16 +456,16 @@ def register_voice_routes(app):
         try:
             logger.info(" Manual sync triggered from control panel")
             client = bot_state['discord_client']
-        
+
             synced_count = 0
             for guild in client.guilds:
                 for channel in guild.text_channels:
                     try:
                         synced = await crawler._quick_sync_channel(channel)
                         synced_count += synced
-                    except:
+                    except Exception:
                         pass
-        
+
             logger.info(f" Manual sync complete: {synced_count} messages")
             await broadcast_event('sync_complete', {'count': synced_count})
         except Exception as e:

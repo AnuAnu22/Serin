@@ -66,7 +66,7 @@ async def test_loop():
     
     # Now we can import the class safely
     from serin.pipeline.ingest.core.manager import EnhancedMessageManagerV3
-    from serin.active_search import ActiveSearch
+    from serin.pipeline.perceive.active_search import ActiveSearch
 
     # Setup Mocks
     mock_client = MagicMock()

@@ -1,7 +1,16 @@
 """Process supervision for Rust voice bridge."""
-from typing import Any, Dict, Optional
+import asyncio
+import collections
+import json
+import os
+import subprocess
+import threading
+from collections.abc import Callable
+from typing import Any
 
-"""Process supervision for Rust voice bridge."""
+from serin.gateway.voice_system.bridge import RustStdoutReader
+from serin.logger import logger
+
 
 class RustVoiceBridge:
     """
@@ -27,7 +36,7 @@ class RustVoiceBridge:
         self,
         audio_processor: Any,
         voice_listener: Any,
-        binary_path: Optional[str] = None,
+        binary_path: str | None = None,
     ) -> None:
         """
         Initialize the Rust voice bridge.
@@ -46,28 +55,28 @@ class RustVoiceBridge:
             binary_path = os.path.join(base, "rust_receiver", "target", "release", "voice_receiver")
         self.binary_path = binary_path
 
-        self.proc: Optional[subprocess.Popen] = None
-        self.reader: Optional[RustStdoutReader] = None
-        self._reader_task: Optional[asyncio.Task] = None
+        self.proc: subprocess.Popen | None = None
+        self.reader: RustStdoutReader | None = None
+        self._reader_task: asyncio.Task | None = None
         self._running = False
-        self._guild_id: Optional[int] = None
-        self._channel_id: Optional[int] = None
+        self._guild_id: int | None = None
+        self._channel_id: int | None = None
 
         # ── Stdin serialization lock ─────────────────────────────────────────
         self._stdin_lock = threading.Lock()
 
         # ── Supervisor / crash recovery ──────────────────────────────────────
-        self._voice_client: Optional[Any] = None
-        self._last_connection_info: Optional[Dict] = None
+        self._voice_client: Any | None = None
+        self._last_connection_info: dict | None = None
         self._start_mode: str = "connection_info"  # "voice_client" or "connection_info"
         self._death_event = asyncio.Event()
         self._shutdown_requested = False
-        self._supervisor_task: Optional[asyncio.Task] = None
-        self._reconnect_callback: Optional[Callable] = None
+        self._supervisor_task: asyncio.Task | None = None
+        self._reconnect_callback: Callable | None = None
         self._restart_timestamps: collections.deque = collections.deque(maxlen=5)
 
         # Username cache: maps user_id string → display name
-        self._usernames: Dict[str, str] = {}
+        self._usernames: dict[str, str] = {}
 
         # Stderr ring buffer — captures last N lines for diagnostics on crash
         self._stderr_buf: collections.deque = collections.deque(maxlen=200)
@@ -221,7 +230,7 @@ class RustVoiceBridge:
 
     def _extract_voice_info(
         self, voice_client: Any, guild_id: int, channel_id: int
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Extract voice server connection info from a discord.py VoiceClient.
 

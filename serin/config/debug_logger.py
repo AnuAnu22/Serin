@@ -2,18 +2,19 @@
 Debug Logger - Comprehensive debug information system
 Shows exactly what bot sees, processes, and stores
 """
-import os
-from serin.state.logger import logger
-from typing import Any, Dict, List, Optional
+from typing import Any
+
+from serin.config.config import config
+from serin.logger import logger
 
 
 class DebugLogger:
     """Centralized debug logging for bot operations"""
 
     def __init__(self) -> None:
-        self.debug_mode = os.getenv("DEBUG_MODE", "false").lower() == "true"
-        self.verbose_memory = os.getenv("DEBUG_MEMORY", "false").lower() == "true"
-        self.verbose_llm = os.getenv("DEBUG_LLM", "false").lower() == "true"
+        self.debug_mode = config.DEBUG_MODE
+        self.verbose_memory = config.DEBUG_MEMORY
+        self.verbose_llm = config.DEBUG_LLM
 
     def log_message_received(self, message: Any, cleaned_content: str) -> None:
         """Log when message is received"""
@@ -30,7 +31,7 @@ class DebugLogger:
         logger.info(f"Cleaned: '{cleaned_content}'")
         logger.info("=" * 80)
 
-    def log_context_built(self, context: Dict[str, Any]) -> None:
+    def log_context_built(self, context: dict[str, Any]) -> None:
         """Log context that will be sent to LLM"""
         if not self.debug_mode:
             return
@@ -65,7 +66,7 @@ class DebugLogger:
 
         logger.info("=" * 80)
 
-    def log_llm_input(self, messages: List[Dict[str, Any]]) -> None:
+    def log_llm_input(self, messages: list[dict[str, Any]]) -> None:
         """Log exact messages sent to LLM"""
         if not self.verbose_llm:
             return
@@ -107,7 +108,7 @@ class DebugLogger:
         logger.info(cleaned_response)
         logger.info("=" * 80)
 
-    def log_memory_stored(self, content: str, metadata: Dict[str, Any]) -> None:
+    def log_memory_stored(self, content: str, metadata: dict[str, Any]) -> None:
         """Log when memory is stored"""
         if not self.verbose_memory:
             return
@@ -124,7 +125,7 @@ class DebugLogger:
         logger.info(f"Timestamp: {metadata.get('timestamp')}")
         logger.info("=" * 80)
 
-    def log_background_summary(self, messages: List[Dict[str, Any]], summary: str) -> None:
+    def log_background_summary(self, messages: list[dict[str, Any]], summary: str) -> None:
         """Log background processor summary creation"""
         if not self.verbose_memory:
             return
@@ -135,11 +136,11 @@ class DebugLogger:
         logger.info(f"From {len(messages)} message(s):")
         for msg in messages:
             logger.info(f"  {msg['username']}: {msg['content'][:80]}")
-        logger.info(f"\nSummary created:")
+        logger.info("\nSummary created:")
         logger.info(f"  '{summary}'")
         logger.info("=" * 80)
 
-    def log_correction_detected(self, correction: Dict[str, Any], user: str) -> None:
+    def log_correction_detected(self, correction: dict[str, Any], user: str) -> None:
         """Log when correction is detected"""
         if not self.debug_mode:
             return
@@ -167,7 +168,7 @@ class DebugLogger:
         logger.info(f"Reason: {reason}")
         logger.info("=" * 80)
 
-    def log_voice_event(self, event_type: str, user: str, channel: str, duration: Optional[int] = None) -> None:
+    def log_voice_event(self, event_type: str, user: str, channel: str, duration: int | None = None) -> None:
         """Log voice channel events"""
         if not self.debug_mode:
             return
@@ -193,15 +194,15 @@ def log_message(message: Any, cleaned_content: str) -> None:
     debug.log_message_received(message, cleaned_content)
 
 
-def log_context(context: Dict[str, Any]) -> None:
+def log_context(context: dict[str, Any]) -> None:
     """Log context built"""
     debug.log_context_built(context)
 
 
 def log_llm_io(
-    messages: Optional[List[Dict[str, Any]]] = None,
-    raw: Optional[str] = None,
-    cleaned: Optional[str] = None,
+    messages: list[dict[str, Any]] | None = None,
+    raw: str | None = None,
+    cleaned: str | None = None,
 ) -> None:
     """Log LLM input/output"""
     if messages:
@@ -210,17 +211,17 @@ def log_llm_io(
         debug.log_llm_output(raw, cleaned)
 
 
-def log_memory(content: str, metadata: Dict[str, Any]) -> None:
+def log_memory(content: str, metadata: dict[str, Any]) -> None:
     """Log memory stored"""
     debug.log_memory_stored(content, metadata)
 
 
-def log_summary(messages: List[Dict[str, Any]], summary: str) -> None:
+def log_summary(messages: list[dict[str, Any]], summary: str) -> None:
     """Log background summary"""
     debug.log_background_summary(messages, summary)
 
 
-def log_correction(correction: Dict[str, Any], user: str) -> None:
+def log_correction(correction: dict[str, Any], user: str) -> None:
     """Log correction detected"""
     debug.log_correction_detected(correction, user)
 
@@ -230,12 +231,12 @@ def log_response(should_respond: bool, reason: str, message: str) -> None:
     debug.log_response_decision(should_respond, reason, message)
 
 
-def log_voice(event_type: str, user: str, channel: str, duration: Optional[int] = None) -> None:
+def log_voice(event_type: str, user: str, channel: str, duration: int | None = None) -> None:
     """Log voice event"""
     debug.log_voice_event(event_type, user, channel, duration)
 
 
-def log_api_request(endpoint: str, method: str, params: Optional[Dict[str, Any]] = None) -> None:
+def log_api_request(endpoint: str, method: str, params: dict[str, Any] | None = None) -> None:
     """Log API request"""
     if not debug.debug_mode:
         return

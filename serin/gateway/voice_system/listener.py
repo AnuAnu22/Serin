@@ -9,14 +9,16 @@ Phase 2 (future): Rust gateway shard eliminates py-cord from voice entirely.
 """
 import asyncio
 import os
-import discord
-from typing import Any, Dict, Optional, Set
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from serin.state.logger import logger
+from typing import Any
 
+import discord
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Import VoiceProtocol from _types to avoid requiring py-cord[voice] deps
 from discord.voice._types import VoiceProtocol
+
+from serin.logger import logger
 
 
 class InfoCaptureProtocol(VoiceProtocol):
@@ -48,7 +50,7 @@ class InfoCaptureProtocol(VoiceProtocol):
                 asyncio.gather(self.server_event.wait(), self.state_event.wait()),
                 timeout=timeout or 15.0,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             await self.channel.guild.change_voice_state(channel=None)
             raise
 
@@ -80,7 +82,7 @@ class InfoCaptureProtocol(VoiceProtocol):
         super().cleanup()
         self._info_gathered = False
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """Return ConnectionInfo dict for Rust songbird driver."""
         return {
             "endpoint": self.endpoint,
@@ -97,13 +99,13 @@ class VoiceListener:
         self.client = client
         self.audio_processor = audio_processor
 
-        self.rust_bridge: Optional[Any] = None
-        self._protocol: Optional[InfoCaptureProtocol] = None
-        self._active_guild_id: Optional[int] = None
+        self.rust_bridge: Any | None = None
+        self._protocol: InfoCaptureProtocol | None = None
+        self._active_guild_id: int | None = None
 
         self.transcription_enabled = True
         self.auto_join_on_mention = True
-        self._join_in_progress: Set[int] = set()
+        self._join_in_progress: set[int] = set()
 
         self.stats = {
             'connections': 0,
@@ -146,7 +148,7 @@ class VoiceListener:
                     reconnect=False,
                     timeout=15.0,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.error("Timeout waiting for voice connection info from gateway")
                 return False
 
@@ -223,7 +225,7 @@ class VoiceListener:
     def is_connected(self) -> bool:
         return self.rust_bridge is not None and self.rust_bridge.is_running()
 
-    def get_status(self) -> Dict:
+    def get_status(self) -> dict:
         connections = []
 
         if self._active_guild_id is not None and self.is_connected():
@@ -260,7 +262,7 @@ class VoiceListener:
             'receiver_mode': 'rust',
         }
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         stats = {
             'connected': self.is_connected(),
             'active_channels': len(self.stats['active_channels']),
@@ -276,7 +278,7 @@ class VoiceListener:
                 pass
         return stats
 
-    def _channel_id(self) -> Optional[str]:
+    def _channel_id(self) -> str | None:
         if self._active_guild_id is None:
             return None
         guild = self.client.get_guild(self._active_guild_id)
@@ -302,13 +304,7 @@ Sentence splitting is intentionally disabled because:
   1. Rust's SPEAK handler calls handle.stop() before playing new audio
   2. Sending multiple SPEAK commands → each sentence cuts off the previous
   3. Edge-TTS handles multi-sentence text fine in one synthesis call
-  4. The TTS_DONE signal from Rust handles lock release precisely
+   4. The TTS_DONE signal from Rust handles lock release precisely
 """
-import asyncio
-import os
-from typing import Any, Dict, List, Optional, Tuple, Union
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from serin.state.logger import logger
 
 

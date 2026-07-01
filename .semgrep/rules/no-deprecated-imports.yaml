@@ -1,0 +1,10 @@
+rules:
+  - id: no-deprecated-imports
+    patterns:
+      - pattern-either:
+          - pattern: "from serin.state.model_system.vllm_sglang import $X"
+          - pattern: "from serin.state.model_system.lm_studio import $X"
+          - pattern: "from serin.utils import $X"
+    message: "This module has been removed or renamed. Check serin.state.model_system.connector for LLM imports."
+    severity: ERROR
+    languages: [python]

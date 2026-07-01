@@ -1,8 +1,7 @@
-import os
-import sys
-import time
 import signal
 import subprocess
+import sys
+import time
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -15,7 +14,7 @@ WATCH_FILES = [
 ]
 # Rust voice receiver source directory — changes here trigger cargo build
 RUST_RECEIVER_SRC = PROJECT_ROOT / "voice" / "rust_receiver" / "src"
-SIGNAL_FILE = Path("/tmp/serin-restart.signal")
+SIGNAL_FILE = Path("/tmp/serin-restart.signal")  # nosec B108 — IPC signaling, needs well-known path
 BOT_DIR = PROJECT_ROOT
 COOLDOWN_SECS = 1.0
 GRACE_SECS = 3.0

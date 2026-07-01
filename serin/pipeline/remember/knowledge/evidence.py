@@ -5,12 +5,10 @@ with keyword-based retrieval. Each fact has a source_type indicating its
 reliability tier and an auto-supersede mechanism for board/game state.
 """
 
-import json
 import uuid
 from datetime import datetime
-from typing import List, Dict, Optional
 
-from serin.state.logger import logger
+from serin.logger import logger
 
 
 class FactStore:
@@ -70,8 +68,8 @@ class FactStore:
         logger.debug(f"Fact stored: [{category}] {content[:60]}...")
         return fact_id
 
-    def get_active_facts(self, category: Optional[str] = None,
-                         limit: int = 10) -> List[Dict]:
+    def get_active_facts(self, category: str | None = None,
+                         limit: int = 10) -> list[dict]:
         """Retrieve active facts, optionally filtered by category."""
         cursor = self.conn.cursor()
         if category:
@@ -90,7 +88,7 @@ class FactStore:
             """, (limit,))
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_relevant_facts(self, query: str, limit: int = 5) -> List[Dict]:
+    def get_relevant_facts(self, query: str, limit: int = 5) -> list[dict]:
         """Retrieve active facts relevant to a query using keyword overlap.
 
         This is intentionally simple — facts are small, atomic, and keyword
@@ -107,7 +105,7 @@ class FactStore:
         like_clauses = ' OR '.join('f.content LIKE ?' for _ in keywords)
         like_params = [f'%{kw}%' for kw in keywords]
         score_clause = ' + '.join(
-            f"(CASE WHEN f.content LIKE ? THEN 1 ELSE 0 END)"
+            "(CASE WHEN f.content LIKE ? THEN 1 ELSE 0 END)"
             for _ in keywords
         )
 

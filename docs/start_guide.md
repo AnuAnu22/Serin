@@ -1,33 +1,33 @@
 # Project Startup Guide
 
-## 1. Environment Setup
+## 1. Quick Start
 ```bash
 cp .env.example .env
-# Edit .env to match your setup
+# Edit .env with your Discord bot token
+bash setup.sh setup
 ```
 
-## 2. Starting the LLM Server (llama-swap)
+## 2. What `bash setup.sh setup` Does
 
-llama-swap is an inference proxy that manages model backends (vLLM, llama.cpp, SGLang, etc.).  
-Run the setup script to auto-detect your hardware and install it:
+The unified setup wizard:
+- Detects GPU / VRAM / CPU and recommends a safe LLM model
+- Installs Python dependencies via `uv`
+- Configures your Discord token and LLM settings interactively
+- Offers to install llama-swap (LLM backend) via Docker or binary
+- Offers to configure Qdrant (vector database) via Docker
+
+All choices are saved to `.setup_state` — rerun anytime to change anything.
+
+## 3. Managing Services
 
 ```bash
-bash scripts/setup.sh
+bash setup.sh start      # Start all configured services
+bash setup.sh stop       # Stop all services
+bash setup.sh status     # Show service status
+bash setup.sh qdrant logs   # Tail Qdrant logs
 ```
 
-Or start directly with sensible defaults:
-
+## 4. Starting the Bot
 ```bash
-bash start_llama_swap.sh
-```
-
-The script will:
-- Detect GPU / VRAM / CPU and recommend safe defaults
-- Offer to install llama-swap via Docker (recommended) or binary download
-- Generate a default config at `~/.config/llama-swap/config.yaml`
-- Start the server on `http://localhost:8080/v1`
-
-## 3. Starting the Bot
-```bash
-uv run -m serin
+uv run python -m serin
 ```

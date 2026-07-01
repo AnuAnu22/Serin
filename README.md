@@ -56,9 +56,8 @@ The bot runs directly. For auto-reload during development, use `uv run serin/ops
 | Variable | Description |
 |---|---|
 | `DISCORD_TOKEN` | Discord bot token (required) |
-| `VLLM_BASE_URL` | OpenAI-compatible LLM API endpoint |
+| `LLM_BASE_URL` | llama-swap / OpenAI-compatible API endpoint |
 | `LLM_MODEL` | Model name (e.g. gemma12b) |
-| `LLM_PROVIDER` | Backend type (vllm, etc.) |
 | `QDRANT_HOST` / `QDRANT_PORT` | Qdrant vector database connection |
 | `ENABLE_VOICE` | Voice features (`true`/`false`) |
 | `ENABLE_TTS` | Text-to-speech (`true`/`false`) |

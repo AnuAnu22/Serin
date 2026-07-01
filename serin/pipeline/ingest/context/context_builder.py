@@ -7,10 +7,13 @@ Enterprise-grade context building with temporal awareness integration.
 from __future__ import annotations
 
 import re
-from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
 from datetime import datetime
-from serin.state.logger import logger
-from serin.pipeline.remember.temporal import TemporalFormatter, parse_time, get_time_range
+from typing import TYPE_CHECKING
+
+from serin.logger import logger
+from serin.pipeline.remember.temporal import (
+    TemporalFormatter,
+)
 
 if TYPE_CHECKING:
     from serin.pipeline.remember.qdrant import QdrantMemorySystem
@@ -30,14 +33,14 @@ class ConversationContextBuilder:
     def __init__(self, memory_system: QdrantMemorySystem) -> None:
         self.memory: QdrantMemorySystem = memory_system
         self.temporal_formatter: TemporalFormatter = TemporalFormatter()
-    
+
     def build_context(
         self,
-        user_messages: List[Dict],
-        channel_id: Optional[str] = None,
-        query_time_hint: Optional[str] = None,
-        mood_state: Optional[Dict] = None,
-    ) -> Dict:
+        user_messages: list[dict],
+        channel_id: str | None = None,
+        query_time_hint: str | None = None,
+        mood_state: dict | None = None,
+    ) -> dict:
         """
         Build structured context using type-specific retrieval.
         Each memory type gets its own query, its own limit, and its own
@@ -97,11 +100,11 @@ class ConversationContextBuilder:
             is_energetic = any(w in tone for w in ["energetic", "punchy", "sarcastic"])
             if is_chill:
                 # Drop argument-like utterance memories
-                ARGUMENT_KW = ["lose", "lost", "win", "won", "admit", "wrong",
+                argument_kw = ["lose", "lost", "win", "won", "admit", "wrong",
                                "cope", "argue", "disagree", "disagreed"]
                 utterance_memories = [
                     m for m in utterance_memories
-                    if not any(kw in m.get('content', '').lower() for kw in ARGUMENT_KW)
+                    if not any(kw in m.get('content', '').lower() for kw in argument_kw)
                 ]
             elif is_energetic:
                 # Allow an extra utterance memory for debate
@@ -151,21 +154,21 @@ class ConversationContextBuilder:
                 'username': primary_username,
             },
         }
-    
+
     def _search_with_time_range(
         self,
         query: str,
         user_id: str,
-        time_range: Tuple[datetime, datetime]
-    ) -> List[Dict]:
+        time_range: tuple[datetime, datetime]
+    ) -> list[dict]:
         """
         Search memories within specific time range.
-        
+
         Args:
             query: Search query
             user_id: User ID filter
             time_range: (start_time, end_time) tuple
-        
+
         Returns:
             List of memories within time range
         """
@@ -175,10 +178,10 @@ class ConversationContextBuilder:
             user_id=user_id,
             n_results=20  # Get more, then filter
         )
-        
+
         start_time, end_time = time_range
         filtered = []
-        
+
         for mem in all_memories:
             ts_raw = mem.get('timestamp', '')
             if not ts_raw:
@@ -192,19 +195,19 @@ class ConversationContextBuilder:
                     filtered.append(mem)
             except (ValueError, TypeError):
                 continue
-        
+
         logger.info(f"[TIME] Filtered {len(all_memories)} → {len(filtered)} memories by time range")
-        
+
         return filtered[:5]  # Return top 5
-    
-    def format_context_for_llm(self, context: Dict) -> str:
+
+    def format_context_for_llm(self, context: dict) -> str:
         """
         Format context as a narrative internal monologue.
         This forces the LLM to synthesize memories rather than reading a list.
         """
-        
+
         narrative_parts = []
-        
+
         # 1. Immediate Situation (Recent Conversation)
         if context['recent_conversation']:
             narrative_parts.append("--- CURRENT SITUATION ---")
@@ -213,10 +216,10 @@ class ConversationContextBuilder:
                 username = msg.get('username', msg.get('user_name', 'Unknown'))
                 conv_lines.append(f"{username}: {msg['content']}")
             narrative_parts.append("\n".join(conv_lines))
-        
+
         # 2. Internal Memory Stream (The "Brain")
         memory_stream = []
-        
+
         # Relevant memories
         if context['relevant_memories']:
             memory_stream.append("I recall the following relevant details:")
@@ -234,7 +237,7 @@ class ConversationContextBuilder:
                 except (ValueError, TypeError):
                     time_ref = "Earlier"
                 memory_stream.append(f"- {time_ref}, {mem.get('username', mem.get('user_name', 'Unknown'))} mentioned: {mem['content']}")
-        
+
         # User profiles (Narrative)
         profiles = context['profiles']
         if profiles:
@@ -242,14 +245,14 @@ class ConversationContextBuilder:
             for user_id, profile in profiles.items():
                 traits = profile.get('personality_traits', [])
                 interests = profile.get('interests', [])
-                
+
                 desc = f"- {profile.get('username', profile.get('display_name', user_id))}"
                 if traits:
                     desc += f" seems {', '.join(traits[:3])}"
                 if interests:
                     desc += f" and is into {', '.join(interests[:3])}"
                 memory_stream.append(desc)
-        
+
         # Relationships
         relationships = context['relationships']
         if relationships:
@@ -261,23 +264,23 @@ class ConversationContextBuilder:
             narrative_parts.append("\n--- INTERNAL MEMORY STREAM ---")
             narrative_parts.append("(These are my private thoughts/memories. I should use them to inform my response naturally, without explicitly saying 'I remember'.)")
             narrative_parts.append("\n".join(memory_stream))
-            
+
         return "\n\n".join(narrative_parts)
-    
-    def resolve_referents(self, current_message: str, recent_messages: List[Dict]) -> str:
+
+    def resolve_referents(self, current_message: str, recent_messages: list[dict]) -> str:
         """
         Resolve "them", "that", "it" to actual referents from recent messages.
         Makes conversation feel continuous.
         """
         message_lower = current_message.lower()
-        
+
         # Check if message contains referents
         referents = ['them', 'they', 'that', 'it', 'those', 'these']
         has_referent = any(ref in message_lower for ref in referents)
-        
+
         if not has_referent or len(recent_messages) < 2:
             return current_message
-        
+
         # Look for entities in recent messages
         # Simple approach: extract capitalized words or @mentions
         entities = []
@@ -288,26 +291,26 @@ class ConversationContextBuilder:
             for word in words:
                 if len(word) > 2 and word[0].isupper() and word not in ['I', 'The', 'A']:
                     entities.append(word)
-        
+
         if entities:
             # Most recent entity is likely referent
             likely_referent = entities[-1]
             logger.debug(f"🔗 Resolved referent to: {likely_referent}")
             # Add context hint (not replacing text, just informing LLM)
             return f"{current_message} [Note: 'them/that/it' likely refers to {likely_referent}]"
-        
+
         return current_message
-    
-    def extract_time_reference_from_query(self, query: str) -> Optional[str]:
+
+    def extract_time_reference_from_query(self, query: str) -> str | None:
         """
         Extract time reference from user query.
-        
+
         Args:
             query: User message
-        
+
         Returns:
             Time reference string if found, else None
-        
+
         Examples:
             "what did we talk about last Tuesday?" → "last Tuesday"
             "do you remember this morning?" → "this morning"
@@ -315,5 +318,5 @@ class ConversationContextBuilder:
         match = _TIME_PATTERN_RE.search(query.lower())
         if match:
             return match.group(1)
-        
+
         return None

@@ -1,0 +1,16 @@
+{
+  "include": ["serin"],
+  "exclude": ["tests", "build", "dist", ".venv"],
+  "strict": [
+    "serin/**/*.py"
+  ],
+  "typeCheckingMode": "strict",
+  "reportMissingTypeStubs": false,
+  "reportUnknownParameterType": true,
+  "reportMissingParameterType": true,
+  "reportMissingTypeArgs": true,
+  "reportUnusedFunction": false,
+  "reportUnusedVariable": false,
+  "pythonVersion": "3.11",
+  "pythonPlatform": "Linux"
+}

@@ -11,20 +11,20 @@ Features:
 - Stats dashboard
 """
 import asyncio
-import json
-from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Union
-import os
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException
-from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, FileResponse
+from typing import Any
+
+from fastapi import FastAPI, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-import uvicorn
-from serin.state.logger import logger
-from serin.ops.control_panel.routes import register_enhanced_routes
+
 from serin.config.config import config
+from serin.logger import logger
+from serin.ops.control_panel.panel_control import register_control_routes
+from serin.ops.control_panel.panel_voice import register_voice_routes
+from serin.ops.control_panel.routes import register_enhanced_routes
+
 
 def make_json_safe(obj: Any) -> Any:
     """
@@ -49,19 +49,7 @@ def make_json_safe(obj: Any) -> Any:
 # ============================================================================
 # GLOBAL STATE (will be injected by main bot)
 # ============================================================================
-bot_state = {
-    'discord_client': None,
-    'message_manager': None,
-    'background_processor': None,
-    'passive_monitor': None,
-    'message_crawler': None,
-    'memory_system': None,
-    'voice_listener': None,  # TIER 6
-    'tts_engine': None,       # TIER 7
-    'voice_manager': None,    # TIER 8
-    'voice_behavior_manager': None,  # TIER 9
-    'bot_stats': {}
-}
+bot_state: dict = {}
 
 # WebSocket connections for live updates
 active_websockets = []
@@ -95,7 +83,7 @@ class SettingsUpdate(BaseModel):
 
 class MemoryQuery(BaseModel):
     query: str
-    user_id: Optional[str] = None
+    user_id: str | None = None
     limit: int = 10
 
 
@@ -138,7 +126,7 @@ async def websocket_endpoint(websocket: WebSocket) -> Any:
     await websocket.accept()
     active_websockets.append(websocket)
     logger.info(f" WebSocket connected (total: {len(active_websockets)})")
-    
+
     try:
         # Send initial stats immediately
         try:
@@ -164,7 +152,7 @@ async def websocket_endpoint(websocket: WebSocket) -> Any:
             # Wait for messages or timeout
             try:
                 await asyncio.wait_for(websocket.receive_text(), timeout=1.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass
             except Exception:
                 break
@@ -214,49 +202,49 @@ def get_gpu_vram_usage() -> float:
             capture_output=True, text=True, timeout=2
         )
         if result.returncode == 0:
-            lines = [l.strip() for l in result.stdout.strip().split('\n') if l.strip()]
-            if lines:
-                total_mb = sum(int(l) for l in lines if l.isdigit())
+            raw_lines = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
+            if raw_lines:
+                total_mb = sum(int(line) for line in raw_lines if line.isdigit())
                 return round(total_mb / 1024, 1)
         return 0.0
     except Exception:
         return 0.0
 
-async def broadcast_log(log_entry: Dict[str, Any]) -> None:
+async def broadcast_log(log_entry: dict[str, Any]) -> None:
     """Broadcast log entry to all connected WebSockets"""
     to_remove = []
-    
+
     for ws in active_websockets:
         try:
             # Check if connection is still open
             if ws.client_state.value != 1:
                 to_remove.append(ws)
                 continue
-                
+
             await ws.send_json({
                 'type': 'log',
                 'msg': log_entry.get('message', str(log_entry))
             })
         except Exception:
             to_remove.append(ws)
-    
+
     # Remove disconnected
     for ws in to_remove:
         if ws in active_websockets:
             active_websockets.remove(ws)
 
 
-async def broadcast_event(event_type: str, data: Dict[str, Any]) -> None:
+async def broadcast_event(event_type: str, data: dict[str, Any]) -> None:
     """Broadcast event to all connected WebSockets"""
     to_remove = []
-    
+
     for ws in active_websockets:
         try:
             # Check if connection is still open
             if ws.client_state.value != 1:
                 to_remove.append(ws)
                 continue
-                
+
             # Pass through decision events directly
             if event_type == 'decision':
                  await ws.send_json(data)
@@ -267,12 +255,15 @@ async def broadcast_event(event_type: str, data: Dict[str, Any]) -> None:
                 })
         except Exception:
             to_remove.append(ws)
-    
+
     for ws in to_remove:
         if ws in active_websockets:
             active_websockets.remove(ws)
 
 register_enhanced_routes(app, bot_state, broadcast_event )
+
+register_control_routes(app)
+register_voice_routes(app)
 # ============================================================================
 # HOMEPAGE
 # ============================================================================
@@ -291,7 +282,7 @@ async def homepage() -> Any:
 async def get_status() -> Any:
     """Get current bot status"""
     client = bot_state['discord_client']
-    
+
     if not client:
         return {
             'online': False,
@@ -299,7 +290,7 @@ async def get_status() -> Any:
             'guilds': [],
             'latency': 0
         }
-    
+
     guilds = []
     if client.guilds:
         for guild in client.guilds:
@@ -310,7 +301,7 @@ async def get_status() -> Any:
                 'text_channels': len(guild.text_channels),
                 'voice_channels': len(guild.voice_channels)
             })
-    
+
     return {
         'online': client.is_ready(),
         'user': {
@@ -335,48 +326,48 @@ async def get_system_health() -> Any:
         'status': 'healthy',
         'components': {}
     }
-    
+
     # 1. Discord
     client = bot_state['discord_client']
     health['components']['discord'] = {
         'status': 'ok' if client and client.is_ready() else 'error',
         'latency': round(client.latency * 1000, 2) if client else 0
     }
-    
+
     # 2. Memory
     mem = bot_state['memory_system']
     health['components']['memory'] = {
         'status': 'ok' if mem else 'error',
         'type': 'Qdrant' if mem and hasattr(mem, 'qdrant_client') else 'Unknown'
     }
-    
+
     # 3. Voice Input
     listener = bot_state['voice_listener']
     health['components']['voice_input'] = {
         'status': 'ok' if listener else 'disabled',
         'connected': listener.is_connected() if listener else False
     }
-    
+
     # 4. TTS
     tts = bot_state['tts_engine']
     health['components']['tts'] = {
         'status': 'ok' if tts and tts.tts else 'disabled',
         'model': tts.model_name if tts else None
     }
-    
+
     # 5. Background Processor
     bg = bot_state['background_processor']
     health['components']['background'] = {
         'status': 'ok' if bg and bg.is_running else 'stopped',
         'queue_size': len(bg.processing_queue) if bg else 0
     }
-    
+
     return health
 
-def get_current_stats() -> Dict[str, Any]:
+def get_current_stats() -> dict[str, Any]:
     """Helper to get current stats from all systems (JSON-safe)"""
     stats = {}
-    
+
     # Message Manager stats
     try:
         if bot_state['message_manager']:
@@ -384,7 +375,7 @@ def get_current_stats() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error getting manager stats: {e}")
         stats['manager'] = {}
-    
+
     # Background Processor stats
     try:
         if bot_state['background_processor']:
@@ -393,7 +384,7 @@ def get_current_stats() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error getting bg stats: {e}")
         stats['background'] = {}
-    
+
     # Passive Monitor stats
     try:
         if bot_state['passive_monitor']:
@@ -402,7 +393,7 @@ def get_current_stats() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error getting passive stats: {e}")
         stats['passive'] = {}
-    
+
     # Message Crawler stats
     try:
         if bot_state['message_crawler']:
@@ -411,7 +402,7 @@ def get_current_stats() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error getting crawler stats: {e}")
         stats['crawler'] = {}
-    
+
     # Memory System stats
     try:
         if bot_state['memory_system']:
@@ -420,7 +411,7 @@ def get_current_stats() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error getting memory stats: {e}")
         stats['memory'] = {}
-    
+
     # Voice Listener stats
     try:
         if bot_state['voice_listener']:
@@ -429,10 +420,10 @@ def get_current_stats() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error getting voice stats: {e}")
         stats['voice'] = {}
-    
+
     # Bot-level stats
     stats['bot'] = bot_state.get('bot_stats', {})
-    
+
     # Make everything JSON-safe
     return make_json_safe(stats)
 # ============================================================================
@@ -492,9 +483,8 @@ async def stop_background_processor() -> Any:
 async def get_allowed_channels() -> Any:
     """Get list of allowed channels"""
     try:
-        import discord_bot
         return {
-            'channels': [str(cid) for cid in discord_bot.ALLOWED_CHANNEL_IDS]
+            'channels': [str(cid) for cid in config.ALLOWED_CHANNEL_IDS]
         }
     except Exception as e:
         return {'error': str(e)}

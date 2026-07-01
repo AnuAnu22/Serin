@@ -1,6 +1,13 @@
 """Voice activity detection and audio queue management."""
-
+import asyncio
+import time
 from datetime import datetime
+
+import numpy as np
+
+from serin.logger import logger
+
+
 def _detect_voice_activity(self, audio_data: bytes) -> bool:
     """
     Detect if audio contains voice using energy-based VAD.
@@ -220,7 +227,7 @@ async def _process_queue(self) -> None:
                     self.processing_queue.get(),
                     timeout=1.0
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
 
             # Transcribe and store the result (sends to LLM or Whisper, triggers response)
