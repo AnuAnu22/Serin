@@ -5,10 +5,15 @@ Monitors who joins/leaves voice channels and session durations.
 UPDATED: Debug logging added
 """
 from datetime import datetime
+from secrets import choice, randbelow
 from typing import Any
 
 from serin.config.debug_logger import log_voice
 from serin.logger import logger
+
+
+def _rand() -> float:
+    return randbelow(10_000_000) / 10_000_000
 
 
 class VoiceTracker:
@@ -271,10 +276,8 @@ def get_voice_join_reaction() -> str | None:
     Get natural reaction to voice join.
     Returns None 70% of the time (don't react to everything).
     """
-    import random
-
-    if random.random() < 0.3:  # 30% chance to react
-        return random.choice(VOICE_JOIN_REACTIONS)
+    if _rand() < 0.3:  # 30% chance to react
+        return choice(VOICE_JOIN_REACTIONS)
     return None
 
 
@@ -288,8 +291,6 @@ def get_voice_duration_reaction(duration_minutes: int) -> str | None:
     Returns:
         Reaction message, or None if duration not notable
     """
-    import random
-
     # Only react to sessions >30 minutes
     if duration_minutes < 30:
         return None
@@ -303,8 +304,8 @@ def get_voice_duration_reaction(duration_minutes: int) -> str | None:
         unit = "hour" if duration == 1 else "hours"
 
     # 40% chance to react to long sessions
-    if random.random() < 0.4:
-        template = random.choice(VOICE_LONG_SESSION_REACTIONS)
+    if _rand() < 0.4:
+        template = choice(VOICE_LONG_SESSION_REACTIONS)
         return template.format(duration=duration, unit=unit)
 
     return None

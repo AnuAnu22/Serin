@@ -7,13 +7,20 @@ Response Controller - Makes bot feel human
 FIXED: Bot name detection in messages
 """
 import asyncio
-import random
+import secrets
 from datetime import datetime
 from typing import Any
 
 import discord
 
 from serin.logger import logger
+
+
+def _rand() -> float:
+    return secrets.randbelow(10_000_000) / 10_000_000
+
+def _uniform(a: float, b: float) -> float:
+    return a + (b - a) * secrets.randbelow(10_000_000) / 10_000_000
 
 
 class ResponseController:
@@ -162,7 +169,7 @@ class ResponseController:
             self._update_conversation(channel_id, user_id)
 
             # Very high chance to respond when in conversation
-            if random.random() < 0.95:
+            if _rand() < 0.95:
                 self._broadcast_decision("ACCEPTED", "active_conversation", channel_id)
                 return True, "active_conversation"
             else:
@@ -175,14 +182,14 @@ class ResponseController:
 
         # Ignore very short messages sometimes (but less aggressively)
         if content_len < 5:
-            if random.random() < 0.3:  # Reduced from 0.5
+            if _rand() < 0.3:  # Reduced from 0.5
                 self._broadcast_decision("SKIPPED", "too_short", channel_id)
                 return False, "too_short"
 
         # Single-word messages - be more lenient
         words = message_content.split()
         if len(words) == 1:
-            if random.random() < 0.4:  # Reduced from 0.7
+            if _rand() < 0.4:  # Reduced from 0.7
                 self._broadcast_decision("SKIPPED", "single_word", channel_id)
                 return False, "single_word"
 
@@ -198,7 +205,7 @@ class ResponseController:
 
                 if not bot_in_conv:
                     # 50% chance to stay out (reduced from 70%)
-                    if random.random() < 0.5:
+                    if _rand() < 0.5:
                         self._broadcast_decision("SKIPPED", "private_conversation", channel_id)
                         return False, "private_conversation"
 
@@ -208,7 +215,7 @@ class ResponseController:
 
             # If responded less than 5 seconds ago, be selective
             if time_since_last < 5:  # Reduced from 10
-                if random.random() < 0.3:  # Reduced from 0.5
+                if _rand() < 0.3:  # Reduced from 0.5
                     self._broadcast_decision("SKIPPED", "too_frequent", channel_id)
                     return False, "too_frequent"
 
@@ -222,7 +229,7 @@ class ResponseController:
         greetings = ['hey everyone', 'hi all', 'sup guys', 'anyone', 'hey guys', 'yo', 'sup']
         if any(greeting in message_content.lower() for greeting in greetings):
             # 90% chance to respond to general messages
-            if random.random() < 0.9:
+            if _rand() < 0.9:
                 self._start_conversation(channel_id, user_id)
                 self._broadcast_decision("ACCEPTED", "general_address", channel_id)
                 return True, "general_address"
@@ -235,7 +242,7 @@ class ResponseController:
             # If same user sent last 2-3 messages, they're trying to talk
             if last_three_users[-1] == last_three_users[-2] == user_id:
                 # 90% chance to respond if someone is clearly trying to engage
-                if random.random() < 0.9:
+                if _rand() < 0.9:
                     self._start_conversation(channel_id, user_id)
                     self._broadcast_decision("ACCEPTED", "user_engaging", channel_id)
                     return True, "user_engaging"
@@ -250,7 +257,7 @@ class ResponseController:
         else:  # neutral
             respond_chance = 0.80  # Same as before
 
-        if random.random() < respond_chance:
+        if _rand() < respond_chance:
             # Start conversation on response
             self._start_conversation(channel_id, user_id)
             self._broadcast_decision("ACCEPTED", f"random_{mood}", channel_id)
@@ -285,25 +292,25 @@ class ResponseController:
         Total delay is capped at 1-10 seconds for snappy feel.
         """
         words = response_length / 5
-        wps = random.uniform(1.2, 2.0)
+        wps = _uniform(1.2, 2.0)
         base_delay = words / wps
 
         # Base thinking time — short and snappy
-        thinking_time = random.uniform(0.3, 1.0)
+        thinking_time = _uniform(0.3, 1.0)
 
         # Add extra thinking for complex questions
         if has_question:
-            thinking_time += random.uniform(0.5, 1.5)
+            thinking_time += _uniform(0.5, 1.5)
 
         # Adjust for message complexity
         if message_complexity == "complex":
-            thinking_time += random.uniform(0.5, 2.0)
+            thinking_time += _uniform(0.5, 2.0)
         elif message_complexity == "medium":
-            thinking_time += random.uniform(0.3, 1.0)
+            thinking_time += _uniform(0.3, 1.0)
 
         # 10% chance for "types and deletes" pause
-        if random.random() < 0.1:
-            thinking_time += random.uniform(0.5, 2.0)
+        if _rand() < 0.1:
+            thinking_time += _uniform(0.5, 2.0)
 
         total = thinking_time + base_delay
 
@@ -362,7 +369,7 @@ class ResponseController:
         """Decide if response should be split"""
         sentences = response.split('. ')
 
-        if len(sentences) >= 3 and random.random() < 0.4:
+        if len(sentences) >= 3 and _rand() < 0.4:
             return True
 
         return False
@@ -383,7 +390,7 @@ class ResponseController:
             else:
                 current = sentence
 
-            if random.random() < 0.6 or i == len(sentences) - 1:
+            if _rand() < 0.6 or i == len(sentences) - 1:
                 if current:
                     messages.append(current.strip())
                 current = ""
@@ -422,7 +429,7 @@ class ResponseController:
                 await channel.send(msg)
 
                 if i < len(messages) - 1:
-                    await asyncio.sleep(random.uniform(0.5, 1.5))
+                    await asyncio.sleep(_uniform(0.5, 1.5))
 
         else:
             delay = self.calculate_typing_delay(

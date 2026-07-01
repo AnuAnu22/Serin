@@ -4,8 +4,8 @@ Natural, Human-like System Prompt. No robotic rules. Just personality.
 
 UPDATED: Uses model factory for maximum modularity.
 """
-import random
 import re
+import secrets
 
 from serin.config.config import config
 from serin.logger import logger
@@ -16,6 +16,10 @@ from serin.pipeline.think.humanization import (
 from serin.state.model_system.factory import get_model_connector
 from serin.state.model_system.interface import ModelInterface
 from serin.state.thinking_filter import filter_thinking
+
+
+def _rand() -> float:
+    return secrets.randbelow(10_000_000) / 10_000_000
 
 # Global instance (single connector)
 llama: ModelInterface | None = None
@@ -211,7 +215,7 @@ async def get_response_natural(
         logger.exception(f" Generation error: {e}")
 
         # Fallback
-        return random.choice([
+        return secrets.choice([
             "brain.exe stopped working",
             "uh what",
             "lost my train of thought"
@@ -317,14 +321,12 @@ def apply_natural_variations(text: str, tone_modifier: str | None = None) -> str
     - Drop punctuation occasionally
     - Add casual contractions
     """
-    import random
-
     # 30% chance to make first letter lowercase (casual)
-    if random.random() < 0.3 and len(text) > 0:
+    if _rand() < 0.3 and len(text) > 0:
         text = text[0].lower() + text[1:]
 
     # 20% chance to drop final period (casual)
-    if text.endswith('.') and random.random() < 0.2:
+    if text.endswith('.') and _rand() < 0.2:
         text = text[:-1]
 
     # Add contractions if not already present
@@ -358,9 +360,9 @@ def apply_natural_variations(text: str, tone_modifier: str | None = None) -> str
 
     # 10% chance to add "lol" or "haha" if tone is casual/energetic
     if tone_modifier and ('energetic' in tone_modifier.lower() or 'witty' in tone_modifier.lower()):
-        if random.random() < 0.1:
+        if _rand() < 0.1:
             casual_additions = ['lol', 'haha', 'lmao']
-            addition = random.choice(casual_additions)
+            addition = secrets.choice(casual_additions)
             # Add at end
             if text.endswith('.'):
                 text = text[:-1] + f' {addition}.'

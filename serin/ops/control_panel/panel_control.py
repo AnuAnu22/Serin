@@ -23,7 +23,7 @@ def register_control_routes(app):
                 edge_voices = await edge_tts.list_voices()
                 return {'voices': [{'name': v['Name'], 'file': v['ShortName'], 'size': 0} for v in edge_voices[:50]]}
             except Exception:
-                pass
+                logger.exception("Failed to list edge-tts voices")
             return {'voices': []}
         except Exception as e:
             return {'error': str(e)}

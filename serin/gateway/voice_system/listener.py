@@ -78,7 +78,7 @@ class InfoCaptureProtocol(VoiceProtocol):
             try:
                 await self.channel.guild.change_voice_state(channel=None)
             except Exception:
-                pass
+                logger.exception("Failed to disconnect voice state")
         super().cleanup()
         self._info_gathered = False
 
@@ -275,7 +275,7 @@ class VoiceListener:
             try:
                 stats['rust_bridge'] = self.rust_bridge.get_stats()
             except Exception:
-                pass
+                logger.exception("Failed to get Rust bridge stats")
         return stats
 
     def _channel_id(self) -> str | None:

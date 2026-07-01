@@ -1,9 +1,13 @@
 """Conversational fillers and realistic typos — humanize bot responses."""
 
-import random
 import re
+import secrets
 
 from serin.logger import logger
+
+
+def _rand() -> float:
+    return secrets.randbelow(10_000_000) / 10_000_000
 
 
 class ConversationalFillers:
@@ -120,7 +124,7 @@ class ConversationalFillers:
             if energy > 0.7:
                 chance += 0.05
 
-        return random.random() < chance
+        return _rand() < chance
 
     def _determine_filler_type(
         self,
@@ -136,18 +140,18 @@ class ConversationalFillers:
         # Uncertainty fillers for questions or uncertain statements
         uncertainty_words = ["maybe", "might", "could", "possibly", "?"]
         if any(word in text_lower for word in uncertainty_words):
-            if random.random() < 0.6:
+            if _rand() < 0.6:
                 return "uncertainty"
 
         # Thinking fillers for complex responses
         if complexity == "complex" or len(text.split()) > 20:
-            if random.random() < 0.4:
+            if _rand() < 0.4:
                 return "thinking"
 
         # Emphasis fillers for strong statements
         strong_words = ["really", "very", "totally", "definitely", "absolutely"]
         if any(word in text_lower for word in strong_words):
-            if random.random() < 0.3:
+            if _rand() < 0.3:
                 return "emphasis"
 
         # Default: casual fillers
@@ -155,7 +159,7 @@ class ConversationalFillers:
 
     def _add_thinking_filler(self, text: str) -> str:
         """Add thinking filler at start"""
-        filler = random.choice(self.THINKING_FILLERS)
+        filler = secrets.choice(self.THINKING_FILLERS)
 
         # Add with proper punctuation
         if filler in ["hold on", "let me think"]:
@@ -165,7 +169,7 @@ class ConversationalFillers:
 
     def _add_casual_filler(self, text: str) -> str:
         """Add casual filler mid-sentence"""
-        filler = random.choice(self.CASUAL_FILLERS)
+        filler = secrets.choice(self.CASUAL_FILLERS)
 
         # Split into sentences
         sentences = re.split(r'([.!?])', text)
@@ -174,19 +178,19 @@ class ConversationalFillers:
             # Short text, add at start or middle
             words = text.split()
             if len(words) > 5:
-                insert_pos = random.randint(3, min(8, len(words)))
+                insert_pos = 3 + secrets.randbelow(min(8, len(words)) - 3 + 1)
                 words.insert(insert_pos, filler)
                 return ' '.join(words)
             return text
 
         # Add between sentences
-        insert_pos = random.randrange(1, len(sentences) - 1, 2)
+        insert_pos = secrets.SystemRandom().randrange(1, len(sentences) - 1, 2)
         sentences.insert(insert_pos, f" {filler},")
         return ''.join(sentences)
 
     def _add_uncertainty_filler(self, text: str) -> str:
         """Add uncertainty filler at start"""
-        filler = random.choice(self.UNCERTAINTY_FILLERS)
+        filler = secrets.choice(self.UNCERTAINTY_FILLERS)
 
         # Make first letter lowercase if adding at start
         if text[0].isupper():
@@ -196,7 +200,7 @@ class ConversationalFillers:
 
     def _add_emphasis_filler(self, text: str) -> str:
         """Add emphasis filler at start"""
-        filler = random.choice(self.EMPHASIS_FILLERS)
+        filler = secrets.choice(self.EMPHASIS_FILLERS)
 
         # Add naturally
         if filler in ["honestly", "literally"]:
@@ -333,7 +337,7 @@ class RealisticTypos:
             return text
 
         # Choose typo type
-        typo_type = random.choice(["apostrophe", "transposition", "misspelling"])
+        typo_type = secrets.choice(["apostrophe", "transposition", "misspelling"])
 
         if typo_type == "apostrophe":
             return self._drop_apostrophe(text)
@@ -360,7 +364,7 @@ class RealisticTypos:
             if energy > 0.7:
                 chance += 0.02  # Up to 5% when energetic
 
-        return random.random() < chance
+        return _rand() < chance
 
     def _drop_apostrophe(self, text: str) -> str:
         """Drop apostrophe from contraction"""

@@ -44,7 +44,7 @@ async def _transcribe_and_store(self, item: dict[str, Any]) -> None:
                 model_info = self.llm_connector.get_model_info()
                 _use_direct_audio = 'gemma' in model_info.get('model_type', '').lower()
             except Exception:
-                pass
+                logger.exception("Failed to check model info for direct audio support")
 
             if _use_direct_audio:
                 # Direct Audio Path (Gemma Unified)

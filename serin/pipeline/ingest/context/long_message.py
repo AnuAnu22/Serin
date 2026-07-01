@@ -2,10 +2,14 @@
 Long Message Handler - React naturally to walls of text
 Humans don't always process long messages well - they react to length
 """
-import random
+import secrets
 from typing import Any
 
 from serin.logger import logger
+
+
+def _rand() -> float:
+    return secrets.randbelow(10_000_000) / 10_000_000
 
 
 class LongMessageHandler:
@@ -112,7 +116,7 @@ class LongMessageHandler:
             if engagement > 0.7:
                 chance *= 0.5  # Less likely to complain if engaged
 
-        return random.random() < chance
+        return _rand() < chance
 
     def get_length_reaction(self, message_analysis: dict) -> str | None:
         """
@@ -123,14 +127,14 @@ class LongMessageHandler:
         """
         if message_analysis['is_wall']:
             # Very long - stronger reaction
-            reaction_type = random.choice(["acknowledge", "overwhelmed"])
+            reaction_type = secrets.choice(["acknowledge", "overwhelmed"])
         elif message_analysis['is_long']:
             # Just long - casual reaction
             reaction_type = "casual_long"
         else:
             return None
 
-        reaction = random.choice(self.REACTIONS[reaction_type])
+        reaction = secrets.choice(self.REACTIONS[reaction_type])
         logger.debug(f" Length reaction: '{reaction}'")
         return reaction
 

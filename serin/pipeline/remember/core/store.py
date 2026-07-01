@@ -9,9 +9,10 @@ import importlib
 import os
 import shutil
 import sqlite3
-import subprocess
 import time as time_mod
 from typing import Any
+
+import docker
 
 from serin.config.config import config
 from serin.logger import logger
@@ -123,37 +124,37 @@ class QdrantMemorySystem:
     def _find_qdrant_container() -> str | None:
         """Find any existing Qdrant container (by configured name or image)."""
         try:
-            result = subprocess.run(
-                ["docker", "ps", "-a", "--filter", f"name={config.QDRANT_DOCKER_CONTAINER_NAME}", "--format", "{{.Names}}"],
-                capture_output=True, text=True, timeout=10,
+            client = docker.from_env()
+            containers = client.containers.list(
+                all=True,
+                filters={"name": config.QDRANT_DOCKER_CONTAINER_NAME},
             )
-            if config.QDRANT_DOCKER_CONTAINER_NAME in result.stdout:
-                return config.QDRANT_DOCKER_CONTAINER_NAME
+            for c in containers:
+                if config.QDRANT_DOCKER_CONTAINER_NAME in c.name:
+                    return config.QDRANT_DOCKER_CONTAINER_NAME
         except Exception:
-            pass
+            logger.exception("Failed to find Qdrant container by name")
 
         try:
-            result = subprocess.run(
-                ["docker", "ps", "-a", "--filter", f"ancestor={config.QDRANT_DOCKER_IMAGE}", "--format", "{{.Names}}"],
-                capture_output=True, text=True, timeout=10,
+            client = docker.from_env()
+            containers = client.containers.list(
+                all=True,
+                filters={"ancestor": config.QDRANT_DOCKER_IMAGE},
             )
-            names = result.stdout.strip().splitlines()
-            if names:
-                return names[0]
+            if containers:
+                return containers[0].name
         except Exception:
-            pass
+            logger.exception("Failed to find Qdrant container by image")
 
         try:
-            result = subprocess.run(
-                ["docker", "ps", "-a", "--format", "{{.Names}}\t{{.Image}}"],
-                capture_output=True, text=True, timeout=10,
-            )
-            for line in result.stdout.strip().splitlines():
-                parts = line.split("\t")
-                if len(parts) == 2 and "qdrant" in parts[1].lower():
-                    return parts[0]
+            client = docker.from_env()
+            containers = client.containers.list(all=True)
+            for c in containers:
+                image_tags = c.image.tags if hasattr(c.image, 'tags') else []
+                if any("qdrant" in tag.lower() for tag in image_tags):
+                    return c.name
         except Exception:
-            pass
+            logger.exception("Failed to list Docker containers for Qdrant search")
 
         return None
 
@@ -164,22 +165,20 @@ class QdrantMemorySystem:
         image = config.QDRANT_DOCKER_IMAGE
 
         try:
+            client = docker.from_env()
             if container_name:
                 logger.info(f" Starting Qdrant container '{container_name}'...")
-                subprocess.run(["docker", "start", container_name], check=True, capture_output=True, timeout=30)
+                container = client.containers.get(container_name)
+                container.start()
             else:
                 logger.info(f" Creating Qdrant container '{config.QDRANT_DOCKER_CONTAINER_NAME}'...")
-                subprocess.run(
-                    [
-                        "docker", "run", "-d",
-                        "--name", config.QDRANT_DOCKER_CONTAINER_NAME,
-                        "--restart", "unless-stopped",
-                        "-p", f"{port}:6333",
-                        "-p", "6334:6334",
-                        "-v", f"{config.QDRANT_DOCKER_CONTAINER_NAME}_data:/qdrant/storage",
-                        image,
-                    ],
-                    check=True, capture_output=True, timeout=120,
+                client.containers.run(
+                    image,
+                    name=config.QDRANT_DOCKER_CONTAINER_NAME,
+                    detach=True,
+                    restart_policy={"Name": "unless-stopped"},
+                    ports={"6333/tcp": port, "6334/tcp": 6334},
+                    volumes={f"{config.QDRANT_DOCKER_CONTAINER_NAME}_data": {"bind": "/qdrant/storage", "mode": "rw"}},
                 )
                 container_name = config.QDRANT_DOCKER_CONTAINER_NAME
 
@@ -187,20 +186,19 @@ class QdrantMemorySystem:
             for _ in range(30):
                 time_mod.sleep(1)
                 try:
-                    client = QdrantClient(host=host, port=port, timeout=5.0)
-                    client.get_collections()
+                    qclient = QdrantClient(host=host, port=port, timeout=5.0)
+                    qclient.get_collections()
                     logger.success(f" Qdrant Docker container ready on {host}:{port}")
-                    return client
+                    return qclient
                 except Exception:
-                    pass
+                    logger.exception("Qdrant not accepting connections yet, retrying...")
             logger.error(" Qdrant container started but not accepting connections after 30s")
+        except docker.errors.NotFound as e:  # type: ignore[attr-defined]
+            logger.warning(" Docker container not found: %s", e)
+        except docker.errors.APIError as e:  # type: ignore[attr-defined]
+            logger.error(f" Docker API error: {e}")
         except FileNotFoundError:
             logger.warning(" Docker not found — cannot auto-start Qdrant")
-        except subprocess.TimeoutExpired:
-            logger.warning(" Docker command timed out")
-        except subprocess.CalledProcessError as e:
-            stderr = e.stderr.decode().strip() if e.stderr else str(e)
-            logger.error(f" Docker command failed (exit {e.returncode}): {stderr}")
         except Exception as e:
             logger.error(f" Docker auto-start failed: {e}")
 
@@ -243,7 +241,7 @@ class QdrantMemorySystem:
                     try:
                         self.conn.close()
                     except Exception:
-                        pass
+                        logger.exception("Failed to close corrupt SQLite connection in store.py")
                 shutil.move(self.db_path, backup_path)
                 # Also move WAL/SHM files if they exist
                 for ext in ['-wal', '-shm']:
@@ -429,15 +427,15 @@ class QdrantMemorySystem:
         try:
             cursor.execute("ALTER TABLE beliefs ADD COLUMN state TEXT NOT NULL DEFAULT 'PENDING'")
         except Exception:
-            pass
+            logger.exception("Migration: ALTER TABLE beliefs.state failed (column may already exist)")
         try:
             cursor.execute("ALTER TABLE beliefs ADD COLUMN last_contradicted_at TEXT DEFAULT ''")
         except Exception:
-            pass
+            logger.exception("Migration: ALTER TABLE beliefs.last_contradicted_at failed (column may already exist)")
         try:
             cursor.execute("ALTER TABLE beliefs ADD COLUMN contradiction_resolved_at TEXT DEFAULT ''")
         except Exception:
-            pass
+            logger.exception("Migration: ALTER TABLE beliefs.contradiction_resolved_at failed (column may already exist)")
 
         self.conn.commit()
         logger.debug(" SQLite schema initialized")
@@ -507,7 +505,7 @@ class QdrantMemorySystem:
                 try:
                     memory_count = self.qdrant_client.count("memories").count
                 except Exception:
-                    pass
+                    logger.exception("Failed to count memories in Qdrant (store.py)")
 
             return {
                 'total_users': total_users,

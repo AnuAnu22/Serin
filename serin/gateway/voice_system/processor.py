@@ -2,7 +2,7 @@
 
 import asyncio
 import os
-import random
+import secrets
 import sys
 from datetime import datetime
 from typing import Any
@@ -10,6 +10,13 @@ from typing import Any
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from serin.config.config import config
 from serin.logger import logger
+
+
+def _rand() -> float:
+    return secrets.randbelow(10_000_000) / 10_000_000
+
+def _uniform(a: float, b: float) -> float:
+    return a + (b - a) * secrets.randbelow(10_000_000) / 10_000_000
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 VAD_AMPLITUDE_THRESHOLD = 150           # RMS amplitude below which is considered silence
@@ -322,7 +329,7 @@ class VoiceBehaviorManager:
             return
 
         # Schedule delayed consideration (45-90s from now, so Serin seems to "notice" later)
-        delay = random.uniform(45.0, 90.0)
+        delay = _uniform(45.0, 90.0)
         consider_at = datetime.now().timestamp() + delay
 
         self._pending_joins[guild_id] = {
@@ -413,7 +420,7 @@ class VoiceBehaviorManager:
             chance *= self.join_aggressiveness * 2
             chance = min(chance, 0.5)
 
-            if random.random() < chance:
+            if _rand() < chance:
                 logger.info(
                     " Auto-join (delayed): %s in %s (energy=%.2f, chance=%.0f%%)",
                     info['username'], info['channel_name'], energy, chance * 100,
@@ -464,7 +471,7 @@ class VoiceBehaviorManager:
             if self.personality.energy_level < 0.25:
                 reasons.append(f"low energy ({self.personality.energy_level:.2f})")
 
-            if reasons and random.random() < 0.5:
+            if reasons and _rand() < 0.5:
                 logger.info(
                     "Auto-leave guild %s: %s",
                     guild_id, ", ".join(reasons),

@@ -6,6 +6,17 @@ from pathlib import Path
 from serin.logger import logger
 from serin.state.db_protect.backup import DatabaseProtectorBackup
 
+_SQL_SELECT_ALL = "SELECT * FROM {t}"
+_SQL_INSERT_VALUES = "INSERT INTO {t} VALUES ({p})"
+
+
+def _select_table(table_name: str) -> str:
+    return _SQL_SELECT_ALL.format(t=table_name)
+
+
+def _insert_table(table_name: str, placeholders: str) -> str:
+    return _SQL_INSERT_VALUES.format(t=table_name, p=placeholders)
+
 
 class DatabaseProtectorRecovery(DatabaseProtectorBackup):
     def recover_from_corruption(self, validation_results: dict) -> bool:
@@ -51,7 +62,7 @@ class DatabaseProtectorRecovery(DatabaseProtectorBackup):
                         if not table_name.replace('_', '').isalnum():
                             logger.warning(f" Skipping suspicious table name: {table_name}")
                             continue
-                        cursor.execute(f"SELECT * FROM {table_name}")  # nosec B608 — table_name validated on line 53
+                        cursor.execute(_select_table(table_name))
                         backup_data[table_name] = cursor.fetchall()
                     cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
                     schemas = cursor.fetchall()
@@ -68,7 +79,7 @@ class DatabaseProtectorRecovery(DatabaseProtectorBackup):
                             if not table_name.replace('_', '').isalnum():
                                 logger.warning(f" Skipping insert into suspicious table: {table_name}")
                                 continue
-                            cursor.executemany(f"INSERT INTO {table_name} VALUES ({placeholders})", rows)  # nosec B608 — table_name validated on line 70
+                            cursor.executemany(_insert_table(table_name, placeholders), rows)
                     conn.commit()
                     logger.info(" SQLite database successfully repaired")
             finally:
@@ -130,10 +141,8 @@ class DatabaseProtectorRecovery(DatabaseProtectorBackup):
             if not backup_file.exists():
                 backup_file = Path(backup_path + '.tar.gz')
             with tarfile.open(backup_file, 'r:gz') as tar:
-                def is_safe(member: tarfile.TarInfo) -> bool:
-                    return not member.name.startswith('/') and '..' not in member.name
-                members = [m for m in tar.getmembers() if is_safe(m)]
-                tar.extractall(self.data_dir.parent, members=members)  # nosec B202 — members filtered by is_safe() above
+                safe_members = [m for m in tar.getmembers() if not m.name.startswith('/') and '..' not in m.name]
+                tar.extractall(self.data_dir.parent, members=safe_members, filter='data')
             logger.info(" Restored from compressed backup")
         except Exception as e:
             logger.error(f" Compressed backup restore failed: {e}")

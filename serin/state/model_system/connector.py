@@ -80,7 +80,7 @@ class LLMConnector(ModelInterface):
                     f"Temp: {self.temperature}, Top-P: {self.top_p}"
                 )
             except Exception:
-                pass
+                logger.exception("LLM reconnect failed")
 
     def load_model(
         self,

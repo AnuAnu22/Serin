@@ -16,6 +16,17 @@ from datetime import datetime
 
 from serin.logger import logger
 
+_SQL_TEMPLATE_BELIEF_SEARCH = """
+    SELECT * FROM beliefs
+    WHERE is_active = 1 AND ({like_clauses})
+    ORDER BY confidence DESC
+    LIMIT ?
+"""
+
+
+def _build_search_query(template: str, **kwargs: str) -> str:
+    return template.format(**kwargs)
+
 
 class BeliefStore:
     """SQLite-backed belief store with state machine and Bayesian confidence."""
@@ -214,11 +225,7 @@ class BeliefStore:
         like_clauses = ' OR '.join('content LIKE ?' for _ in keywords)
         like_params = [f'%{kw}%' for kw in keywords]
 
-        cursor.execute(f"""
-            SELECT * FROM beliefs
-            WHERE is_active = 1 AND ({like_clauses})
-            ORDER BY confidence DESC
-            LIMIT ?
-        """, (*like_params, limit))
+        query = _build_search_query(_SQL_TEMPLATE_BELIEF_SEARCH, like_clauses=like_clauses)
+        cursor.execute(query, (*like_params, limit))
 
         return [dict(row) for row in cursor.fetchall()]

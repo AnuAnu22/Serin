@@ -2,10 +2,14 @@
 Bot Personality - Opinion & Preference System
 The bot has its own preferences, opinions, and can express them naturally.
 """
-import random
+import secrets
 import sqlite3
 
 from serin.logger import logger
+
+
+def _rand() -> float:
+    return secrets.randbelow(10_000_000) / 10_000_000
 
 
 class BotPersonality:
@@ -155,9 +159,9 @@ class BotPersonality:
                 f"{item} hits different tbh",
                 f"yeah {item} is amazing"
             ]
-            if reason and random.random() < 0.6:
-                return f"{random.choice(expressions)}. {reason.lower()}"
-            return random.choice(expressions)
+            if reason and _rand() < 0.6:
+                return f"{secrets.choice(expressions)}. {reason.lower()}"
+            return secrets.choice(expressions)
 
         elif stance == 'like':
             expressions = [
@@ -166,9 +170,9 @@ class BotPersonality:
                 f"{item} is solid",
                 f"I'm down with {item}"
             ]
-            if reason and random.random() < 0.4:
-                return f"{random.choice(expressions)}. {reason.lower()}"
-            return random.choice(expressions)
+            if reason and _rand() < 0.4:
+                return f"{secrets.choice(expressions)}. {reason.lower()}"
+            return secrets.choice(expressions)
 
         elif stance == 'neutral':
             expressions = [
@@ -178,8 +182,8 @@ class BotPersonality:
                 f"I'm neutral on {item}"
             ]
             if reason:
-                return f"{random.choice(expressions)}. {reason.lower()}"
-            return random.choice(expressions)
+                return f"{secrets.choice(expressions)}. {reason.lower()}"
+            return secrets.choice(expressions)
 
         elif stance == 'dislike':
             expressions = [
@@ -188,9 +192,9 @@ class BotPersonality:
                 f"{item}'s kinda mid",
                 f"eh, not into {item}"
             ]
-            if reason and random.random() < 0.5:
-                return f"{random.choice(expressions)}. {reason.lower()}"
-            return random.choice(expressions)
+            if reason and _rand() < 0.5:
+                return f"{secrets.choice(expressions)}. {reason.lower()}"
+            return secrets.choice(expressions)
 
         elif stance == 'hate':
             expressions = [
@@ -200,8 +204,8 @@ class BotPersonality:
                 f"nah {item} is trash"
             ]
             if reason:
-                return f"{random.choice(expressions)}. {reason.lower()}"
-            return random.choice(expressions)
+                return f"{secrets.choice(expressions)}. {reason.lower()}"
+            return secrets.choice(expressions)
 
         return None
 
@@ -213,7 +217,7 @@ class BotPersonality:
             f"no strong feelings on {item}",
             f"never really got into {item}"
         ]
-        return random.choice(expressions)
+        return secrets.choice(expressions)
 
     def set_preference(
         self,
@@ -269,10 +273,10 @@ class BotPersonality:
             return opinion_text
         elif confidence > 0.5:
             prefixes = ["I think ", "imo ", "I'd say "]
-            return random.choice(prefixes) + opinion_text
+            return secrets.choice(prefixes) + opinion_text
         else:
             prefixes = ["not sure but ", "maybe ", "I guess "]
-            return random.choice(prefixes) + opinion_text
+            return secrets.choice(prefixes) + opinion_text
 
     def set_opinion(self, topic: str, opinion_text: str, confidence: float = 0.5) -> None:
         """Set or update an opinion"""
@@ -304,10 +308,10 @@ class BotPersonality:
         if opinion:
             confidence = opinion['confidence']
             # Higher confidence means more likely to disagree
-            return random.random() < confidence
+            return _rand() < confidence
 
         # Fallback: 30% chance to disagree if no opinion
-        if random.random() < 0.3:
+        if _rand() < 0.3:
             return True
 
         return False

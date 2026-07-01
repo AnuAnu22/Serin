@@ -3,7 +3,6 @@ import asyncio
 import collections
 import json
 import os
-import subprocess
 import threading
 from collections.abc import Callable
 from typing import Any
@@ -27,9 +26,9 @@ class RustVoiceBridge:
       - stdin writes are serialized via threading.Lock() to prevent interleaving
         between send_tts_audio() and interrupt() calls. Without this lock,
         concurrent writes could corrupt the protocol framing.
-      - stdout reads happen in a background thread (RustStdoutReader)
-      - stderr reads happen in a separate background thread
-      - The async _read_loop pulls from the thread-safe event queue
+      - stdout reads happen in an asyncio task (RustStdoutReader.read_loop)
+      - stderr reads happen in a background thread
+      - The async _read_loop pulls from the async event queue
     """
 
     def __init__(
@@ -55,9 +54,10 @@ class RustVoiceBridge:
             binary_path = os.path.join(base, "rust_receiver", "target", "release", "voice_receiver")
         self.binary_path = binary_path
 
-        self.proc: subprocess.Popen | None = None
+        self.proc: asyncio.subprocess.Process | None = None
         self.reader: RustStdoutReader | None = None
         self._reader_task: asyncio.Task | None = None
+        self._reader_consumer_task: asyncio.Task | None = None
         self._running = False
         self._guild_id: int | None = None
         self._channel_id: int | None = None
@@ -75,7 +75,7 @@ class RustVoiceBridge:
         self._reconnect_callback: Callable | None = None
         self._restart_timestamps: collections.deque = collections.deque(maxlen=5)
 
-        # Username cache: maps user_id string → display name
+        # Username cache: maps user_id string to display name
         self._usernames: dict[str, str] = {}
 
         # Stderr ring buffer — captures last N lines for diagnostics on crash
@@ -131,12 +131,11 @@ class RustVoiceBridge:
         try:
             rust_env = os.environ.copy()
             rust_env["RUST_BACKTRACE"] = "full"
-            self.proc = subprocess.Popen(
-                [self.binary_path],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                bufsize=0,
+            self.proc = await asyncio.create_subprocess_exec(
+                self.binary_path,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
                 env=rust_env,
             )
 
@@ -144,9 +143,10 @@ class RustVoiceBridge:
             # The Rust binary reads this line synchronously before entering the main loop.
             info_json = json.dumps(info) + "\n"
             self.proc.stdin.write(info_json.encode('utf-8'))
-            self.proc.stdin.flush()
+            await self.proc.stdin.drain()
 
             self.reader = RustStdoutReader(self.proc)
+            self._reader_task = asyncio.create_task(self.reader.read_loop())
             self._guild_id = guild_id
             self._channel_id = channel_id
             self._running = True
@@ -157,12 +157,12 @@ class RustVoiceBridge:
             self._shutdown_requested = False
 
             # Start async reader loop — dispatches events from RustStdoutReader
-            self._reader_task = asyncio.create_task(self._read_loop())
+            self._reader_consumer_task = asyncio.create_task(self._read_loop())
 
             # Start supervisor — watches for process death and re-spawns
             self._supervisor_task = asyncio.create_task(self._supervise_rust_process())
 
-            # Start stderr reader (Rust tracing output → Python logger)
+            # Start stderr reader (Rust tracing output to Python logger)
             self._start_stderr_reader()
 
             logger.info(" Rust voice receiver started, waiting for audio...")
@@ -187,7 +187,7 @@ class RustVoiceBridge:
             except asyncio.CancelledError:
                 pass
 
-        # Cancel the async reader loop
+        # Cancel the reader producer task
         if self._reader_task and not self._reader_task.done():
             self._reader_task.cancel()
             try:
@@ -195,21 +195,29 @@ class RustVoiceBridge:
             except asyncio.CancelledError:
                 pass
 
+        # Cancel the async reader consumer loop
+        if self._reader_consumer_task and not self._reader_consumer_task.done():
+            self._reader_consumer_task.cancel()
+            try:
+                await self._reader_consumer_task
+            except asyncio.CancelledError:
+                pass
+
         # Send SHUTDOWN command to Rust, then wait for graceful exit
-        if self.proc and self.proc.poll() is None:
+        if self.proc and self.proc.returncode is None:
             logger.info(" Stopping Rust voice receiver...")
             try:
                 self.proc.stdin.write(b"SHUTDOWN\n")
-                self.proc.stdin.flush()
+                await self.proc.stdin.drain()
             except Exception:
-                pass
+                logger.exception("Failed to send SHUTDOWN to Rust bridge")
 
             # Give it a moment to exit gracefully (3 second timeout)
             try:
-                self.proc.wait(timeout=3.0)
-            except subprocess.TimeoutExpired:
+                await asyncio.wait_for(self.proc.wait(), timeout=3.0)
+            except TimeoutError:
                 self.proc.kill()
-                self.proc.wait()
+                await self.proc.wait()
 
         self.proc = None
         self.reader = None
@@ -290,8 +298,8 @@ class RustVoiceBridge:
         """
         Asynchronous loop: reads events from RustStdoutReader and dispatches them.
 
-        This runs as an asyncio task. It uses run_in_executor to read from the
-        thread-safe RustStdoutReader queue without blocking the event loop.
+        This runs as an asyncio task. It awaits events from the async
+        RustStdoutReader queue without blocking the event loop.
 
         Event types:
           audio     → _handle_audio(user_id, pcm_data)
@@ -310,11 +318,8 @@ class RustVoiceBridge:
 
         try:
             while self._running and self.reader:
-                # Read event in thread (non-blocking via run_in_executor)
                 try:
-                    event = await asyncio.get_event_loop().run_in_executor(
-                        None, self.reader.get, 1.0
-                    )
+                    event = await self.reader.get(1.0)
                 except EOFError:
                     if self._running:
                         logger.warning(" Rust stdout EOF — process may have crashed")
@@ -322,7 +327,6 @@ class RustVoiceBridge:
                     break
 
                 if event is None:
-                    # Timeout — no events yet, just loop
                     continue
 
                 event_type = event[0]
@@ -341,19 +345,12 @@ class RustVoiceBridge:
 
                 elif event_type == 'log':
                     msg = event[1]
-                    # Filter important status messages to INFO, rest to DEBUG
                     if any(kw in msg for kw in ['CONNECTED', 'READY', 'JOIN_FAILED', 'GOT_INFO']):
                         logger.info(f"   [rust] {msg}")
                     else:
                         logger.debug(f"   [rust] {msg}")
 
                 elif event_type == 'tts_done':
-                    # ── TTS Playback Finished Signal ────────────────────────
-                    # This is the most important event for the conversational loop.
-                    # When Rust finishes playing TTS audio, we release the processing
-                    # lock so the next user utterance can be transcribed immediately.
-                    # Without this signal, we'd have to guess the TTS duration or
-                    # use a fixed timer — both fragile approaches.
                     self._handle_tts_done()
 
         except asyncio.CancelledError:

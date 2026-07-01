@@ -305,7 +305,7 @@ class EnhancedMessageManagerV3:
             try:
                 await channel.send("Sorry, had a brain fart. Try again?")
             except Exception:
-                pass
+                logger.exception("Failed to send error recovery message to channel")
 
     _EVIDENCE_PATTERNS = [
         r'\|.*\|.*\|',        # Board states (pipes with separators)

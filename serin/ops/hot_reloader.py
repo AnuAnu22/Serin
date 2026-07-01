@@ -1,7 +1,7 @@
+import asyncio
 import signal
-import subprocess
 import sys
-import time
+import time as time_mod
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -12,15 +12,14 @@ WATCH_DIRS = [
 WATCH_FILES = [
     PROJECT_ROOT / "serin_core" / "src" / "lib.rs",
 ]
-# Rust voice receiver source directory — changes here trigger cargo build
 RUST_RECEIVER_SRC = PROJECT_ROOT / "voice" / "rust_receiver" / "src"
-SIGNAL_FILE = Path("/tmp/serin-restart.signal")  # nosec B108 — IPC signaling, needs well-known path
+SIGNAL_FILE = PROJECT_ROOT / ".restart.signal"
 BOT_DIR = PROJECT_ROOT
 COOLDOWN_SECS = 1.0
 GRACE_SECS = 3.0
 POLL_INTERVAL = 1.0
 
-bot_process: subprocess.Popen | None = None
+bot_process: asyncio.subprocess.Process | None = None
 last_restart_time: float = 0.0
 watcher_running = True
 
@@ -50,7 +49,6 @@ def get_mtimes() -> dict[Path, float]:
                 mtimes[p] = p.stat().st_mtime
             except FileNotFoundError:
                 pass
-    # Track Rust voice receiver source files (.rs and Cargo.toml)
     cargo_toml = RUST_RECEIVER_SRC.parent / "Cargo.toml"
     if cargo_toml.exists():
         try:
@@ -66,84 +64,96 @@ def get_mtimes() -> dict[Path, float]:
     return mtimes
 
 
-def kill_bot() -> None:
+async def kill_bot() -> None:
     global bot_process
     if bot_process is None or bot_process.returncode is not None:
         return
     log("Stopping bot...")
     bot_process.terminate()
     try:
-        bot_process.wait(timeout=GRACE_SECS)
-    except subprocess.TimeoutExpired:
+        await asyncio.wait_for(bot_process.wait(), timeout=GRACE_SECS)
+    except TimeoutError:
         log("Bot did not stop in time, sending SIGKILL...")
         bot_process.kill()
-        bot_process.wait()
+        await bot_process.wait()
     bot_process = None
 
 
-def start_bot() -> None:
+async def start_bot() -> None:
     global bot_process, last_restart_time
-    kill_bot()
-    last_restart_time = time.monotonic()
+    await kill_bot()
+    last_restart_time = time_mod.monotonic()
     log("Starting bot...")
-    bot_process = subprocess.Popen(
-        ["uv", "run", "-m", "serin"],
+    bot_process = await asyncio.create_subprocess_exec(
+        "uv", "run", "-m", "serin",
         cwd=str(BOT_DIR),
         stdout=sys.stdout,
         stderr=sys.stderr,
     )
 
 
-def handle_maturin_change() -> None:
-    """Handle change in serin-core Rust lib (maturin build)."""
+async def _run_cmd(cmd: list[str], cwd: str, timeout: float | None = None) -> tuple[int, str, str]:
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        cwd=cwd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    try:
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    except TimeoutError:
+        proc.kill()
+        await proc.wait()
+        raise
+    return proc.returncode or 0, stdout.decode(), stderr.decode()
+
+
+async def handle_maturin_change() -> None:
     log("serin-core Rust source changed, building maturin release...")
-    result = subprocess.run(
+    returncode, stdout, stderr = await _run_cmd(
         ["maturin", "develop", "--release"],
         cwd=str(PROJECT_ROOT / "serin_core"),
-        capture_output=True,
-        text=True,
     )
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        log(f"maturin build failed with exit code {result.returncode}")
+    if stdout:
+        print(stdout, end="")
+    if stderr:
+        print(stderr, end="", file=sys.stderr)
+    if returncode != 0:
+        log(f"maturin build failed with exit code {returncode}")
     else:
         log("maturin build succeeded")
-    start_bot()
+    await start_bot()
 
 
-def handle_voice_receiver_build() -> None:
-    """Handle change in voice receiver Rust source (cargo build)."""
+async def handle_voice_receiver_build() -> None:
     log("Voice receiver Rust source changed, building cargo release...")
-    result = subprocess.run(
-        ["cargo", "build", "--release"],
-        cwd=str(RUST_RECEIVER_SRC.parent),
-        capture_output=True,
-        text=True,
-        timeout=300,  # 5 min timeout for Rust builds
-    )
-    if result.stdout:
-        for line in result.stdout.splitlines()[-5:]:
-            print(f"  [cargo] {line}")
-    if result.stderr:
-        # Only print errors/warnings, not full compilation output
-        for line in result.stderr.splitlines():
-            if line.startswith("error") or line.startswith("warning"):
-                print(f"  [cargo] {line}", file=sys.stderr)
-    if result.returncode != 0:
-        log(f"cargo build failed with exit code {result.returncode}")
-    else:
-        log("cargo build succeeded — voice_receiver binary updated")
-    start_bot()
+    try:
+        returncode, stdout, stderr = await _run_cmd(
+            ["cargo", "build", "--release"],
+            cwd=str(RUST_RECEIVER_SRC.parent),
+            timeout=300,
+        )
+        if stdout:
+            for line in stdout.splitlines()[-5:]:
+                print(f"  [cargo] {line}")
+        if stderr:
+            for line in stderr.splitlines():
+                if line.startswith("error") or line.startswith("warning"):
+                    print(f"  [cargo] {line}", file=sys.stderr)
+        if returncode != 0:
+            log(f"cargo build failed with exit code {returncode}")
+        else:
+            log("cargo build succeeded — voice_receiver binary updated")
+    except TimeoutError:
+        log("cargo build timed out after 5 minutes")
+    await start_bot()
 
 
-def handle_restart() -> None:
-    now = time.monotonic()
+async def handle_restart() -> None:
+    now = time_mod.monotonic()
     if now - last_restart_time < COOLDOWN_SECS:
         return
-    start_bot()
+    await start_bot()
 
 
 def handle_signal_file() -> bool:
@@ -154,12 +164,12 @@ def handle_signal_file() -> bool:
     return False
 
 
-def watch_loop() -> None:
+async def watch_loop() -> None:
     global watcher_running
     prev_mtimes = get_mtimes()
 
     while watcher_running:
-        time.sleep(POLL_INTERVAL)
+        await asyncio.sleep(POLL_INTERVAL)
         if not watcher_running:
             break
 
@@ -171,37 +181,34 @@ def watch_loop() -> None:
         for path, mtime in current_mtimes.items():
             old = prev_mtimes.get(path)
             if old is not None and mtime > old:
-                # Voice receiver Rust source (.rs or Cargo.toml under voice/rust_receiver/src/)
                 if path.suffix == ".rs" and RUST_RECEIVER_SRC in path.parents:
                     if not voice_receiver_triggered:
                         voice_receiver_triggered = True
-                        ts = time.strftime("%Y-%m-%d %H:%M:%S")
+                        ts = time_mod.strftime("%Y-%m-%d %H:%M:%S")
                         log(f"{ts} - Voice receiver source changed: {path.name}")
-                        handle_voice_receiver_build()
+                        await handle_voice_receiver_build()
                         prev_mtimes = get_mtimes()
                         break
                 elif path.name == "Cargo.toml" and path.parent == RUST_RECEIVER_SRC.parent:
                     if not voice_receiver_triggered:
                         voice_receiver_triggered = True
-                        ts = time.strftime("%Y-%m-%d %H:%M:%S")
+                        ts = time_mod.strftime("%Y-%m-%d %H:%M:%S")
                         log(f"{ts} - Voice receiver Cargo.toml changed")
-                        handle_voice_receiver_build()
+                        await handle_voice_receiver_build()
                         prev_mtimes = get_mtimes()
                         break
-                # serin-core Rust source (maturin)
                 elif path.suffix == ".rs":
                     if not rust_triggered:
                         rust_triggered = True
-                        handle_maturin_change()
+                        await handle_maturin_change()
                         prev_mtimes = get_mtimes()
                         break
-                # Python files
                 elif path.suffix == ".py":
                     if not py_triggered:
                         py_triggered = True
-                        ts = time.strftime("%Y-%m-%d %H:%M:%S")
+                        ts = time_mod.strftime("%Y-%m-%d %H:%M:%S")
                         log(f"{ts} - Change detected in {path}, restarting...")
-                        handle_restart()
+                        await handle_restart()
                         prev_mtimes = get_mtimes()
                         break
 
@@ -209,32 +216,29 @@ def watch_loop() -> None:
             prev_mtimes = current_mtimes
 
         if handle_signal_file():
-            ts = time.strftime("%Y-%m-%d %H:%M:%S")
+            ts = time_mod.strftime("%Y-%m-%d %H:%M:%S")
             log(f"{ts} - Restart triggered by signal file")
-            handle_restart()
+            await handle_restart()
             prev_mtimes = get_mtimes()
 
 
-def main() -> None:
+def _signal_handler(signum: int, frame) -> None:
     global watcher_running
+    log("Shutting down...")
+    watcher_running = False
 
-    def cleanup(signum: int, frame) -> None:
-        global watcher_running
-        log("Shutting down...")
-        watcher_running = False
-        kill_bot()
-        sys.exit(0)
 
-    signal.signal(signal.SIGINT, cleanup)
-    signal.signal(signal.SIGTERM, cleanup)
+async def main() -> None:
+    signal.signal(signal.SIGINT, _signal_handler)
+    signal.signal(signal.SIGTERM, _signal_handler)
 
     log("Watching for changes...")
     log(f"  Python: {WATCH_DIRS}")
     log(f"  Voice receiver Rust: {RUST_RECEIVER_SRC}")
     log(f"  serin-core Rust: {PROJECT_ROOT / 'serin_core' / 'src' / 'lib.rs'}")
-    start_bot()
-    watch_loop()
+    await start_bot()
+    await watch_loop()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

@@ -82,7 +82,7 @@ def _build_qdrant_filter(store, user_id: str | None, filters: dict) -> models.Fi
                 try:
                     start_ts = datetime.fromisoformat(start_ts.replace('Z', '+00:00')).timestamp()
                 except Exception:
-                    pass
+                    logger.exception("Failed to parse start_time filter as ISO datetime")
             conditions.append(models.FieldCondition(key="timestamp_ts", range=models.Range(gte=start_ts)))
 
         if filters.get('end_time'):
@@ -91,7 +91,7 @@ def _build_qdrant_filter(store, user_id: str | None, filters: dict) -> models.Fi
                 try:
                     end_ts = datetime.fromisoformat(end_ts.replace('Z', '+00:00')).timestamp()
                 except Exception:
-                    pass
+                    logger.exception("Failed to parse end_time filter as ISO datetime")
             conditions.append(models.FieldCondition(key="timestamp_ts", range=models.Range(lte=end_ts)))
 
         if filters.get('min_importance'):

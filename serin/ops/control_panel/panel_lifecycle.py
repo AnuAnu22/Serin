@@ -91,9 +91,9 @@ class WebSocketLogHandler(logging.Handler):
             try:
                 asyncio.create_task(broadcast_log(log_entry))
             except RuntimeError:
-                pass
+                logger.exception("No event loop for WebSocket log broadcast")
         except Exception:
-            pass
+            logger.exception("WebSocket log handler emit failed")
 
 
 def register_lifecycle_routes(app):

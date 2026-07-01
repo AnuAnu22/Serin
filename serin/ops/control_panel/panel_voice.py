@@ -274,7 +274,8 @@ def register_voice_routes(app):
     async def restart_bot() -> Any:
         """Restart the bot process (hot-reloads code changes). The hot_reloader.py wrapper will auto-restart."""
         try:
-            open("/tmp/serin-restart.signal", "w").close()  # nosec B108 — IPC signaling, needs well-known path
+            from serin.ops.hot_reloader import SIGNAL_FILE
+            open(SIGNAL_FILE, "w").close()
             logger.warning(" Restart signal sent to hot-reloader")
             return {'success': True, 'message': 'Restart signal sent'}
         except Exception as e:
@@ -464,7 +465,7 @@ def register_voice_routes(app):
                         synced = await crawler._quick_sync_channel(channel)
                         synced_count += synced
                     except Exception:
-                        pass
+                        logger.exception("Failed to quick-sync channel during manual sync")
 
             logger.info(f" Manual sync complete: {synced_count} messages")
             await broadcast_event('sync_complete', {'count': synced_count})

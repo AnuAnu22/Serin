@@ -286,13 +286,13 @@ def get_correction_acknowledgment(correction: dict) -> str:
     Returns:
         Natural acknowledgment message
     """
-    import random
+    from secrets import choice
 
     corrected = correction.get('corrected_statement', '').strip()
     original = correction.get('original_statement', '').strip()
 
     # Choose template
-    template = random.choice(CORRECTION_ACKNOWLEDGMENTS)
+    template = choice(CORRECTION_ACKNOWLEDGMENTS)
 
     # Format with correction details
     try:

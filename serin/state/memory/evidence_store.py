@@ -10,6 +10,19 @@ from datetime import datetime
 
 from serin.logger import logger
 
+_SQL_TEMPLATE_FACT_SEARCH = """
+    SELECT f.*,
+           ( {score_clause} ) as relevance
+    FROM facts f
+    WHERE f.is_active = 1 AND ({like_clauses})
+    ORDER BY relevance DESC, f.confidence DESC, f.timestamp DESC
+    LIMIT ?
+"""
+
+
+def _build_search_query(template: str, **kwargs: str) -> str:
+    return template.format(**kwargs)
+
 
 class FactStore:
     """SQLite-backed store for atomic, verifiable facts.
@@ -109,14 +122,12 @@ class FactStore:
             for _ in keywords
         )
 
-        cursor.execute(f"""
-            SELECT f.*,
-                   ( {score_clause} ) as relevance
-            FROM facts f
-            WHERE f.is_active = 1 AND ({like_clauses})
-            ORDER BY relevance DESC, f.confidence DESC, f.timestamp DESC
-            LIMIT ?
-        """, (*like_params, *like_params, limit))
+        query = _build_search_query(
+            _SQL_TEMPLATE_FACT_SEARCH,
+            score_clause=score_clause,
+            like_clauses=like_clauses,
+        )
+        cursor.execute(query, (*like_params, *like_params, limit))
 
         return [dict(row) for row in cursor.fetchall()]
 

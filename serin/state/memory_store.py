@@ -145,7 +145,7 @@ class QdrantMemorySystem:
                     try:
                         self.conn.close()
                     except Exception:
-                        pass
+                        logger.exception("Failed to close corrupt SQLite connection")
                 shutil.move(self.db_path, backup_path)
                 # Also move WAL/SHM files if they exist
                 for ext in ['-wal', '-shm']:
@@ -331,15 +331,15 @@ class QdrantMemorySystem:
         try:
             cursor.execute("ALTER TABLE beliefs ADD COLUMN state TEXT NOT NULL DEFAULT 'PENDING'")
         except Exception:
-            pass
+            logger.exception("Migration: ALTER TABLE beliefs.state failed (column may already exist)")
         try:
             cursor.execute("ALTER TABLE beliefs ADD COLUMN last_contradicted_at TEXT DEFAULT ''")
         except Exception:
-            pass
+            logger.exception("Migration: ALTER TABLE beliefs.last_contradicted_at failed (column may already exist)")
         try:
             cursor.execute("ALTER TABLE beliefs ADD COLUMN contradiction_resolved_at TEXT DEFAULT ''")
         except Exception:
-            pass
+            logger.exception("Migration: ALTER TABLE beliefs.contradiction_resolved_at failed (column may already exist)")
 
         self.conn.commit()
         logger.debug(" SQLite schema initialized")
@@ -409,7 +409,7 @@ class QdrantMemorySystem:
                 try:
                     memory_count = self.qdrant_client.count("memories").count
                 except Exception:
-                    pass
+                    logger.exception("Failed to count memories in Qdrant")
 
             return {
                 'total_users': total_users,

@@ -136,7 +136,7 @@ async def websocket_endpoint(websocket: WebSocket) -> Any:
             brain_state = 'ONLINE'
             if manager and hasattr(manager, 'current_state'):
                 brain_state = manager.current_state.get('status', 'ONLINE')
-            gpu = get_gpu_vram_usage()
+            gpu = await get_gpu_vram_usage()
 
             await websocket.send_json({
                 "type": "heartbeat",
@@ -168,7 +168,7 @@ async def websocket_endpoint(websocket: WebSocket) -> Any:
                 brain_state = 'ONLINE'
                 if manager and hasattr(manager, 'current_state'):
                     brain_state = manager.current_state.get('status', 'ONLINE')
-                gpu = get_gpu_vram_usage()
+                gpu = await get_gpu_vram_usage()
 
                 await websocket.send_json({
                     "type": "heartbeat",
@@ -190,19 +190,26 @@ async def websocket_endpoint(websocket: WebSocket) -> Any:
         try:
             await websocket.close()
         except Exception:
-            pass
+            logger.exception("Failed to close WebSocket cleanly")
         logger.info(f"WebSocket disconnected (remaining: {len(active_websockets)})")
 
-def get_gpu_vram_usage() -> float:
+async def get_gpu_vram_usage() -> float:
     """Get GPU VRAM usage in GB via nvidia-smi"""
     try:
-        import subprocess
-        result = subprocess.run(
-            ['nvidia-smi', '--query-gpu=memory.used', '--format=csv,noheader,nounits'],
-            capture_output=True, text=True, timeout=2
+        proc = await asyncio.create_subprocess_exec(
+            'nvidia-smi', '--query-gpu=memory.used', '--format=csv,noheader,nounits',
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
-        if result.returncode == 0:
-            raw_lines = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
+        try:
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=2)
+        except TimeoutError:
+            proc.kill()
+            await proc.wait()
+            return 0.0
+        if proc.returncode == 0:
+            output = stdout.decode()
+            raw_lines = [line.strip() for line in output.strip().split('\n') if line.strip()]
             if raw_lines:
                 total_mb = sum(int(line) for line in raw_lines if line.isdigit())
                 return round(total_mb / 1024, 1)

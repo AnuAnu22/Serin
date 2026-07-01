@@ -8,11 +8,15 @@ Sets ctx.metadata["message_sent"] = True after successful send.
 from __future__ import annotations
 
 import asyncio
-import random
+import secrets
 
 from serin.logger import logger
 from serin.pipeline.act.runners.pipeline import PipelineStage
 from serin.state.message_context import MessageContext
+
+
+def _uniform(a: float, b: float) -> float:
+    return a + (b - a) * secrets.randbelow(10_000_000) / 10_000_000
 
 
 class SendStage(PipelineStage):
@@ -37,7 +41,7 @@ class SendStage(PipelineStage):
 
         # Simulate typing
         typing_delay = min(len(response) * 0.01, 3.0)  # ~10ms per char, max 3s
-        typing_delay += random.uniform(0.2, 0.8)
+        typing_delay += _uniform(0.2, 0.8)
 
         async with channel.typing():
             await asyncio.sleep(typing_delay)

@@ -3,7 +3,6 @@
 import asyncio
 import json
 import os
-import subprocess
 from typing import Any
 
 from serin.gateway.voice_system.bridge import RustStdoutReader
@@ -28,11 +27,9 @@ async def send_tts_audio(self, audio_data: bytes) -> None:
         logger.warning(" Cannot send TTS: Rust process not running")
         return
     try:
-        loop = asyncio.get_event_loop()
         header = f"SPEAK:{len(audio_data)}\n".encode()
         logger.info(f" Writing {len(header) + len(audio_data)} bytes to Rust stdin")
-        # Write in a thread to avoid blocking the event loop
-        await loop.run_in_executor(None, self._write_stdin, header + audio_data)
+        await self._write_stdin(header + audio_data)
     except Exception as e:
         logger.error(f" Error sending TTS audio: {e}")
 
@@ -47,28 +44,24 @@ async def interrupt(self) -> None:
     if not self.proc or not self.proc.stdin:
         return
     try:
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, self._write_stdin, b"INTERRUPT\n")
+        await self._write_stdin(b"INTERRUPT\n")
     except Exception:
-        pass
+        logger.exception("Failed to send INTERRUPT to Rust bridge")
 
 
-def _write_stdin(self, data: bytes) -> None:
+async def _write_stdin(self, data: bytes) -> None:
     """
-    Thread-safe blocking write to Rust stdin.
+    Thread-safe async write to Rust stdin.
 
     CRITICAL: All stdin writes MUST go through this method.
     The threading.Lock() prevents interleaving between send_tts_audio
     and interrupt commands. Without it, the binary protocol framing
     could be corrupted (e.g., "SPEAK:1000\n" split across two writes).
-
-    This is a synchronous blocking call — should be called via
-    run_in_executor to avoid blocking the event loop.
     """
     with self._stdin_lock:
         if self.proc and self.proc.stdin:
             self.proc.stdin.write(data)
-            self.proc.stdin.flush()
+            await self.proc.stdin.drain()
 
 
 # -----------------------------------------------------------------------
@@ -108,20 +101,20 @@ async def start_with_info(
     try:
         rust_env = os.environ.copy()
         rust_env["RUST_BACKTRACE"] = "full"
-        self.proc = subprocess.Popen(
-            [self.binary_path],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            bufsize=0,
+        self.proc = await asyncio.create_subprocess_exec(
+            self.binary_path,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
             env=rust_env,
         )
 
         info_json = json.dumps(connection_info) + "\n"
         self.proc.stdin.write(info_json.encode('utf-8'))
-        self.proc.stdin.flush()
+        await self.proc.stdin.drain()
 
         self.reader = RustStdoutReader(self.proc)
+        self._reader_task = asyncio.create_task(self.reader.read_loop())
         self._guild_id = guild_id
         self._channel_id = channel_id
         self._running = True
@@ -131,7 +124,7 @@ async def start_with_info(
         self._death_event.clear()
         self._shutdown_requested = False
 
-        self._reader_task = asyncio.create_task(self._read_loop())
+        self._reader_consumer_task = asyncio.create_task(self._read_loop())
 
         # Start supervisor — watches for process death and re-spawns
         self._supervisor_task = asyncio.create_task(self._supervise_rust_process())
@@ -154,7 +147,7 @@ async def start_with_info(
 
 def is_running(self) -> bool:
     """Check if the Rust process is alive (not None and still running)."""
-    return self.proc is not None and self.proc.poll() is None
+    return self.proc is not None and self.proc.returncode is None
 
 
 def get_stats(self) -> dict[str, Any]:
