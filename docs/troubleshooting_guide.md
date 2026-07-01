@@ -568,7 +568,7 @@ def optimize_query(query):
 echo "🚨 Emergency restart procedure"
 
 # Stop all services
-pkill -f "python3 discord_bot.py"
+pkill -f "python3 -m serin"
 pkill -f "python3 enhanced_api_routes.py"
 
 # Check Qdrant
@@ -580,7 +580,7 @@ fi
 
 # Start services
 echo "🤖 Starting Discord bot..."
-nohup python3 discord_bot.py > logs/bot.log 2>&1 &
+nohup python3 -m serin > logs/bot.log 2>&1 &
 
 echo "🌐 Starting control panel..."
 nohup python3 enhanced_api_routes.py > logs/control_panel.log 2>&1 &
@@ -605,7 +605,7 @@ fi
 echo "📁 Using backup: $LATEST_BACKUP"
 
 # Stop services
-pkill -f "python3 discord_bot.py"
+pkill -f "python3 -m serin"
 pkill -f "python3 enhanced_api_routes.py"
 
 # Backup current state
@@ -617,7 +617,7 @@ cp "$BACKUP_DIR/$LATEST_BACKUP/bot_data.db" ./bot_data/
 
 # Start services
 echo "🤖 Starting Discord bot..."
-python3 discord_bot.py
+python3 -m serin
 
 echo "🌐 Starting control panel..."
 python3 enhanced_api_routes.py

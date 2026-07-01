@@ -88,7 +88,7 @@ def start_bot() -> None:
     last_restart_time = time.monotonic()
     log("Starting bot...")
     bot_process = subprocess.Popen(
-        ["uv", "run", "discord_bot.py"],
+        ["uv", "run", "-m", "serin"],
         cwd=str(BOT_DIR),
         stdout=sys.stdout,
         stderr=sys.stderr,

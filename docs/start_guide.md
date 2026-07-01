@@ -29,5 +29,5 @@ The script will:
 
 ## 3. Starting the Bot
 ```bash
-uv run discord_bot.py
+uv run -m serin
 ```

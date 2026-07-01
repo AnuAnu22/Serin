@@ -276,7 +276,7 @@ main() {
     header "Done"
     echo "  Next steps:"
     echo "    ${BOLD}bash start_llama_swap.sh${NC}  — start the LLM server"
-    echo "    ${BOLD}uv run discord_bot.py${NC}     — start the bot"
+    echo "    ${BOLD}uv run -m serin${NC}     — start the bot"
     echo ""
     ok "Setup complete"
 }

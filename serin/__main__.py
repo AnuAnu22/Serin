@@ -1,6 +1,6 @@
 """Serin Discord Bot — root entry point.
 
-Usage: python discord_bot.py
+Usage: python -m serin
 """
 import asyncio
 from serin.gateway.discord.bot import *  # noqa: sets up client, handlers, globals

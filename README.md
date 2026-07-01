@@ -46,10 +46,10 @@ maturin develop --release
 cd ..
 
 # 5. Start the bot
-python discord_bot.py
+uv run -m serin
 ```
 
-The bot runs directly. For auto-reload during development, use `python hot_reloader.py` instead — it watches for file changes and restarts automatically.
+The bot runs directly. For auto-reload during development, use `uv run serin/ops/hot_reloader.py` instead — it watches for file changes and restarts automatically.
 
 ### Environment Variables
 
@@ -96,8 +96,7 @@ Each stage is independently testable in `serin/messaging/stages/`. Adding behavi
 ## Project Structure
 
 ```
-├── discord_bot.py              # Main bot entry point
-├── hot_reloader.py             # Auto-reload on file changes
+├── serin/__main__.py           # Main bot entry point (python -m serin)
 ├── pyproject.toml              # Python dependencies
 ├── .env.example                # Config template
 │
@@ -197,7 +196,7 @@ cd voice/rust_receiver && cargo build --release
 cd serin_core && maturin develop --release
 
 # Debug voice pipeline
-LOG_LEVEL=DEBUG python3 hot_reloader.py
+LOG_LEVEL=DEBUG uv run serin/ops/hot_reloader.py
 ```
 
 ## Troubleshooting

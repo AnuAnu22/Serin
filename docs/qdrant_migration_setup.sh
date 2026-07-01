@@ -361,7 +361,7 @@ fi
 
 # Start the bot
 echo "🤖 Starting Discord bot..."
-python3 discord_bot.py
+python3 -m serin
 EOF
     
     chmod +x "$PROJECT_DIR/start_qdrant_bot.sh"

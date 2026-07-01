@@ -1599,7 +1599,7 @@ search_params = {
 echo "🚨 Emergency restart procedure"
 
 # Stop all services
-pkill -f "python3 discord_bot.py"
+pkill -f "python3 -m serin"
 pkill -f "python3 enhanced_api_routes.py"
 
 # Check Qdrant
@@ -1611,7 +1611,7 @@ fi
 
 # Start services
 echo "🤖 Starting Discord bot..."
-nohup python3 discord_bot.py > logs/bot.log 2>&1 &
+nohup python3 -m serin > logs/bot.log 2>&1 &
 
 echo "🌐 Starting control panel..."
 nohup python3 enhanced_api_routes.py > logs/control_panel.log 2>&1 &
