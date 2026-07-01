@@ -7,7 +7,7 @@ Sets ctx.final_response.
 """
 from __future__ import annotations
 
-from serin.config.logger import logger
+from serin.state.logger import logger
 from serin.state.message_context import MessageContext
 from serin.pipeline.act.runners.pipeline import PipelineStage
 

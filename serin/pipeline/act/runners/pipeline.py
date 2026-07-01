@@ -17,7 +17,7 @@ from serin.pipeline.act.stages_base import PipelineStage
 
 from serin.state.message_context import MessageContext
 
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
 class MessagePipeline:

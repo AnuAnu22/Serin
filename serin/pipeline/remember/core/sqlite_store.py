@@ -3,7 +3,7 @@ Extracted from store.py.
 """
 import json
 from typing import List, Dict, Optional
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
 def upsert_user(store, user_id: str, username: str, display_name: str = None) -> None:
@@ -166,7 +166,7 @@ Extracted from store.py.
 import json
 from datetime import datetime
 from typing import List, Dict, Optional
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
 def store_recent_message(

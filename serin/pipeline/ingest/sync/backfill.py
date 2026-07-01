@@ -1,6 +1,6 @@
 """Message backfill — historical message import and batch processing."""
 from typing import List, Dict
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
     async def _backfill_channel(self, channel: discord.TextChannel, limit: int = None) -> int:

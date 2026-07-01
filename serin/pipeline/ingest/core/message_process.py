@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 import discord
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
     async def process_voice_input(self, user_id: str, username: str, channel_id: str, transcription: str, wav_b64: Optional[str] = None) -> None:

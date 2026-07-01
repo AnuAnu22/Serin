@@ -6,7 +6,7 @@ Decides if Serin should join/leave a voice channel based on conversation context
 import json
 import re
 from typing import Any, Dict, Optional
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
 class VoiceActionDecider:

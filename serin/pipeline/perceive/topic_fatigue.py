@@ -5,7 +5,7 @@ Humans get less enthusiastic about topics after discussing them repeatedly
 import time
 from collections import defaultdict
 from typing import Dict, List, Optional
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
 class TopicFatigue:

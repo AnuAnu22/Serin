@@ -6,7 +6,7 @@ import sqlite3
 import json
 import random
 from typing import Dict, Optional, List, Tuple
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
 class BotPersonality:

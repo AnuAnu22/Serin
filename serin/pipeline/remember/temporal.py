@@ -5,7 +5,7 @@ Parse and generate natural time references like "last Tuesday", "this morning", 
 import re
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
 class TemporalParser:

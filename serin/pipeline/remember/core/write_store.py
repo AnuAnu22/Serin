@@ -5,8 +5,9 @@ operate on a QdrantMemorySystem instance passed as first arg.
 import hashlib
 import uuid
 import json
+from datetime import datetime
 from typing import List, Dict, Optional
-from serin.config.logger import logger
+from serin.state.logger import logger
 from serin.config.debug_logger import log_memory
 from serin.state.thinking_filter import filter_for_memory
 

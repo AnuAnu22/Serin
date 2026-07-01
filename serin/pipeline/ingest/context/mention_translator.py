@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 from typing import Dict, Optional, Any
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 import discord
 

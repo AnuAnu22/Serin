@@ -5,7 +5,7 @@ Decides when to search and what to search for.
 import json
 import re
 from typing import Any, Dict, List, Optional, Tuple, Union
-from serin.config.logger import logger
+from serin.state.logger import logger
 from serin.state.model_system.interface import ModelInterface
 
 class ActiveSearch:

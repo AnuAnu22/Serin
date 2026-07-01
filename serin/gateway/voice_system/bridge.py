@@ -49,7 +49,7 @@ import time
 from typing import Any, Callable, Dict, Optional
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
 # ---------------------------------------------------------------------------

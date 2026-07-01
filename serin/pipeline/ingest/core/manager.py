@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import discord
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
-from serin.config.logger import logger
+from serin.state.logger import logger
 from serin.pipeline.remember.qdrant import QdrantMemorySystem
 from serin.pipeline.remember.knowledge.memory_context import EnhancedMemoryContext, ImprovedSystemPrompt
 from serin.pipeline.think.response_controller import ResponseController
@@ -107,7 +107,7 @@ class EnhancedMessageManagerV3:
         # TIER 5: Correction + Voice systems
         self.correction_detector = CorrectionDetector()
         self.memory_corrector = MemoryCorrector(self.memory)
-        from serin.state.voice_tracker import VoiceTracker
+        from serin.state.voice.voice_tracker import VoiceTracker
         self.voice_tracker = VoiceTracker(self.memory)
 
         # Pipeline instance (set externally by discord_bot.py after building)
@@ -131,7 +131,7 @@ class EnhancedMessageManagerV3:
         # Visual Cortex
         self.visual_memory: Optional[VisualMemorySystem] = None
         if hasattr(self.memory, "qdrant_client") and self.memory.qdrant_client:
-            from serin.state.visual_memory import VisualMemorySystem
+            from serin.pipeline.ingest.core.visual_memory import VisualMemorySystem
             self.visual_memory = VisualMemorySystem(self.memory.qdrant_client)
         else:
             self.visual_memory = None
@@ -157,7 +157,7 @@ class EnhancedMessageManagerV3:
         self.voice_pipeline: Any = None
 
         # Voice Action Decider
-        from serin.state.voice_decider import VoiceActionDecider
+        from serin.state.voice.voice_decider import VoiceActionDecider
         try:
             va_connector = get_model_connector()
             va_connector.load_model()

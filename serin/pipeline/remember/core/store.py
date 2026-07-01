@@ -17,7 +17,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple, Any
 from serin.state.thinking_filter import filter_for_memory
-from serin.config.logger import logger
+from serin.state.logger import logger
 from serin.config.debug_logger import log_memory
 from serin.pipeline.remember.knowledge.evidence import FactStore
 from serin.pipeline.remember.knowledge.beliefs import BeliefStore
@@ -445,6 +445,6 @@ Extracted from store.py.
 """
 import sqlite3
 from typing import List, Optional
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 

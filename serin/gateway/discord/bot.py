@@ -16,7 +16,7 @@ PRODUCTION DATABASE PROTECTION:
 - Graceful shutdown handlers
 """
 import os
-from serin.config.logger import logger
+from serin.state.logger import logger
 import asyncio
 import traceback
 import aiohttp

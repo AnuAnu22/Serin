@@ -17,7 +17,7 @@ from __future__ import annotations
 import os
 from typing import Dict, Any, List, Optional, Set
 from dotenv import load_dotenv
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 # Load environment variables
 load_dotenv()

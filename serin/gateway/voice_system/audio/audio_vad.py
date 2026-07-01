@@ -1,5 +1,6 @@
 """Voice activity detection and audio queue management."""
 
+from datetime import datetime
     def _detect_voice_activity(self, audio_data: bytes) -> bool:
         """
         Detect if audio contains voice using energy-based VAD.

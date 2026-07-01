@@ -7,7 +7,7 @@ Adds "hmm", "like", "you know" etc. to make responses feel more human
 import random
 import re
 from typing import Optional
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
 class ConversationalFillers:
@@ -247,7 +247,7 @@ Very rare (2-5%), only casual mistakes, never on important words
 import random
 import re
 from typing import Optional
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
 class RealisticTypos:

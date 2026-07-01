@@ -1,5 +1,7 @@
 def register_lifecycle_routes(app):
     """Register lifecycle routes."""
+from datetime import datetime
+from typing import Any, Optional
     """Server lifecycle, bot state, and WebSocket handler."""
     def init_bot_state(
         discord_client: Any,

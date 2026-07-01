@@ -5,7 +5,7 @@ Handles advanced memory context processing and system prompt enhancement
 
 from typing import Dict, List, Optional, Any
 from datetime import datetime
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
 class EnhancedMemoryContext:

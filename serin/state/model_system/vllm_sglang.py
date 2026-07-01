@@ -11,7 +11,7 @@ from openai import OpenAI
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from serin.core.logger import logger
+from serin.state.logger import logger
 from .model_interface import ModelInterface
 from .model_adapter import ModelAdapter
 
@@ -245,7 +245,7 @@ from openai import OpenAI
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from serin.core.logger import logger
+from serin.state.logger import logger
 from .model_interface import ModelInterface
 from .model_adapter import ModelAdapter
 

@@ -3,7 +3,7 @@ Debug Logger - Comprehensive debug information system
 Shows exactly what bot sees, processes, and stores
 """
 import os
-from serin.config.logger import logger
+from serin.state.logger import logger
 from typing import Any, Dict, List, Optional
 
 

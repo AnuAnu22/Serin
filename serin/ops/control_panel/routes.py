@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any
 from fastapi import FastAPI, HTTPException, Request, Body
 from pydantic import BaseModel
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 # Import Qdrant memory system (for type checking if needed)
 try:

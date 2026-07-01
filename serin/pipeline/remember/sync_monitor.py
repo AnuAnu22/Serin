@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Set, Tuple, Any
 from collections import defaultdict, deque
 import logging
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 class MemorySyncMonitor:
     def __init__(self, memory_system: Any, background_processor: Any, message_crawler: Any) -> None:

@@ -2,7 +2,7 @@
 import asyncio
 import traceback
 from datetime import datetime
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
 async def on_ready():

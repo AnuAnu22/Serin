@@ -1,4 +1,5 @@
 """Bridge crash recovery and reconnection."""
+from typing import Optional
 
     def _handle_process_death(self) -> None:
         """Handle Rust process unexpected death — log diagnostics and trigger supervisor."""

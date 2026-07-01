@@ -5,7 +5,7 @@ Detects when users correct the bot and updates memories accordingly.
 import re
 from typing import Optional, Dict, List, Any
 from datetime import datetime
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
 class CorrectionDetector:

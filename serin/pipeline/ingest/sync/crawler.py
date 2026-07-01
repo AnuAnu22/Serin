@@ -13,7 +13,7 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Set, Tuple, Any, TYPE_CHECKING
 import discord
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 if TYPE_CHECKING:
     from serin.pipeline.ingest.context.mention_translator import MentionTranslator

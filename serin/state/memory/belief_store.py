@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime
 from typing import List, Dict, Optional
 
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
 class BeliefStore:

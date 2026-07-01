@@ -1,4 +1,6 @@
 """Backup metadata extraction and validation."""
+from datetime import datetime
+from typing import Optional
 
     def _extract_and_validate_backup_metadata(self, backup_file: Path) -> Optional[Dict]:
         """

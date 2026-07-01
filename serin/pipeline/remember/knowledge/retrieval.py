@@ -9,7 +9,7 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple, Any
 from collections import defaultdict, Counter
-from serin.config.logger import logger
+from serin.state.logger import logger
 import sqlite3
 
 from dataclasses import dataclass

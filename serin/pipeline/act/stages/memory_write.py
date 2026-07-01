@@ -6,7 +6,7 @@ Qdrant memory after the response has been sent.
 """
 from __future__ import annotations
 
-from serin.config.logger import logger
+from serin.state.logger import logger
 from serin.state.message_context import MessageContext
 from serin.pipeline.act.stages_base import PipelineStage
 

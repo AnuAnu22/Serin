@@ -184,7 +184,7 @@ def register_control_routes(app):
     async def list_voice_profiles() -> Any:
         """List all voice profiles"""
         try:
-            from serin.state.voice_profiles import get_voice_profiles, get_active_profile_name
+            from serin.state.voice.voice_profiles import get_voice_profiles, get_active_profile_name
             profiles = get_voice_profiles()
             active = get_active_profile_name()
             return {
@@ -206,7 +206,7 @@ def register_control_routes(app):
     async def create_voice_profile(data: Dict[str, Any]) -> Any:
         """Create a new voice profile"""
         try:
-            from serin.state.voice_profiles import create_profile
+            from serin.state.voice.voice_profiles import create_profile
             name = data.get('name')
             if not name:
                 return {'success': False, 'error': 'Profile name required'}
@@ -227,7 +227,7 @@ def register_control_routes(app):
     async def set_active_voice_profile(profile_name: str = 'default') -> Any:
         """Set active voice profile"""
         try:
-            from serin.state.voice_profiles import set_active_profile
+            from serin.state.voice.voice_profiles import set_active_profile
             success = set_active_profile(profile_name)
             if success:
                 logger.info(" Active voice profile: %s", profile_name)
@@ -240,7 +240,7 @@ def register_control_routes(app):
     async def delete_voice_profile(profile_name: str) -> Any:
         """Delete a voice profile"""
         try:
-            from serin.state.voice_profiles import delete_profile
+            from serin.state.voice.voice_profiles import delete_profile
             success = delete_profile(profile_name)
             if success:
                 logger.info(" Deleted voice profile: %s", profile_name)

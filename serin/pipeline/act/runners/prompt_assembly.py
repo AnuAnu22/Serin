@@ -9,7 +9,7 @@ high-confidence facts and low-confidence claims are flagged.
 from __future__ import annotations
 
 from datetime import datetime
-from serin.config.logger import logger
+from serin.state.logger import logger
 from serin.state.message_context import MessageContext
 from serin.pipeline.act.runners.pipeline import PipelineStage
 from serin.pipeline.think.response_generator import build_natural_system_prompt

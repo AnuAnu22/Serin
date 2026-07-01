@@ -1,8 +1,9 @@
 """Hybrid search methods — BM25 + vector + rerank.
 Extracted from store.py.
 """
+from datetime import datetime
 from typing import List, Dict, Optional
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
 def search_hybrid(store, query: str, user_id: Optional[str] = None, n_results: int = 5, **filters) -> List[Dict]:

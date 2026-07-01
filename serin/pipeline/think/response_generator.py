@@ -11,7 +11,7 @@ import os
 from typing import List, Dict, Optional
 from serin.state.model_system.interface import ModelInterface
 from serin.state.model_system.factory import get_model_connector
-from serin.config.logger import logger
+from serin.state.logger import logger
 from serin.pipeline.think.humanization import add_conversational_fillers
 from serin.pipeline.think.humanization import add_realistic_typos
 from serin.state.thinking_filter import filter_thinking

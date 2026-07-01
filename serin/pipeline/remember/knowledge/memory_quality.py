@@ -1,6 +1,7 @@
 """Memory quality assessment — clarity, density, relevance scoring."""
+from datetime import datetime
 from typing import Dict, List
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
 class MemoryQualityAssessor:

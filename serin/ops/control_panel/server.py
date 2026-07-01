@@ -22,7 +22,7 @@ from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-from serin.config.logger import logger
+from serin.state.logger import logger
 from serin.ops.control_panel.routes import register_enhanced_routes
 from serin.config.config import config
 

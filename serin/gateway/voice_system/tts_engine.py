@@ -5,6 +5,7 @@ class TTSEngine:
         device: str = "cuda"
     ) -> None:
         """
+from typing import Dict, List, Optional
         Initialize TTS engine.
         Uses edge-tts by default (no model download needed).
         Falls back to Coqui XTTS v2 if available.

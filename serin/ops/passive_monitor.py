@@ -8,11 +8,11 @@ import discord
 
 from datetime import datetime
 from typing import Set, Dict, Any, TYPE_CHECKING
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 if TYPE_CHECKING:
     from serin.ops.background import BackgroundProcessor
-    from serin.state.mention_translator import MentionTranslator
+    from serin.state.voice.mention_translator import MentionTranslator
 
 
 class PassiveMonitor:

@@ -6,7 +6,7 @@ import tarfile
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Optional
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
     def create_backup(self, backup_type: str = "manual", force: bool = False) -> str:

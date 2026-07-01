@@ -4,7 +4,7 @@ Humans don't always process long messages well - they react to length
 """
 import random
 from typing import Optional, Dict, Any
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
 class LongMessageHandler:

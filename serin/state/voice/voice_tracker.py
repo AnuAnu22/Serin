@@ -6,7 +6,7 @@ UPDATED: Debug logging added
 """
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
-from serin.config.logger import logger
+from serin.state.logger import logger
 from serin.config.debug_logger import log_voice
 
 

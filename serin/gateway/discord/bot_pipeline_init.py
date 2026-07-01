@@ -1,6 +1,7 @@
 """MessagePipeline and behavior manager initialization."""
 
         # Build the MessagePipeline and attach it to the manager
+from datetime import datetime
         logger.info("Building MessagePipeline...")
         from serin.pipeline.act.runners.pipeline import MessagePipeline
         from serin.state.thinking_filter import get_thinking_filter

@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
 from datetime import datetime
-from serin.config.logger import logger
+from serin.state.logger import logger
 from serin.pipeline.remember.temporal import TemporalFormatter, parse_time, get_time_range
 
 if TYPE_CHECKING:

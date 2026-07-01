@@ -1,4 +1,5 @@
 """Process supervision for Rust voice bridge."""
+from typing import Any, Dict, Optional
 
 """Process supervision for Rust voice bridge."""
 

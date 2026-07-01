@@ -10,7 +10,7 @@ import random
 import asyncio
 from typing import Dict, List, Optional, Any, Coroutine
 from datetime import datetime, timedelta
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 import discord
 

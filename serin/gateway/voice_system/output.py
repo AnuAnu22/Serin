@@ -225,7 +225,7 @@ import asyncio
 import random
 from datetime import datetime
 from typing import Any, Dict, Optional, Set
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 
 """
@@ -245,7 +245,7 @@ import io
 import wave
 from typing import Any, Dict, List, Optional, Tuple, Union
 import os
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 # Try importing backends
 EDGE_TTS_AVAILABLE = False

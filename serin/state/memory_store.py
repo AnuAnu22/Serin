@@ -17,10 +17,10 @@ import numpy as np
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple, Any
 from serin.state.thinking_filter import filter_for_memory
-from serin.config.logger import logger
+from serin.state.logger import logger
 from serin.config.debug_logger import log_memory
-from serin.state.evidence_store import FactStore
-from serin.state.belief_store import BeliefStore
+from serin.state.memory.evidence_store import FactStore
+from serin.state.memory.belief_store import BeliefStore
 
 # Qdrant imports
 try:
@@ -445,6 +445,6 @@ Extracted from store.py.
 """
 import sqlite3
 from typing import List, Optional
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 

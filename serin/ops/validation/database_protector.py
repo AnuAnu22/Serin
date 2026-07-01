@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import logging
 from typing import Dict, List, Optional, Tuple
-from serin.config.logger import logger
+from serin.state.logger import logger
 
 class DatabaseValidationError(Exception):
     """Raised when database validation fails"""
