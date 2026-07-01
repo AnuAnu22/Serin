@@ -1,5 +1,5 @@
 """SQLiteBM25Index — BM25 full-text search."""
-from typing import List, Optional
+from typing import Dict, List, Optional
 import sqlite3
 
 class SQLiteBM25Index:

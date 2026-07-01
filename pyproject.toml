@@ -54,6 +54,10 @@ dev = [
     "maturin>=1.10.0",        # Build serin_core PyO3 module
 ]
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests/messaging", "tests/integration"]
+
 [project.scripts]
 dev = "dev:main"
 

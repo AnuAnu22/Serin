@@ -440,11 +440,54 @@ class QdrantMemorySystem:
         if hasattr(self, 'conn'):
             self.conn.close()
 
-"""SQLiteBM25Index — BM25 full-text search over SQLite.
-Extracted from store.py.
-"""
-import sqlite3
-from typing import List, Optional
-from serin.state.logger import logger
+    # ── Delegation to split-out modules ────────────────────────────────────
+    from serin.pipeline.remember.core.search_store import (
+        search_hybrid as _search_hybrid,
+        _build_qdrant_filter,
+        _merge_candidates,
+        _rerank_results_simple,
+        _condense_results,
+    )
+    from serin.pipeline.remember.core.write_store import (
+        add_memory_enhanced as _add_memory_enhanced,
+        generate_memory_id,
+        _chunk_content,
+        _build_payload,
+        _is_duplicate,
+        _get_existing_memory_id,
+        _queue_background_jobs,
+    )
+    from serin.pipeline.remember.core.sqlite_store import (
+        upsert_user,
+        update_user_activity,
+        get_user_profile,
+        update_user_traits,
+        log_activity,
+        update_relationship,
+        get_user_relationships,
+        store_recent_message,
+        get_latest_message,
+        get_recent_conversation_from_sqlite,
+        get_message_count,
+        get_message_at_position,
+        get_messages_around_timestamp,
+        get_message_by_id,
+        cleanup_old_memories,
+    )
 
+    def search_hybrid(self, query, user_id=None, n_results=5, **filters):
+        return self._search_hybrid(query, user_id, n_results, **filters)
+
+    def add_memory_enhanced(self, content, user_id, **kwargs):
+        return self._add_memory_enhanced(content, user_id, **kwargs)
+
+    # ── Legacy API wrappers ────────────────────────────────────────────────
+    def add_memory(self, content, user_id, username, channel_id, **kwargs):
+        return self.add_memory_enhanced(content, user_id, source_message_id=kwargs.get('source_message_id'), username=username, channel_id=channel_id)
+
+    def search_memories(self, query, user_id=None, channel_id=None, limit=10):
+        return self.search_hybrid(query, user_id, n_results=limit)
+
+    def get_recent_conversation(self, channel_id=None, user_id=None, limit=20):
+        return self.get_recent_conversation_from_sqlite(channel_id, limit)
 

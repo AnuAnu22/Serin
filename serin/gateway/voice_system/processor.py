@@ -151,7 +151,55 @@ class AudioStreamProcessor:
             "direct_audio": bool(self.llm_connector and self.supports_audio),
         })
 
-    @staticmethod"""Voice behavior manager — auto join/leave.""
+    # ── Delegation to split-out modules ────────────────────────────────────
+    from serin.gateway.voice_system.audio.audio_vad import (
+        _detect_voice_activity,
+        _queue_for_transcription,
+        _cancel_silence_timer,
+        _schedule_silence_timer,
+        _is_locked,
+        _release_lock,
+        _set_lock,
+    )
+    from serin.gateway.voice_system.audio.audio_utils import (
+        _pcm_to_wav_base64,
+        process_audio_chunk as _process_audio_chunk,
+        _transcribe_with_gemma,
+    )
+
+    def _detect_voice_activity(self, audio_data):
+        return type(self)._detect_voice_activity(self, audio_data)
+
+    def process_audio_chunk(self, user_id, username, guild_id, channel_id, audio_data):
+        return type(self)._process_audio_chunk(self, user_id, username, guild_id, channel_id, audio_data)
+
+    def _queue_for_transcription(self, user_id, audio_data, username):
+        return type(self)._queue_for_transcription(self, user_id, audio_data, username)
+
+    def _cancel_silence_timer(self, user_id):
+        return type(self)._cancel_silence_timer(self, user_id)
+
+    def _schedule_silence_timer(self, user_id, username, audio_data, channel_id):
+        return type(self)._schedule_silence_timer(self, user_id, username, audio_data, channel_id)
+
+    def _is_locked(self, guild_id):
+        return type(self)._is_locked(self, guild_id)
+
+    def _release_lock(self, guild_id):
+        return type(self)._release_lock(self, guild_id)
+
+    def _set_lock(self, guild_id, duration=20.0):
+        return type(self)._set_lock(self, guild_id, duration)
+
+    @staticmethod
+    def _pcm_to_wav_base64(audio_data, sample_rate=16000):
+        from serin.gateway.voice_system.audio.audio_utils import _pcm_to_wav_base64
+        return _pcm_to_wav_base64(audio_data, sample_rate)
+
+    async def _transcribe_with_gemma(self, audio_data, username="User"):
+        from serin.gateway.voice_system.audio.audio_utils import _transcribe_with_gemma
+        return await _transcribe_with_gemma(self, audio_data, username)
+
 
 class VoiceBehaviorManager:
     """

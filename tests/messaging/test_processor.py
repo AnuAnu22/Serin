@@ -59,7 +59,7 @@ def test_audio_stream_processor_constants_wired():
 
 def test_silent_audio_does_not_queue():
     """Audio below VAD threshold should not queue for transcription."""
-    with patch.object(AudioStreamProcessor, "_queue_for_transcription") as mock_q:
+    with patch("serin.gateway.voice_system.audio.audio_vad._queue_for_transcription") as mock_q:
         processor = AudioStreamProcessor(
             transcriber=MagicMock(),
             voice_pipeline=MagicMock(),

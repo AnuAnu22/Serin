@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch, AsyncMock
 @pytest.mark.asyncio
 async def test_add_memory_skips_on_embedding_failure():
     """If embedding fails, memory write should return None, not write garbage."""
-    with patch("serin.pipeline.remember.store.SentenceTransformer") as mock_st:
+    with patch("serin.pipeline.remember.core.store.SentenceTransformer") as mock_st:
         mock_st.return_value.encode.side_effect = RuntimeError("Model not loaded")
 
         from serin.pipeline.remember.core.store import QdrantMemorySystem

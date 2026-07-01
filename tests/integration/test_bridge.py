@@ -17,8 +17,8 @@ from unittest.mock import MagicMock, patch, AsyncMock
 
 import pytest
 
-from serin.gateway.voice_system.bridge import RustVoiceBridge, RustStdoutReader
-
+from serin.gateway.voice_system.bridge_io.process_watch import RustVoiceBridge
+from serin.gateway.voice_system.bridge import RustStdoutReader
 
 # =========================================================================
 # RustStdoutReader protocol parsing tests

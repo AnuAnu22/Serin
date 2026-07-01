@@ -3,6 +3,7 @@ Extracted from store.py.
 """
 from datetime import datetime
 from typing import List, Dict, Optional
+from qdrant_client.http import models
 from serin.state.logger import logger
 
 
