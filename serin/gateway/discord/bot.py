@@ -63,7 +63,7 @@ except Exception:
     VoiceMemoryPipeline = VoiceOutputManager = VoiceBehaviorManager = None
     logger.warning("Voice dependencies not available. Voice features disabled.")
 
-from serin.ops.control_panel.server import init_bot_state, start_server
+from serin.ops.control_panel.panel_lifecycle import init_bot_state, start_server
 
 # TIER 7: TTS preparation
 from serin.gateway.voice_system.tts_engine import TTSEngine

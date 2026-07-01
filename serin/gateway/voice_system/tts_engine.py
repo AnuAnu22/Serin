@@ -1,12 +1,12 @@
+from typing import Any, Dict, List, Optional
+
 class TTSEngine:
     def __init__(
         self,
         model_name: str = "tts_models/multilingual/multi-dataset/xtts_v2",
         device: str = "cuda"
     ) -> None:
-        """
-from typing import Dict, List, Optional
-        Initialize TTS engine.
+        """Initialize TTS engine.
         Uses edge-tts by default (no model download needed).
         Falls back to Coqui XTTS v2 if available.
         """
