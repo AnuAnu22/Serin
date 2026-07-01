@@ -13,12 +13,12 @@ import io
 import json
 import queue
 import subprocess
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from serin.gateway.voice_system.bridge_io.process_watch import RustVoiceBridge
-from serin.gateway.voice_system.bridge import RustStdoutReader
+from serin.d1_2_gateway_io.d2_2_voice_system.d3_2_bridge_io.bridge import RustStdoutReader
+from serin.d1_2_gateway_io.d2_2_voice_system.d3_2_bridge_io.process_watch import RustVoiceBridge
 
 # =========================================================================
 # RustStdoutReader protocol parsing tests
@@ -460,7 +460,8 @@ def _patch_bg_tasks():
     created in start_with_info() are properly handled by AsyncMock.
     """
     from unittest.mock import AsyncMock
-    from serin.gateway.voice_system.bridge import RustVoiceBridge
+
+    from serin.d1_2_gateway_io.d2_2_voice_system.d3_2_bridge_io.process_watch import RustVoiceBridge
     return patch.multiple(
         RustVoiceBridge,
         _read_loop=AsyncMock(),

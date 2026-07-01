@@ -5,16 +5,17 @@ instantiated and that the silence-detection constants are correctly wired.
 This test does NOT require a Discord connection or PyNaCl — it only tests
 the in-process orchestration logic.
 """
-import pytest
-import numpy as np
 from unittest.mock import MagicMock, patch
 
-from serin.gateway.voice_system.processor import (
-    AudioStreamProcessor,
-    VAD_AMPLITUDE_THRESHOLD,
-    SILENCE_FRAMES_BEFORE_FLUSH,
+import numpy as np
+import pytest
+
+from serin.d1_2_gateway_io.d2_2_voice_system.d3_1_audio_pipeline.d4_1_process_core.audio_processor import (
     MIN_BUFFER_BYTES,
     PROCESSING_LOCK_SECONDS,
+    SILENCE_FRAMES_BEFORE_FLUSH,
+    VAD_AMPLITUDE_THRESHOLD,
+    AudioStreamProcessor,
 )
 
 
@@ -59,7 +60,7 @@ def test_audio_stream_processor_constants_wired():
 
 def test_silent_audio_does_not_queue():
     """Audio below VAD threshold should not queue for transcription."""
-    with patch("serin.gateway.voice_system.audio.audio_vad._queue_for_transcription") as mock_q:
+    with patch("serin.d1_2_gateway_io.d2_2_voice_system.d3_1_audio_pipeline.audio_vad._queue_for_transcription") as mock_q:
         processor = AudioStreamProcessor(
             transcriber=MagicMock(),
             voice_pipeline=MagicMock(),

@@ -6,8 +6,8 @@ from unittest.mock import MagicMock
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from serin.pipeline.ingest.core.manager import EnhancedMessageManagerV3
-from serin.state.model_system.interface import ModelInterface
+from serin.d1_1_pipeline_flow.d2_1_ingest_stage.d3_2_core_process.manager import EnhancedMessageManagerV3
+from serin.d1_3_state_core.d2_3_model_system.interface import ModelInterface
 
 # Mock dependencies
 class MockModelConnector(ModelInterface):
@@ -28,7 +28,7 @@ class MockModelConnector(ModelInterface):
         return {"model_name": "mock"}
 
 # Mock get_model_connector in the module where it is used
-import serin.pipeline.ingest.core.manager as enhanced_message_manager
+import serin.d1_1_pipeline_flow.d2_1_ingest_stage.d3_2_core_process.manager as enhanced_message_manager
 enhanced_message_manager.get_model_connector = lambda **kwargs: MockModelConnector()
 
 def test_initialization():

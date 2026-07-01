@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Import testing modules
 try:
-    from serin.pipeline.remember.core.store import QdrantMemorySystem
-    from serin.pipeline.remember.core.bm25_index import SQLiteBM25Index
+    from serin.d1_1_pipeline_flow.d2_4_remember_stage.d3_1_core_store.store import QdrantMemorySystem
+    from serin.d1_1_pipeline_flow.d2_4_remember_stage.d3_1_core_store.bm25_index import SQLiteBM25Index
     QDRANT_AVAILABLE = True
 except ImportError:
     QDRANT_AVAILABLE = False
@@ -189,7 +189,7 @@ class TestQdrantMigration:
         if QDRANT_AVAILABLE:
             try:
                 # Mock Qdrant client for testing
-                import serin.pipeline.remember.store as qdrant_memory_system
+                import serin.d1_1_pipeline_flow.d2_4_remember_stage.store as qdrant_memory_system
                 original_client = qdrant_memory_system.QdrantClient
                 qdrant_memory_system.QdrantClient = MockQdrantClient
                 
@@ -215,7 +215,7 @@ class TestQdrantMigration:
         """Test SQLite schema initialization"""
         if QDRANT_AVAILABLE:
             # Mock Qdrant client
-            import serin.pipeline.remember.store as qdrant_memory_system
+            import serin.d1_1_pipeline_flow.d2_4_remember_stage.store as qdrant_memory_system
             original_client = qdrant_memory_system.QdrantClient
             qdrant_memory_system.QdrantClient = MockQdrantClient
             
@@ -250,7 +250,7 @@ class TestQdrantMigration:
             raise Exception("Qdrant not available for testing")
         
         # Mock Qdrant client and embedding model
-        import serin.pipeline.remember.store as qdrant_memory_system
+        import serin.d1_1_pipeline_flow.d2_4_remember_stage.store as qdrant_memory_system
         original_client = qdrant_memory_system.QdrantClient
         original_model = qdrant_memory_system.SentenceTransformer
         
@@ -299,7 +299,7 @@ class TestQdrantMigration:
             raise Exception("Qdrant not available for testing")
         
         # Mock dependencies
-        import serin.pipeline.remember.store as qdrant_memory_system
+        import serin.d1_1_pipeline_flow.d2_4_remember_stage.store as qdrant_memory_system
         original_client = qdrant_memory_system.QdrantClient
         original_model = qdrant_memory_system.SentenceTransformer
         original_bm25 = qdrant_memory_system.rank_bm25
@@ -361,7 +361,7 @@ class TestQdrantMigration:
         """Test user management functionality"""
         if QDRANT_AVAILABLE:
             # Mock Qdrant client
-            import serin.pipeline.remember.store as qdrant_memory_system
+            import serin.d1_1_pipeline_flow.d2_4_remember_stage.store as qdrant_memory_system
             original_client = qdrant_memory_system.QdrantClient
             qdrant_memory_system.QdrantClient = MockQdrantClient
             
@@ -439,7 +439,7 @@ class TestQdrantMigration:
             raise Exception("Qdrant not available for testing")
         
         # Mock Qdrant client
-        import serin.pipeline.remember.store as qdrant_memory_system
+        import serin.d1_1_pipeline_flow.d2_4_remember_stage.store as qdrant_memory_system
         original_client = qdrant_memory_system.QdrantClient
         qdrant_memory_system.QdrantClient = MockQdrantClient
         
@@ -473,7 +473,7 @@ class TestQdrantMigration:
         """Test statistics and monitoring functionality"""
         if QDRANT_AVAILABLE:
             # Mock Qdrant client
-            import serin.pipeline.remember.store as qdrant_memory_system
+            import serin.d1_1_pipeline_flow.d2_4_remember_stage.store as qdrant_memory_system
             original_client = qdrant_memory_system.QdrantClient
             qdrant_memory_system.QdrantClient = MockQdrantClient
             
@@ -515,7 +515,7 @@ class TestQdrantMigration:
             raise Exception("Qdrant not available for testing")
         
         # Mock Qdrant client
-        import serin.pipeline.remember.store as qdrant_memory_system
+        import serin.d1_1_pipeline_flow.d2_4_remember_stage.store as qdrant_memory_system
         original_client = qdrant_memory_system.QdrantClient
         qdrant_memory_system.QdrantClient = MockQdrantClient
         
