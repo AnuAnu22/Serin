@@ -34,3 +34,8 @@ beyond the scope of this structural migration.
 - `voice/rust_voice_bridge.py` was a known duplicate of `voice/bridge.py`
 - `voice/audio_stream_processor.py` was a known duplicate of `voice/processor.py`
 - These were resolved in this migration (deleted, importers consolidated)
+
+## discord_bot.py star import
+- discord_bot.py uses `from serin.gateway.discord.bot import *` at the entry point.
+- Low priority: if bot.py ever adds a name that shadows a builtin or conflicts
+  with bot_pipeline_init, it'll be invisible. Make imports explicit when convenient.
