@@ -20,10 +20,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from serin.config.config import config
-from serin.logger import logger
 from serin.ops.control_panel.panel_control import register_control_routes
 from serin.ops.control_panel.panel_voice import register_voice_routes
 from serin.ops.control_panel.routes import register_enhanced_routes
+from serin.state.logger import logger
 
 
 def make_json_safe(obj: Any) -> Any:

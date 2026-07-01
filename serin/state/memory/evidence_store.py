@@ -8,7 +8,7 @@ reliability tier and an auto-supersede mechanism for board/game state.
 import uuid
 from datetime import datetime
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 _SQL_TEMPLATE_FACT_SEARCH = """
     SELECT f.*,

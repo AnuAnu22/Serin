@@ -5,7 +5,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from serin.config.config import config
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 def register_voice_routes(app):

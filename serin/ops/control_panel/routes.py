@@ -10,7 +10,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 QDRANT_AVAILABLE = importlib.util.find_spec("qdrant_client") is not None
 

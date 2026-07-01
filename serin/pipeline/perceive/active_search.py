@@ -5,7 +5,7 @@ Decides when to search and what to search for.
 import json
 import re
 
-from serin.logger import logger
+from serin.state.logger import logger
 from serin.state.model_system.interface import ModelInterface
 
 

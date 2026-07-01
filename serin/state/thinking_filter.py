@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 from re import Pattern
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 class ThinkingFilter:

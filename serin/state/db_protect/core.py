@@ -3,7 +3,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 class DatabaseValidationError(Exception):

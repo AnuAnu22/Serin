@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 import discord
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 class BackfillMixin:

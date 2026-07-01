@@ -6,7 +6,7 @@ import os
 from typing import Any
 
 from serin.gateway.voice_system.bridge import RustStdoutReader
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 async def send_tts_audio(self, audio_data: bytes) -> None:

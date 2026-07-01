@@ -8,7 +8,7 @@ from collections.abc import Callable
 from typing import Any
 
 from serin.gateway.voice_system.bridge import RustStdoutReader
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 class RustVoiceBridge:

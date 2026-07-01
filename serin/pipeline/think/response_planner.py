@@ -11,8 +11,8 @@ but it cannot ignore high-confidence beliefs or direct evidence.
 """
 from __future__ import annotations
 
-from serin.logger import logger
 from serin.pipeline.act.runners.pipeline import PipelineStage
+from serin.state.logger import logger
 from serin.state.message_context import MessageContext
 
 # Intent → default strategy

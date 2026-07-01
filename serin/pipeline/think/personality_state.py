@@ -1,7 +1,7 @@
 """PersonalityState — tone modifier from conversation mood."""
 from datetime import datetime
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 class PersonalityState:

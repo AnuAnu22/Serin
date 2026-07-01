@@ -5,7 +5,7 @@ from datetime import datetime
 
 from qdrant_client.http import models
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 def search_hybrid(store, query: str, user_id: str | None = None, n_results: int = 5, **filters) -> list[dict]:

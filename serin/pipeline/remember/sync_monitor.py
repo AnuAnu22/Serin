@@ -10,7 +10,7 @@ from collections import defaultdict, deque
 from datetime import datetime
 from typing import Any
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 class MemorySyncMonitor:

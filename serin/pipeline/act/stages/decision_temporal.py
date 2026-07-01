@@ -6,8 +6,8 @@ Sets ctx.should_respond. If False, sets ctx.halt_reason and pipeline halts.
 """
 from __future__ import annotations
 
-from serin.logger import logger
 from serin.pipeline.act.stages_base import PipelineStage
+from serin.state.logger import logger
 from serin.state.message_context import MessageContext
 
 

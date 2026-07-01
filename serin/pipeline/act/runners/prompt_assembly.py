@@ -10,9 +10,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from serin.logger import logger
 from serin.pipeline.act.runners.pipeline import PipelineStage
 from serin.pipeline.think.response_generator import build_natural_system_prompt
+from serin.state.logger import logger
 from serin.state.message_context import MessageContext
 
 

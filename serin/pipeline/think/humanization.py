@@ -3,7 +3,7 @@
 import re
 import secrets
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 def _rand() -> float:

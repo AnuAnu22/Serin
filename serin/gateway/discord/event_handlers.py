@@ -6,7 +6,7 @@ import discord
 
 from serin.config.config import config
 from serin.gateway.discord.bot import client, stats
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 @client.event

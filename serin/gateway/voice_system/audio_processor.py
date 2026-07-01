@@ -8,7 +8,7 @@ from typing import Any
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from serin.config.config import config
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 def _rand() -> float:

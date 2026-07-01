@@ -10,10 +10,10 @@ import re
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from serin.logger import logger
 from serin.pipeline.remember.temporal import (
     TemporalFormatter,
 )
+from serin.state.logger import logger
 
 if TYPE_CHECKING:
     from serin.pipeline.remember.qdrant import QdrantMemorySystem

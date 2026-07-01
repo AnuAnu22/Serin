@@ -19,7 +19,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 # Load environment variables
 load_dotenv()

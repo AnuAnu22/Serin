@@ -14,8 +14,8 @@ Usage:
 """
 from __future__ import annotations
 
-from serin.logger import logger
 from serin.pipeline.act.stages_base import PipelineStage
+from serin.state.logger import logger
 from serin.state.message_context import MessageContext
 
 

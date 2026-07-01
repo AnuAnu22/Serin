@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 import discord
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 if TYPE_CHECKING:
     from serin.ops.background import BackgroundProcessor

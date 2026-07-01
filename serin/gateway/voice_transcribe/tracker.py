@@ -9,7 +9,7 @@ from secrets import choice, randbelow
 from typing import Any
 
 from serin.config.debug_logger import log_voice
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 def _rand() -> float:

@@ -18,7 +18,6 @@ import discord
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 from serin.config.config import config
-from serin.logger import logger
 from serin.pipeline.ingest.context.context_builder import ConversationContextBuilder
 from serin.pipeline.ingest.context.mention_translator import MentionTranslator
 from serin.pipeline.ingest.core.correction_handler import (
@@ -35,6 +34,7 @@ from serin.pipeline.remember.knowledge.memory_context import (
 from serin.pipeline.remember.qdrant import QdrantMemorySystem
 from serin.pipeline.think.personality_state import PersonalityState
 from serin.pipeline.think.response_controller import ResponseController
+from serin.state.logger import logger
 from serin.state.model_system.factory import get_model_connector
 
 

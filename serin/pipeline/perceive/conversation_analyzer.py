@@ -4,7 +4,7 @@ Analyzes conversation flow instead of individual messages.
 """
 from datetime import datetime
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 class ConversationAnalyzer:

@@ -11,8 +11,8 @@ import shutil
 import sqlite3
 import time as time_mod
 
-from serin.logger import logger
 from serin.pipeline.remember.core.bm25_index import SQLiteBM25Index
+from serin.state.logger import logger
 from serin.state.memory.belief_store import BeliefStore
 from serin.state.memory.evidence_store import FactStore
 

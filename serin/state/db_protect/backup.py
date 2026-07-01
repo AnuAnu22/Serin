@@ -5,8 +5,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from serin.logger import logger
 from serin.state.db_protect.core import DatabaseProtectorCore, DatabaseRecoveryError
+from serin.state.logger import logger
 
 
 class DatabaseProtectorBackup(DatabaseProtectorCore):

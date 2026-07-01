@@ -1,6 +1,6 @@
 from typing import Any
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 def register_control_routes(app):

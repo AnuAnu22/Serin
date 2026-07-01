@@ -18,7 +18,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Import VoiceProtocol from _types to avoid requiring py-cord[voice] deps
 from discord.voice._types import VoiceProtocol
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 class InfoCaptureProtocol(VoiceProtocol):

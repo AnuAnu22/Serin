@@ -26,7 +26,6 @@ from serin.config.config import config
 
 # TIER 1: Core Message Processing
 from serin.gateway.voice_system.tts_engine import TTSEngine
-from serin.logger import logger
 from serin.ops.background import BackgroundProcessor
 
 # TIER 3: Background Processing
@@ -42,6 +41,7 @@ from serin.state.db_protect import (
     DatabaseValidationError,
     get_database_protector,
 )
+from serin.state.logger import logger
 
 # TIER 6: Import voice and control panel components
 voice_available = False

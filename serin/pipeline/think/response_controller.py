@@ -13,7 +13,7 @@ from typing import Any
 
 import discord
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 def _rand() -> float:

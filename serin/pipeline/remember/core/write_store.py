@@ -9,7 +9,7 @@ from datetime import datetime
 from qdrant_client.http import models
 
 from serin.config.debug_logger import log_memory
-from serin.logger import logger
+from serin.state.logger import logger
 from serin.state.thinking_filter import filter_for_memory
 
 

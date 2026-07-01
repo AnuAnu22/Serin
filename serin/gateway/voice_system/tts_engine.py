@@ -14,7 +14,7 @@ from serin.gateway.voice_system.output import (
     EDGE_TTS_AVAILABLE,
     EDGE_VOICE_PRESETS,
 )
-from serin.logger import logger
+from serin.state.logger import logger
 
 # Try importing backends
 try:

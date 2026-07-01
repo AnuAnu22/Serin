@@ -5,7 +5,7 @@ from datetime import datetime
 
 import numpy as np
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 def _detect_voice_activity(self, audio_data: bytes) -> bool:

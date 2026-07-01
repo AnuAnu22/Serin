@@ -7,7 +7,7 @@ from typing import Any
 import docker
 
 from serin.config.config import config
-from serin.logger import logger
+from serin.state.logger import logger
 
 # Qdrant imports
 try:

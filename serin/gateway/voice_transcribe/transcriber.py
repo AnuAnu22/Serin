@@ -16,7 +16,7 @@ from typing import Any
 import numpy as np
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from serin.logger import logger
+from serin.state.logger import logger
 
 # Import faster-whisper (install: pip install faster-whisper)
 try:

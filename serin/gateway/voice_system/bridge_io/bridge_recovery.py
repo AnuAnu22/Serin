@@ -4,7 +4,7 @@ import threading
 import time
 from collections.abc import Callable
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 def _handle_process_death(self) -> None:

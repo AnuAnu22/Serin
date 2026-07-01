@@ -14,7 +14,7 @@ import json
 import uuid
 from datetime import datetime
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 _SQL_TEMPLATE_BELIEF_SEARCH = """
     SELECT * FROM beliefs

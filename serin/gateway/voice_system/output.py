@@ -2,7 +2,7 @@ import asyncio
 import importlib
 from typing import Any
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 class VoiceOutputManager:

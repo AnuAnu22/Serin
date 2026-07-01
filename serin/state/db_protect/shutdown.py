@@ -1,8 +1,8 @@
 import os
 from datetime import datetime
 
-from serin.logger import logger
 from serin.state.db_protect.recovery import DatabaseProtectorRecovery
+from serin.state.logger import logger
 
 
 class DatabaseProtectorShutdown(DatabaseProtectorRecovery):

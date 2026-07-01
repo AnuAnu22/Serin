@@ -5,7 +5,7 @@ Shows exactly what bot sees, processes, and stores
 from typing import Any
 
 from serin.config.config import config
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 class DebugLogger:

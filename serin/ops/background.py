@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Any
 
 from serin.config.debug_logger import log_summary
-from serin.logger import logger
+from serin.state.logger import logger
 from serin.state.model_system.factory import get_model_connector
 from serin.state.model_system.interface import ModelInterface
 from serin.state.thinking_filter import filter_thinking

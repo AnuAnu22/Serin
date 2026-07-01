@@ -2,8 +2,8 @@
 from datetime import datetime
 from typing import Any
 
-from serin.logger import logger
 from serin.pipeline.remember.knowledge.retrieval import HumanLikeMemoryRetriever
+from serin.state.logger import logger
 
 
 class MemoryQualityAssessor:

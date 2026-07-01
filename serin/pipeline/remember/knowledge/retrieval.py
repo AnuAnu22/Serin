@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 @dataclass

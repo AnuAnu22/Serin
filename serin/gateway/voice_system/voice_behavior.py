@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 
 from serin.gateway.voice_system.audio_processor import _rand, _uniform
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 class VoiceBehaviorManager:

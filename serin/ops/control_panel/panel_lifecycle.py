@@ -7,8 +7,8 @@ from typing import Any
 import uvicorn
 
 from serin.config.config import config
-from serin.logger import logger
 from serin.ops.control_panel.server import bot_state, broadcast_log
+from serin.state.logger import logger
 
 
 def init_bot_state(

@@ -26,10 +26,10 @@ from serin.gateway.discord.command_handlers import (
     handle_profile_command,
     handle_stats_command,
 )
-from serin.logger import logger
 from serin.ops.control_panel.panel_lifecycle import init_bot_state, start_server
 from serin.ops.control_panel.server import bot_state
 from serin.state.db_protect import DatabaseRecoveryError, DatabaseValidationError
+from serin.state.logger import logger
 
 
 @client.event
@@ -41,8 +41,8 @@ async def on_ready() -> None:
 
     from serin.gateway.discord.bot import voice_available
     from serin.gateway.voice_system.tts_engine import TTSEngine
-    from serin.logger import logger
     from serin.pipeline.remember.qdrant import QdrantMemorySystem
+    from serin.state.logger import logger
 
     stats['start_time'] = asyncio.get_running_loop().time()
 

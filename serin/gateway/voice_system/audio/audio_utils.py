@@ -6,7 +6,7 @@ import wave
 
 import numpy as np
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 def _pcm_to_wav_base64(audio_data: bytes, sample_rate: int = 16000) -> str:

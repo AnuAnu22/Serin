@@ -3,8 +3,8 @@ import sqlite3
 import tarfile
 from pathlib import Path
 
-from serin.logger import logger
 from serin.state.db_protect.backup import DatabaseProtectorBackup
+from serin.state.logger import logger
 
 _SQL_SELECT_ALL = "SELECT * FROM {t}"
 _SQL_INSERT_VALUES = "INSERT INTO {t} VALUES ({p})"

@@ -12,10 +12,10 @@ import sqlite3
 import time as time_mod
 from typing import Any
 
-from serin.logger import logger
 from serin.pipeline.remember.core.bm25_index import SQLiteBM25Index
 from serin.pipeline.remember.knowledge.beliefs import BeliefStore
 from serin.pipeline.remember.knowledge.evidence import FactStore
+from serin.state.logger import logger
 
 # Qdrant imports
 try:

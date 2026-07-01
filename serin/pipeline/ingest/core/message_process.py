@@ -7,9 +7,9 @@ import discord
 
 from serin.config.config import config
 from serin.config.debug_logger import log_correction, log_message
-from serin.logger import logger
 from serin.pipeline.ingest.core.correction_handler import get_correction_acknowledgment
 from serin.pipeline.think.response_generator import get_response_natural
+from serin.state.logger import logger
 
 
 async def process_voice_input(self, user_id: str, username: str, channel_id: str, transcription: str, wav_b64: str | None = None) -> None:

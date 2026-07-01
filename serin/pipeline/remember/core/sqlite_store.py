@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from qdrant_client.http import models
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 def upsert_user(store, user_id: str, username: str, display_name: str = None) -> None:

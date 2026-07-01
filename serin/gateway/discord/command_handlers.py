@@ -4,7 +4,7 @@ from typing import Any
 
 import discord
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 async def handle_profile_command(

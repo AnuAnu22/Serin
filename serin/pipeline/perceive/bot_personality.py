@@ -5,7 +5,7 @@ The bot has its own preferences, opinions, and can express them naturally.
 import secrets
 import sqlite3
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 def _rand() -> float:

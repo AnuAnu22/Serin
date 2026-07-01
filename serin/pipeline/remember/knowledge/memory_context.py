@@ -6,7 +6,7 @@ Handles advanced memory context processing and system prompt enhancement
 from datetime import datetime
 from typing import Any
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 class EnhancedMemoryContext:

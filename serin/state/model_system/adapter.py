@@ -7,7 +7,7 @@ import re
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 class ModelDetector:

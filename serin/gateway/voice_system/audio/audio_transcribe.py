@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 async def _transcribe_and_store(self, item: dict[str, Any]) -> None:

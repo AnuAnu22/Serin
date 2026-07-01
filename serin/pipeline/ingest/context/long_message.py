@@ -5,7 +5,7 @@ Humans don't always process long messages well - they react to length
 import secrets
 from typing import Any
 
-from serin.logger import logger
+from serin.state.logger import logger
 
 
 def _rand() -> float:
