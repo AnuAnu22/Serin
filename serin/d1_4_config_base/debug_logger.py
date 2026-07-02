@@ -2,10 +2,12 @@
 Debug Logger - Comprehensive debug information system
 Shows exactly what bot sees, processes, and stores
 """
+import logging
 from typing import Any
 
-from serin.d1_3_state_core.logger import logger
 from serin.d1_4_config_base.config import config
+
+logger = logging.getLogger(__name__)
 
 
 class DebugLogger:

@@ -1,14 +1,19 @@
 """Hybrid search methods — BM25 + vector + rerank.
 Extracted from store.py.
 """
+import sqlite3
 from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
 from qdrant_client.http import models
 
 from serin.d1_3_state_core.logger import logger
 
+if TYPE_CHECKING:
+    from serin.d1_1_pipeline_flow.remember.core.store import QdrantMemorySystem
 
-def search_hybrid(store, query: str, user_id: str | None = None, n_results: int = 5, **filters) -> list[dict]:
+
+def search_hybrid(store: 'QdrantMemorySystem', query: str, user_id: str | None = None, n_results: int = 5, **filters: Any) -> list[dict[str, Any]]:
         """Hybrid search: BM25 + Vector + Rerank"""
         logger.debug("memory.search_start", extra={
             "query_preview": query[:50],
@@ -16,7 +21,7 @@ def search_hybrid(store, query: str, user_id: str | None = None, n_results: int 
             "n_results": n_results,
         })
         try:
-            bm25_candidates = []
+            bm25_candidates: list[dict[str, Any]] = []
             if store.bm25_index:
                 try:
                     bm25_candidates = store.bm25_index.search(
@@ -31,7 +36,7 @@ def search_hybrid(store, query: str, user_id: str | None = None, n_results: int 
                         "query_preview": query[:50],
                     })
 
-            vector_candidates = []
+            vector_candidates: list[dict[str, Any]] = []
             if store.qdrant_client and store.embedding_model:
                 try:
                     qdrant_filter = store._build_qdrant_filter(user_id, filters)
@@ -50,9 +55,9 @@ def search_hybrid(store, query: str, user_id: str | None = None, n_results: int 
                         "query_preview": query[:50],
                     })
 
-            merged_candidates = store._merge_candidates(bm25_candidates, vector_candidates)
-            reranked_results = store._rerank_results_simple(query, merged_candidates, n_results)
-            results = store._condense_results(reranked_results)
+            merged_candidates = _merge_candidates(store, bm25_candidates, vector_candidates)
+            reranked_results = _rerank_results_simple(store, query, merged_candidates, n_results)
+            results = _condense_results(store, reranked_results)
             logger.debug("memory.search_complete", extra={
                 "query_preview": query[:50],
                 "results_count": len(results),
@@ -66,9 +71,9 @@ def search_hybrid(store, query: str, user_id: str | None = None, n_results: int 
             }, exc_info=True)
             return []
 
-def _build_qdrant_filter(store, user_id: str | None, filters: dict) -> models.Filter:
+def _build_qdrant_filter(store: 'QdrantMemorySystem', user_id: str | None, filters: dict[str, Any]) -> models.Filter | None:
         """Build Qdrant payload filter"""
-        conditions = []
+        conditions: list[models.Condition] = []
 
         if user_id:
             conditions.append(models.FieldCondition(key="person_id", match=models.MatchValue(value=user_id)))
@@ -83,7 +88,8 @@ def _build_qdrant_filter(store, user_id: str | None, filters: dict) -> models.Fi
                     start_ts = datetime.fromisoformat(start_ts.replace('Z', '+00:00')).timestamp()
                 except Exception:
                     logger.exception("Failed to parse start_time filter as ISO datetime")
-            conditions.append(models.FieldCondition(key="timestamp_ts", range=models.Range(gte=start_ts)))
+                    start_ts = 0.0
+            conditions.append(models.FieldCondition(key="timestamp_ts", range=models.Range(gte=float(start_ts))))
 
         if filters.get('end_time'):
             end_ts = filters['end_time']
@@ -92,17 +98,18 @@ def _build_qdrant_filter(store, user_id: str | None, filters: dict) -> models.Fi
                     end_ts = datetime.fromisoformat(end_ts.replace('Z', '+00:00')).timestamp()
                 except Exception:
                     logger.exception("Failed to parse end_time filter as ISO datetime")
-            conditions.append(models.FieldCondition(key="timestamp_ts", range=models.Range(lte=end_ts)))
+                    end_ts = 0.0
+            conditions.append(models.FieldCondition(key="timestamp_ts", range=models.Range(lte=float(end_ts))))
 
         if filters.get('min_importance'):
-            conditions.append(models.FieldCondition(key="importance", range=models.Range(gte=filters['min_importance'])))
+            conditions.append(models.FieldCondition(key="importance", range=models.Range(gte=float(filters['min_importance']))))
 
         if filters.get('memory_type'):
             conditions.append(models.FieldCondition(key="memory_type", match=models.MatchValue(value=filters['memory_type'])))
 
         return models.Filter(must=conditions) if conditions else None
 
-def _merge_candidates(store, bm25_candidates: list[dict], vector_candidates: list[dict]) -> list[dict]:
+def _merge_candidates(store: 'QdrantMemorySystem', bm25_candidates: list[dict[str, Any]], vector_candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Merge results from BM25 and vector search"""
         merged = {}
 
@@ -147,7 +154,7 @@ def _merge_candidates(store, bm25_candidates: list[dict], vector_candidates: lis
 
         return result_list
 
-def _rerank_results_simple(store, query: str, candidates: list[dict], top_k: int = 30) -> list[dict]:
+def _rerank_results_simple(store: 'QdrantMemorySystem', query: str, candidates: list[dict[str, Any]], top_k: int = 30) -> list[dict[str, Any]]:
         """Simple reranking based on recency and importance"""
         if len(candidates) <= top_k:
             return candidates
@@ -157,38 +164,41 @@ def _rerank_results_simple(store, query: str, candidates: list[dict], top_k: int
 
         try:
             import serin_core
-            scores = [c.get('combined_score', 0) for c in top_candidates]
-            age_days_list = []
-            for c in top_candidates:
-                payload = c.get('payload', {})
-                timestamp = payload.get('timestamp', '')
-                try:
-                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                    age_days_list.append(float((datetime.now() - dt).days))
-                except Exception:
-                    age_days_list.append(0.0)
-            ranked = serin_core.rerank_candidates(scores, age_days_list)
-            return [top_candidates[i] for i, _ in ranked]
-        except ImportError:
-            for candidate in top_candidates:
-                payload = candidate.get('payload', {})
-                timestamp = payload.get('timestamp')
-                if timestamp:
+            rerank_fn = getattr(serin_core, 'rerank_candidates', None)
+            if rerank_fn is not None:
+                scores = [c.get('combined_score', 0) for c in top_candidates]
+                age_days_list = []
+                for c in top_candidates:
+                    payload = c.get('payload', {})
+                    timestamp = payload.get('timestamp', '')
                     try:
                         dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                        age_days = (datetime.now() - dt).days
-                        recency_boost = max(0, 1 - (age_days / 365))
-                        candidate['rerank_score'] = candidate['combined_score'] + (recency_boost * 0.2)
+                        age_days_list.append(float((datetime.now() - dt).days))
                     except Exception:
-                        candidate['rerank_score'] = candidate['combined_score']
-                else:
+                        age_days_list.append(0.0)
+                ranked = rerank_fn(scores, age_days_list)
+                return [top_candidates[i] for i, _ in ranked]
+        except ImportError:
+            pass
+        for candidate in top_candidates:
+            payload = candidate.get('payload', {})
+            timestamp = payload.get('timestamp')
+            if timestamp:
+                try:
+                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                    age_days = (datetime.now() - dt).days
+                    recency_boost = max(0, 1 - (age_days / 365))
+                    candidate['rerank_score'] = candidate['combined_score'] + (recency_boost * 0.2)
+                except Exception:
                     candidate['rerank_score'] = candidate['combined_score']
-                importance = payload.get('importance', 0.5)
-                candidate['rerank_score'] += (importance - 0.5) * 0.1
-            top_candidates.sort(key=lambda x: x['rerank_score'], reverse=True)
-            return top_candidates
+            else:
+                candidate['rerank_score'] = candidate['combined_score']
+            importance = payload.get('importance', 0.5)
+            candidate['rerank_score'] += (importance - 0.5) * 0.1
+        top_candidates.sort(key=lambda x: x['rerank_score'], reverse=True)
+        return top_candidates
 
-def _condense_results(store, results: list[dict]) -> list[dict]:
+def _condense_results(store: 'QdrantMemorySystem', results: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Condense results to final format"""
         condensed = []
 
@@ -200,7 +210,7 @@ def _condense_results(store, results: list[dict]) -> list[dict]:
                 'timestamp': payload.get('timestamp', ''),
                 'emotional_tone': payload.get('emotional_tone', 'neutral'),
                 'relevance': result.get('rerank_score', result.get('combined_score', 0)),
-                'age_days': store._calculate_age_days(payload.get('timestamp', '')),
+                'age_days': _calculate_age_days(store, str(payload.get('timestamp', ''))),
                 'channel_id': payload.get('channel_id', ''),
                 'participants': payload.get('participants', []),
                 'memory_type': payload.get('memory_type', 'utterance'),
@@ -209,7 +219,7 @@ def _condense_results(store, results: list[dict]) -> list[dict]:
 
         return condensed
 
-def _calculate_age_days(store, timestamp: str) -> int:
+def _calculate_age_days(store: 'QdrantMemorySystem', timestamp: str) -> int:
         """Calculate age in days from timestamp"""
         try:
             dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
@@ -217,11 +227,11 @@ def _calculate_age_days(store, timestamp: str) -> int:
         except Exception:
             return 0
 
-def _update_ingestion_stats(store, count: int):
+def _update_ingestion_stats(store: 'QdrantMemorySystem', count: int) -> None:
         """Update ingestion statistics"""
         today = datetime.now().date().isoformat()
 
-        cursor = store.conn.cursor()
+        cursor: sqlite3.Cursor = store.conn.cursor()
         cursor.execute("""
             INSERT OR REPLACE INTO memory_stats
             (date, total_memories, ingestion_count)

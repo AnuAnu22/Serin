@@ -2,7 +2,10 @@
 Conversation Analyzer - Multi-Message Reasoning
 Analyzes conversation flow instead of individual messages.
 """
+from __future__ import annotations
+
 from datetime import datetime
+from typing import Any
 
 from serin.d1_3_state_core.logger import logger
 
@@ -10,14 +13,14 @@ from serin.d1_3_state_core.logger import logger
 class ConversationAnalyzer:
     def __init__(self) -> None:
         """Initialize conversation analyzer"""
-        self.active_topics = {}  # channel_id -> current topic
-        self.topic_history = {}  # channel_id -> list of past topics
+        self.active_topics: dict[str, str] = {}  # channel_id -> current topic
+        self.topic_history: dict[str, list[dict[str, Any]]] = {}  # channel_id -> list of past topics
 
     def analyze_conversation_flow(
         self,
-        messages: list[dict],
+        messages: list[dict[str, Any]],
         channel_id: str
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Analyze the flow of last N messages as a unit.
 
@@ -79,7 +82,7 @@ class ConversationAnalyzer:
             logger.error(f" Error analyzing conversation: {e}")
             return self._empty_analysis()
 
-    def _detect_topic(self, messages: list[dict]) -> str | None:
+    def _detect_topic(self, messages: list[dict[str, Any]]) -> str | None:
         """
         Detect main topic from messages.
         Uses keyword frequency and noun extraction (simple).
@@ -98,7 +101,7 @@ class ConversationAnalyzer:
                     'in', 'on', 'at', 'to', 'for', 'o', 'with', 'by', 'about', 'what',
                     'this', 'that', 'it', 'you', 'i', 'we', 'they', 'he', 'she', 'do'}
 
-        word_freq = {}
+        word_freq: dict[str, int] = {}
         for word in words:
             clean_word = word.strip('.,!?')
             if len(clean_word) > 3 and clean_word not in stopwords:
@@ -106,12 +109,12 @@ class ConversationAnalyzer:
 
         if word_freq:
             # Get most common word as topic
-            topic = max(word_freq, key=word_freq.get)
+            topic = max(word_freq, key=word_freq.__getitem__)
             return topic
 
         return None
 
-    def _detect_patterns(self, messages: list[dict]) -> dict:
+    def _detect_patterns(self, messages: list[dict[str, Any]]) -> dict[str, Any]:
         """Detect conversation patterns"""
         if len(messages) < 2:
             return {}
@@ -126,7 +129,7 @@ class ConversationAnalyzer:
 
         return patterns
 
-    def _is_back_and_forth(self, messages: list[dict]) -> bool:
+    def _is_back_and_forth(self, messages: list[dict[str, Any]]) -> bool:
         """Check if conversation is back-and-forth between 2 people"""
         if len(messages) < 3:
             return False
@@ -136,14 +139,14 @@ class ConversationAnalyzer:
 
         return len(unique_users) == 2 and len(messages) >= 3
 
-    def _is_group_discussion(self, messages: list[dict]) -> bool:
+    def _is_group_discussion(self, messages: list[dict[str, Any]]) -> bool:
         """Check if conversation involves 3+ people"""
         users = set(msg.get('user_id') or msg.get('user_name') for msg in messages)
         return len(users) >= 3
 
-    def _analyze_participants(self, messages: list[dict]) -> dict:
+    def _analyze_participants(self, messages: list[dict[str, Any]]) -> dict[str, Any]:
         """Analyze participant involvement"""
-        participant_msgs = {}
+        participant_msgs: dict[str, int] = {}
 
         for msg in messages:
             user = msg.get('user_id') or msg.get('user_name', 'Unknown')
@@ -152,10 +155,10 @@ class ConversationAnalyzer:
         return {
             'count': len(participant_msgs),
             'message_distribution': participant_msgs,
-            'most_active': max(participant_msgs, key=participant_msgs.get) if participant_msgs else None
+            'most_active': max(participant_msgs, key=participant_msgs.__getitem__) if participant_msgs else None
         }
 
-    def _classify_conversation(self, messages: list[dict], patterns: dict) -> str:
+    def _classify_conversation(self, messages: list[dict[str, Any]], patterns: dict[str, Any]) -> str:
         """Classify type of conversation"""
         if patterns.get('has_questions'):
             return 'question_answer'
@@ -168,7 +171,7 @@ class ConversationAnalyzer:
         else:
             return 'casual_chat'
 
-    def _generate_summary(self, messages: list[dict], topic: str | None) -> str:
+    def _generate_summary(self, messages: list[dict[str, Any]], topic: str | None) -> str:
         """Generate brief conversation summary"""
         if not messages:
             return "No conversation"
@@ -181,7 +184,7 @@ class ConversationAnalyzer:
         else:
             return f"{participant_names} chatting"
 
-    def _empty_analysis(self) -> dict:
+    def _empty_analysis(self) -> dict[str, Any]:
         """Return empty analysis structure"""
         return {
             'current_topic': None,
@@ -193,7 +196,7 @@ class ConversationAnalyzer:
             'summary': 'No analysis available'
         }
 
-    def get_topic_history(self, channel_id: str, limit: int = 5) -> list[dict]:
+    def get_topic_history(self, channel_id: str, limit: int = 5) -> list[dict[str, Any]]:
         """Get recent topic history for a channel"""
         return self.topic_history.get(channel_id, [])[-limit:]
 

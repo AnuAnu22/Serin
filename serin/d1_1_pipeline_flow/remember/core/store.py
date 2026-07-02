@@ -5,17 +5,80 @@ This file owns the connection to external storage (Qdrant, SQLite) and exposes
 it via QdrantMemorySystem. Pure domain logic (fact extraction, belief state
 machines) lives in sibling modules evidence.py and beliefs.py.
 """
+from __future__ import annotations
+
 import importlib
 import os
 import shutil
 import sqlite3
 import time as time_mod
-from typing import Any
+from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
-from serin.d1_1_pipeline_flow.remember.core.bm25_index import SQLiteBM25Index
-from serin.d1_1_pipeline_flow.remember.knowledge.belief.beliefs import BeliefStore
-from serin.d1_1_pipeline_flow.remember.knowledge.belief.evidence import FactStore
+if TYPE_CHECKING:
+    from sentence_transformers import SentenceTransformer
+
+from serin.d1_1_pipeline_flow.remember.core.schema_store import (
+    init_sqlite_schema as _run_init_sqlite_schema,
+)
+from serin.d1_1_pipeline_flow.remember.core.storage.search_store import (
+    _build_qdrant_filter as _build_qdrant_filter_fn,
+)
+from serin.d1_1_pipeline_flow.remember.core.storage.search_store import (
+    search_hybrid as _run_search_hybrid,
+)
+from serin.d1_1_pipeline_flow.remember.core.storage.sqlite_store import (
+    cleanup_old_memories as _run_cleanup_old_memories,
+)
+from serin.d1_1_pipeline_flow.remember.core.storage.sqlite_store import (
+    get_latest_message as _run_get_latest_message,
+)
+from serin.d1_1_pipeline_flow.remember.core.storage.sqlite_store import (
+    get_message_at_position as _run_get_message_at_position,
+)
+from serin.d1_1_pipeline_flow.remember.core.storage.sqlite_store import (
+    get_message_by_id as _run_get_message_by_id,
+)
+from serin.d1_1_pipeline_flow.remember.core.storage.sqlite_store import (
+    get_message_count as _run_get_message_count,
+)
+from serin.d1_1_pipeline_flow.remember.core.storage.sqlite_store import (
+    get_messages_around_timestamp as _run_get_messages_around_timestamp,
+)
+from serin.d1_1_pipeline_flow.remember.core.storage.sqlite_store import (
+    get_recent_conversation_from_sqlite as _run_get_recent_conversation_from_sqlite,
+)
+from serin.d1_1_pipeline_flow.remember.core.storage.sqlite_store import (
+    get_user_profile as _run_get_user_profile,
+)
+from serin.d1_1_pipeline_flow.remember.core.storage.sqlite_store import (
+    get_user_relationships as _run_get_user_relationships,
+)
+from serin.d1_1_pipeline_flow.remember.core.storage.sqlite_store import (
+    log_activity as _run_log_activity,
+)
+from serin.d1_1_pipeline_flow.remember.core.storage.sqlite_store import (
+    store_recent_message as _run_store_recent_message,
+)
+from serin.d1_1_pipeline_flow.remember.core.storage.sqlite_store import (
+    update_relationship as _run_update_relationship,
+)
+from serin.d1_1_pipeline_flow.remember.core.storage.sqlite_store import (
+    update_user_activity as _run_update_user_activity,
+)
+from serin.d1_1_pipeline_flow.remember.core.storage.sqlite_store import (
+    update_user_traits as _run_update_user_traits,
+)
+from serin.d1_1_pipeline_flow.remember.core.storage.sqlite_store import (
+    upsert_user as _run_upsert_user,
+)
+from serin.d1_1_pipeline_flow.remember.core.storage.write_store import (
+    add_memory_enhanced as _run_add_memory_enhanced,
+)
+from serin.d1_3_state_core.bm25_index import SQLiteBM25Index
 from serin.d1_3_state_core.logger import logger
+from serin.d1_3_state_core.memory.belief_store import BeliefStore
+from serin.d1_3_state_core.memory.evidence_store import FactStore
 
 # Qdrant imports
 try:
@@ -40,6 +103,9 @@ if not BM25_AVAILABLE:
 
 
 class QdrantMemorySystem:
+    # Keep _build_qdrant_filter accessible on the instance for search_store.py
+    _build_qdrant_filter = _build_qdrant_filter_fn
+
     def __init__(self, data_dir: str = "./bot_data", qdrant_host: str = "localhost", qdrant_port: int = 6333) -> None:
         """Initialize Qdrant-based memory system with hybrid search capabilities"""
         logger.info(" Initializing Qdrant Memory System")
@@ -54,20 +120,20 @@ class QdrantMemorySystem:
             self.qdrant_client = None
 
         # Initialize embedding service
+        self.embedding_model: SentenceTransformer | None
+        self.embedding_dim = 384  # MiniLM dimension
         if EMBEDDING_AVAILABLE:
             try:
                 self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-                self.embedding_dim = 384  # MiniLM dimension
                 logger.info(" Embedding model loaded (all-MiniLM-L6-v2)")
             except Exception as e:
                 logger.error(f" Failed to load embedding model: {e}")
                 self.embedding_model = None
-                self.embedding_dim = 384
         else:
             self.embedding_model = None
-            self.embedding_dim = 384
 
         # Initialize BM25 index
+        self.bm25_index: SQLiteBM25Index | None
         if BM25_AVAILABLE:
             try:
                 self.bm25_index = SQLiteBM25Index(os.path.join(data_dir, "memory_fts.db"))
@@ -80,6 +146,7 @@ class QdrantMemorySystem:
 
         # Initialize SQLite for structured data
         self.db_path = os.path.join(data_dir, "bot_data.db")
+        self.conn: sqlite3.Connection
         self._init_sqlite_robust()
 
         # Domain-logic stores (delegated to evidence.py / beliefs.py)
@@ -91,7 +158,7 @@ class QdrantMemorySystem:
             self._setup_collection()
 
         # Background job queue (simplified implementation)
-        self.background_jobs = []
+        self.background_jobs: list[Any] = []
 
         logger.info(" Qdrant Memory System ready")
 
@@ -116,7 +183,7 @@ class QdrantMemorySystem:
         )
         return _run(host, port)
 
-    def _init_sqlite_robust(self):
+    def _init_sqlite_robust(self) -> None:
         """Initialize SQLite with corruption handling"""
         try:
             self._connect_and_init_schema()
@@ -126,7 +193,7 @@ class QdrantMemorySystem:
             # Try again with fresh DB
             self._connect_and_init_schema()
 
-    def _connect_and_init_schema(self):
+    def _connect_and_init_schema(self) -> None:
         """Connect to DB and initialize schema"""
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=30.0)
         self.conn.row_factory = sqlite3.Row
@@ -142,7 +209,7 @@ class QdrantMemorySystem:
         self.conn.execute("PRAGMA synchronous=NORMAL")
         self._init_sqlite_schema()
 
-    def _handle_corruption(self):
+    def _handle_corruption(self) -> None:
         """Handle corrupted database by backing up and deleting"""
         if os.path.exists(self.db_path):
             timestamp = int(time_mod.time())
@@ -162,15 +229,12 @@ class QdrantMemorySystem:
             except Exception as e:
                 logger.error(f" Error moving corrupt DB: {e}")
 
-    def _init_sqlite_schema(self):
-        from serin.d1_1_pipeline_flow.remember.core.schema_store import (
-            init_sqlite_schema as _run,
-        )
-        cursor = self.conn.cursor()
-        _run(self.conn, cursor)
+    def _init_sqlite_schema(self) -> None:
+        cursor: sqlite3.Cursor = self.conn.cursor()
+        _run_init_sqlite_schema(self.conn, cursor)
         self.conn.commit()
 
-    def _setup_collection(self):
+    def _setup_collection(self) -> None:
         """Setup Qdrant collection with optimized configuration"""
         logger.debug("Entering _setup_collection")
         if not self.qdrant_client:
@@ -198,7 +262,7 @@ class QdrantMemorySystem:
             )
 
             logger.debug("Recording metadata...")
-            cursor = self.conn.cursor()
+            cursor: sqlite3.Cursor = self.conn.cursor()
             cursor.execute("""
                 INSERT OR REPLACE INTO qdrant_collections
                 (collection_name, vector_size, distance_metric, status)
@@ -219,9 +283,9 @@ class QdrantMemorySystem:
     # Stats & Maintenance
     # ========================================================================
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """Get memory system statistics"""
-        cursor = self.conn.cursor()
+        cursor: sqlite3.Cursor = self.conn.cursor()
 
         try:
             cursor.execute("SELECT COUNT(*) as count FROM users")
@@ -251,63 +315,76 @@ class QdrantMemorySystem:
     # ========================================================================
 
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Cleanup"""
         if hasattr(self, 'conn'):
             self.conn.close()
 
     # ── Delegation to split-out modules ────────────────────────────────────
-    from serin.d1_1_pipeline_flow.remember.core.storage.search_store import (
-        _build_qdrant_filter,
-        _condense_results,
-        _merge_candidates,
-        _rerank_results_simple,
-    )
-    from serin.d1_1_pipeline_flow.remember.core.storage.search_store import (
-        search_hybrid as _search_hybrid,
-    )
-    from serin.d1_1_pipeline_flow.remember.core.storage.sqlite_store import (
-        cleanup_old_memories,
-        get_latest_message,
-        get_message_at_position,
-        get_message_by_id,
-        get_message_count,
-        get_messages_around_timestamp,
-        get_recent_conversation_from_sqlite,
-        get_user_profile,
-        get_user_relationships,
-        log_activity,
-        store_recent_message,
-        update_relationship,
-        update_user_activity,
-        update_user_traits,
-        upsert_user,
-    )
-    from serin.d1_1_pipeline_flow.remember.core.storage.write_store import (
-        _build_payload,
-        _chunk_content,
-        _get_existing_memory_id,
-        _is_duplicate,
-        _queue_background_jobs,
-        generate_memory_id,
-    )
-    from serin.d1_1_pipeline_flow.remember.core.storage.write_store import (
-        add_memory_enhanced as _add_memory_enhanced,
-    )
 
-    def search_hybrid(self, query, user_id=None, n_results=5, **filters):
-        return self._search_hybrid(query, user_id, n_results, **filters)
+    def search_hybrid(self, query: str, user_id: str | None = None, n_results: int = 5, **filters: Any) -> list[dict[str, Any]]:
+        return _run_search_hybrid(self, query, user_id, n_results, **filters)
 
-    def add_memory_enhanced(self, content, user_id, **kwargs):
-        return self._add_memory_enhanced(content, user_id, **kwargs)
+    def add_memory_enhanced(self, content: str, user_id: str, **kwargs: Any) -> str | None:
+        return _run_add_memory_enhanced(self, content, user_id, **kwargs)
 
     # ── Legacy API wrappers ────────────────────────────────────────────────
-    def add_memory(self, content, user_id, username, channel_id, **kwargs):
+
+    def add_memory(self, content: str, user_id: str, username: str, channel_id: str, **kwargs: Any) -> str | None:
         return self.add_memory_enhanced(content, user_id, source_message_id=kwargs.get('source_message_id'), username=username, channel_id=channel_id)
 
-    def search_memories(self, query, user_id=None, channel_id=None, limit=10):
+    def search_memories(self, query: str, user_id: str | None = None, channel_id: str | None = None, limit: int = 10) -> list[dict[str, Any]]:
         return self.search_hybrid(query, user_id, n_results=limit)
 
-    def get_recent_conversation(self, channel_id=None, user_id=None, limit=20):
-        return self.get_recent_conversation_from_sqlite(channel_id, limit)
+    def get_recent_conversation(self, channel_id: str = "", user_id: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
+        return _run_get_recent_conversation_from_sqlite(self, channel_id, limit)
 
+    def get_relevant_facts(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
+        return self.fact_store.get_relevant_facts(query=query, limit=limit)
+
+    def get_relevant_beliefs(self, query: str, limit: int = 3) -> list[dict[str, Any]]:
+        return self.belief_store.get_relevant_beliefs(query=query, limit=limit)
+
+    # ── SQLite store wrappers ──────────────────────────────────────────────
+
+    def cleanup_old_memories(self, days_old: int = 90, min_importance: float = 0.3) -> int:
+        return _run_cleanup_old_memories(self, days_old, min_importance)
+
+    def get_latest_message(self, channel_id: str) -> dict[str, Any] | None:
+        return _run_get_latest_message(self, channel_id)
+
+    def get_message_at_position(self, channel_id: str, position: int) -> dict[str, Any] | None:
+        return _run_get_message_at_position(self, channel_id, position)
+
+    def get_message_by_id(self, message_id: str) -> dict[str, Any] | None:
+        return _run_get_message_by_id(self, message_id)
+
+    def get_message_count(self, channel_id: str) -> int:
+        return _run_get_message_count(self, channel_id)
+
+    def get_messages_around_timestamp(self, channel_id: str, timestamp: str, radius: int = 2) -> list[dict[str, Any]]:
+        return _run_get_messages_around_timestamp(self, channel_id, timestamp, radius)
+
+    def get_user_profile(self, user_id: str) -> dict[str, Any] | None:
+        return _run_get_user_profile(self, user_id)
+
+    def get_user_relationships(self, user_id: str, min_strength: float = 0.1) -> list[dict[str, Any]]:
+        return _run_get_user_relationships(self, user_id, min_strength)
+
+    def log_activity(self, user_id: str, channel_id: str, message_length: int, sentiment: float) -> None:
+        _run_log_activity(self, user_id, channel_id, message_length, sentiment)
+
+    def store_recent_message(self, user_id: str, username: str, channel_id: str, content: str, message_id: str, timestamp: datetime | None = None) -> None:
+        _run_store_recent_message(self, user_id, username, channel_id, content, message_id, timestamp)
+
+    def update_relationship(self, user_a_id: str, user_b_id: str, interaction_type: str = 'message') -> None:
+        _run_update_relationship(self, user_a_id, user_b_id, interaction_type)
+
+    def update_user_activity(self, user_id: str, message_length: int) -> None:
+        _run_update_user_activity(self, user_id, message_length)
+
+    def update_user_traits(self, user_id: str, traits: list[str] | None = None, interests: list[str] | None = None) -> None:
+        _run_update_user_traits(self, user_id, traits, interests)
+
+    def upsert_user(self, user_id: str, username: str, display_name: str | None = None) -> None:
+        _run_upsert_user(self, user_id, username, display_name)

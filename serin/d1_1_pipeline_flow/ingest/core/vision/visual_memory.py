@@ -11,10 +11,14 @@ Responsibilities:
 Key classes:
 - VisualMemorySystem: main class, requires Qdrant client
 """
+from __future__ import annotations
+
 import logging
 from datetime import datetime
 from io import BytesIO
+from typing import Any
 
+import numpy as np
 import requests
 from PIL import Image
 from qdrant_client import QdrantClient
@@ -35,6 +39,7 @@ class VisualMemorySystem:
         # Load CLIP model (lightweight, runs on CPU/GPU)
         # clip-ViT-B-32 is a good balance of speed and performance
         logger.info(" Initializing Visual Cortex (CLIP model)...")
+        self.model: SentenceTransformer | None
         try:
             self.model = SentenceTransformer('clip-ViT-B-32')
             logger.info(" Visual Cortex (CLIP) online")
@@ -87,9 +92,10 @@ class VisualMemorySystem:
             else:
                 img_obj = image
 
-            # Generate embedding
-            embedding = self.model.encode(img_obj)
-            return embedding.tolist()
+            # Generate embedding (convert PIL Image to numpy array for type stubs)
+            img_array = np.array(img_obj)
+            embedding = self.model.encode(img_array)
+            return [float(v) for v in embedding]
         except Exception as e:
             logger.error(f" Error embedding image: {e}")
             return None
@@ -145,7 +151,7 @@ class VisualMemorySystem:
             logger.error(f" Error storing visual memory: {e}")
             return False
 
-    def recall_image(self, image_url: str, threshold: float = 0.85) -> list[dict]:
+    def recall_image(self, image_url: str, threshold: float = 0.85) -> list[dict[str, Any]]:
         """
         Recall similar images from memory.
         Returns list of matches with metadata.
@@ -163,14 +169,15 @@ class VisualMemorySystem:
                 score_threshold=threshold
             )
 
-            matches = []
+            matches: list[dict[str, Any]] = []
             for hit in results.points:
+                payload = hit.payload or {}
                 matches.append({
                     "score": hit.score,
-                    "username": hit.payload.get("username"),
-                    "context": hit.payload.get("context"),
-                    "timestamp": hit.payload.get("timestamp"),
-                    "url": hit.payload.get("url")
+                    "username": payload.get("username"),
+                    "context": payload.get("context"),
+                    "timestamp": payload.get("timestamp"),
+                    "url": payload.get("url")
                 })
 
             return matches
@@ -178,7 +185,7 @@ class VisualMemorySystem:
             logger.error(f" Error recalling visual memory: {e}")
             return []
 
-    def recall_image_from_bytes(self, image_bytes: bytes, threshold: float = 0.85) -> list[dict]:
+    def recall_image_from_bytes(self, image_bytes: bytes, threshold: float = 0.85) -> list[dict[str, Any]]:
         """
         Recall similar images from raw bytes (avoids re-downloading).
         Returns list of matches with metadata.
@@ -187,23 +194,25 @@ class VisualMemorySystem:
             return []
         try:
             img_obj = Image.open(BytesIO(image_bytes))
-            embedding = self.model.encode(img_obj).tolist()
+            img_array = np.array(img_obj)
+            embedding = self.model.encode(img_array)
             results = self.client.query_points(
                 collection_name=self.collection_name,
-                query=embedding,
+                query=[float(v) for v in embedding],
                 limit=3,
                 score_threshold=threshold
             )
-            return [
-                {
+            matches: list[dict[str, Any]] = []
+            for hit in results.points:
+                payload = hit.payload or {}
+                matches.append({
                     "score": hit.score,
-                    "username": hit.payload.get("username"),
-                    "context": hit.payload.get("context"),
-                    "timestamp": hit.payload.get("timestamp"),
-                    "url": hit.payload.get("url"),
-                }
-                for hit in results.points
-            ]
+                    "username": payload.get("username"),
+                    "context": payload.get("context"),
+                    "timestamp": payload.get("timestamp"),
+                    "url": payload.get("url"),
+                })
+            return matches
         except Exception as e:
             logger.error(f" Error recalling visual memory from bytes: {e}")
             return []
@@ -224,7 +233,8 @@ class VisualMemorySystem:
             return False
         try:
             img_obj = Image.open(BytesIO(image_bytes))
-            embedding = self.model.encode(img_obj).tolist()
+            img_array = np.array(img_obj)
+            embedding_vec = [float(v) for v in self.model.encode(img_array)]
             import uuid
             point_id = str(uuid.uuid4())
             payload = {
@@ -238,7 +248,7 @@ class VisualMemorySystem:
             }
             self.client.upsert(
                 collection_name=self.collection_name,
-                points=[models.PointStruct(id=point_id, vector=embedding, payload=payload)],
+                points=[models.PointStruct(id=point_id, vector=embedding_vec, payload=payload)],
             )
             logger.info(f"📸 Visual memory stored from bytes for {username}")
             return True

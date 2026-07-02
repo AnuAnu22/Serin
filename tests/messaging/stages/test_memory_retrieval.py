@@ -1,7 +1,7 @@
 """Tests for MemoryRetrievalStage."""
 import pytest
 from unittest.mock import MagicMock, AsyncMock
-from serin.d1_1_pipeline_flow.d2_5_act_stage.d3_2_stages_logic.memory_retrieval import MemoryRetrievalStage
+from serin.d1_1_pipeline_flow.act.stages.memory_retrieval import MemoryRetrievalStage
 from serin.d1_3_state_core.message_context import MessageContext
 
 

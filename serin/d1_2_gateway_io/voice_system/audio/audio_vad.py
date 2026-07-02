@@ -1,14 +1,17 @@
 """Voice activity detection and audio queue management."""
+from __future__ import annotations
+
 import asyncio
 import time
 from datetime import datetime
+from typing import Any
 
 import numpy as np
 
 from serin.d1_2_gateway_io._di import get_logger
 
 
-def _detect_voice_activity(self, audio_data: bytes) -> bool:
+def _detect_voice_activity(self: Any, audio_data: bytes) -> bool:
     """
     Detect if audio contains voice using energy-based VAD.
 
@@ -30,14 +33,14 @@ def _detect_voice_activity(self, audio_data: bytes) -> bool:
     """
     try:
         audio_array = np.frombuffer(audio_data, dtype=np.int16)
-        rms = np.sqrt(np.mean(audio_array.astype(np.float32) ** 2))
-        return rms > self.VAD_THRESHOLD
+        rms: float = np.sqrt(np.mean(audio_array.astype(np.float32) ** 2))  # type: ignore[no-untyped-call]
+        return bool(rms > self.VAD_THRESHOLD)
     except Exception as e:
         get_logger().error(f" Error in VAD: {e}")
         return False
 
 def _queue_for_transcription(
-    self,
+    self: Any,
     user_id: str,
     username: str,
     guild_id: str,
@@ -115,14 +118,14 @@ def _queue_for_transcription(
         get_logger().error(f" Error queueing transcription: {e}")
         self.stats['errors'] += 1
 
-def _cancel_silence_timer(self, user_id: str) -> None:
+def _cancel_silence_timer(self: Any, user_id: str) -> None:
     """Cancel pending silence timer for a user (audio arrived, user is still active)."""
     task = self._silence_timers.pop(user_id, None)
     if task is not None and not task.done():
         task.cancel()
 
 def _schedule_silence_timer(
-    self,
+    self: Any,
     user_id: str,
     username: str,
     guild_id: str,
@@ -163,7 +166,7 @@ def _schedule_silence_timer(
     except (RuntimeError, ValueError) as e:
         get_logger().debug(f"Could not schedule silence timer: {e}")
 
-def _is_locked(self, guild_id: str) -> bool:
+def _is_locked(self: Any, guild_id: str) -> bool:
     """
     Check if guild is in a processing lock window.
 
@@ -182,7 +185,7 @@ def _is_locked(self, guild_id: str) -> bool:
     self._processing_lock_until.pop(guild_id, None)
     return False
 
-def _release_lock(self, guild_id: str) -> None:
+def _release_lock(self: Any, guild_id: str) -> None:
     """
     Release processing lock for guild — allow new speech to be processed.
 
@@ -194,7 +197,7 @@ def _release_lock(self, guild_id: str) -> None:
     self._processing_lock_until.pop(guild_id, None)
     get_logger().debug(f" Processing lock released for guild {guild_id}")
 
-def _set_lock(self, guild_id: str, duration: float = 20.0) -> None:
+def _set_lock(self: Any, guild_id: str, duration: float = 20.0) -> None:
     """
     Set processing lock for guild — new speech during the response cycle is buffered silently.
 
@@ -214,7 +217,7 @@ def _set_lock(self, guild_id: str, duration: float = 20.0) -> None:
     self._processing_lock_until[guild_id] = time.time() + duration
     get_logger().debug(f" Processing lock set for guild {guild_id} ({duration}s)")
 
-async def _process_queue(self) -> None:
+async def _process_queue(self: Any) -> None:
     """Background task to process transcription queue — one item at a time."""
     get_logger().info(" Started transcription queue processor")
 

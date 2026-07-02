@@ -17,7 +17,7 @@ class ModelInterface(ABC):
         self,
         temperature: float | None = None,
         top_p: float | None = None
-    ):
+    ) -> None:
         """
         Initialize and load the model.
 
@@ -30,6 +30,12 @@ class ModelInterface(ABC):
         """
         pass
 
+    @property
+    @abstractmethod
+    def is_connected(self) -> bool:
+        """Whether the model is connected and ready."""
+        ...
+
     @abstractmethod
     async def chat_completion(
         self,
@@ -37,7 +43,7 @@ class ModelInterface(ABC):
         temperature: float | None = None,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs
+        **kwargs: Any
     ) -> str:
         """
         Generate chat completion response.
@@ -47,7 +53,7 @@ class ModelInterface(ABC):
             temperature: Override default temperature
             max_tokens: Maximum tokens to generate
             stop: Stop sequences
-            **kwargs: Additional model-specific parameters
+            **kwargs: Any: Additional model-specific parameters
 
         Returns:
             Generated text response
@@ -64,7 +70,7 @@ class ModelInterface(ABC):
         temperature: float | None = None,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs
+        **kwargs: Any
     ) -> str:
         """
         Generate completion from prompt (legacy support).
@@ -74,7 +80,7 @@ class ModelInterface(ABC):
             temperature: Override default temperature
             max_tokens: Maximum tokens to generate
             stop: Stop sequences
-            **kwargs: Additional parameters
+            **kwargs: Any: Additional parameters
 
         Returns:
             Generated text response
@@ -102,7 +108,7 @@ class ModelInterface(ABC):
         temperature: float | None = None,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs
+        **kwargs: Any
     ) -> str:
         """
         Blocking version of chat_completion (optional to implement).
@@ -116,7 +122,7 @@ class ModelInterface(ABC):
         temperature: float | None = None,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs
+        **kwargs: Any
     ) -> str:
         """
         Blocking version of send_input (optional to implement).

@@ -36,6 +36,8 @@ TTS_DONE Lifecycle:
   5. Python _read_loop receives TTS_DONE → _handle_tts_done() → _release_lock()
   6. Processing lock released → next user utterance is processed immediately
 """
+from __future__ import annotations
+
 import asyncio
 import os
 import sys
@@ -146,6 +148,7 @@ class RustStdoutReader:
             result = await asyncio.wait_for(self.events.get(), timeout=timeout)
             if result is self._EOF:
                 raise EOFError("Rust stdout pipe closed")
+            assert isinstance(result, tuple)
             return result
         except TimeoutError:
             return None

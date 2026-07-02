@@ -139,7 +139,7 @@ class BackgroundProcessor:
 
         # Use threading lock to prevent race conditions
         with self._queue_lock:
-            if len(self.processing_queue) >= self.processing_queue.maxlen:
+            if self.processing_queue.maxlen is not None and len(self.processing_queue) >= self.processing_queue.maxlen:
                 self.stats['queue_drops'] += 1
                 logger.debug(" Processing queue full, dropping oldest message")
 
@@ -228,7 +228,7 @@ class BackgroundProcessor:
                 self.stats['errors'] += 1
                 await asyncio.sleep(5)
 
-    async def _process_batch(self, batch: list[dict]):
+    async def _process_batch(self, batch: list[dict[str, Any]]) -> None:
         """
         Process a batch of RAW messages.
         FIXED: Works with raw messages, not vector search results.
@@ -245,7 +245,7 @@ class BackgroundProcessor:
             logger.error(f" Error processing batch: {e}")
             self.stats['errors'] += 1
 
-    def _group_by_conversation(self, batch: list[dict]) -> list[list[dict]]:
+    def _group_by_conversation(self, batch: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
         """
         Group RAW messages into conversation chunks.
         Same channel + within 5 minutes = one conversation.
@@ -253,7 +253,7 @@ class BackgroundProcessor:
         if not batch:
             return []
 
-        def get_datetime(timestamp):
+        def get_datetime(timestamp: str | datetime) -> datetime:
             """Convert timestamp to datetime object, handling both string and datetime inputs"""
             if isinstance(timestamp, str):
                 return datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
@@ -295,6 +295,9 @@ class BackgroundProcessor:
 
         FIXED: Now uses JSON prompt to handle thinking models
         """
+        if self.extractor_llm is None:
+            logger.warning("Background LLM not initialized, skipping summary")
+            return
         try:
             # Build conversation context from RAW messages
             conversation_lines = []

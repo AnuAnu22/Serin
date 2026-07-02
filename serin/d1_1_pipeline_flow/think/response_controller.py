@@ -25,10 +25,10 @@ def _uniform(a: float, b: float) -> float:
 
 class ResponseController:
     def __init__(self) -> None:
-        self.last_response_time = {}  # channel_id -> timestamp
-        self.conversation_mood = {}   # channel_id -> mood state
-        self.message_buffer = {}      # channel_id -> message count since last response
-        self.active_conversations = {}  # channel_id -> {user_id, last_message_time, message_count}
+        self.last_response_time: dict[str, datetime] = {}  # channel_id -> timestamp
+        self.conversation_mood: dict[str, str] = {}   # channel_id -> mood state
+        self.message_buffer: dict[str, int] = {}      # channel_id -> message count since last response
+        self.active_conversations: dict[str, dict[str, Any]] = {}  # channel_id -> {user_id, last_message_time, message_count}
 
         # Bot name variations to detect
         self.bot_name_variations = [
@@ -40,10 +40,10 @@ class ResponseController:
         ]
 
         # Creator ID (Rin) - should ALWAYS be responsive to creator
-        self.creator_id = None  # Will be set when bot sees Rin
+        self.creator_id: str | None = None  # Will be set when bot sees Rin
 
         # Event broadcaster (for WebSocket)
-        self.broadcaster = None
+        self.broadcaster: Any = None
 
     def set_broadcaster(self, broadcast_func: Any) -> None:
         """Set broadcaster function for real-time decisions"""
@@ -112,7 +112,7 @@ class ResponseController:
         channel_id: str,
         bot_mentioned: bool,
         user_id: str,
-        recent_messages: list[dict]
+        recent_messages: list[dict[str, Any]]
     ) -> tuple[bool, str]:
         """
         Decide if bot should respond to this message.
@@ -322,7 +322,7 @@ class ResponseController:
     def update_conversation_mood(
         self,
         channel_id: str,
-        recent_messages: list[dict],
+        recent_messages: list[dict[str, Any]],
         sentiment_scores: list[float]
     ) -> None:
         """Update conversation mood/energy level"""
@@ -335,7 +335,7 @@ class ResponseController:
         # Calculate message frequency
         if len(recent_messages) >= 2:
             # Handle both string and datetime timestamps
-            def safe_datetime_convert(timestamp):
+            def safe_datetime_convert(timestamp: str | datetime) -> datetime:
                 if isinstance(timestamp, str):
                     return datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
                 return timestamp

@@ -1,8 +1,11 @@
 """Audio utilities — PCM conversion, Gemma transcription."""
+from __future__ import annotations
+
 import asyncio
 import base64
 import io
 import wave
+from typing import Any
 
 import numpy as np
 
@@ -61,7 +64,7 @@ def _pcm_to_wav_base64(audio_data: bytes, sample_rate: int = 16000) -> str:
 
     return base64.b64encode(buf.getvalue()).decode('ascii')
 
-async def _transcribe_with_gemma(self, audio_data: bytes, username: str = "User") -> str | None:
+async def _transcribe_with_gemma(self: Any, audio_data: bytes, username: str = "User") -> str | None:
     """
     Transcribe audio using Gemma's direct input_audio support.
 
@@ -100,16 +103,15 @@ async def _transcribe_with_gemma(self, audio_data: bytes, username: str = "User"
         }]
 
         # Use temperature=0.0 for deterministic transcription (no creativity needed).
-        transcription = await self.llm_connector.chat_completion(
+        raw: Any = await self.llm_connector.chat_completion(
             messages,
             max_tokens=300,
             temperature=0.0
         )
 
         # Clean up the transcription: strip whitespace and any surrounding quotes.
-        transcription = transcription.strip().strip('"\'')
-
-        if transcription:
+        if raw:
+            transcription: str = str(raw).strip().strip('"\'')
             get_logger().info(f" Gemma audio transcription: '{transcription}'")
             return transcription
         return None
@@ -118,7 +120,7 @@ async def _transcribe_with_gemma(self, audio_data: bytes, username: str = "User"
         get_logger().error(f" Gemma audio transcription error: {e}")
         return None
 
-async def start(self) -> None:
+async def start(self: Any) -> None:
     """Start the background transcription queue processor."""
     if self.is_running:
         get_logger().warning(" Audio processor already running")
@@ -128,7 +130,7 @@ async def start(self) -> None:
     self.processing_task = asyncio.create_task(self._process_queue())
     get_logger().info(" Audio stream processor started")
 
-async def stop(self) -> None:
+async def stop(self: Any) -> None:
     """Stop the background transcription queue processor."""
     self.is_running = False
     if self.processing_task:
@@ -136,7 +138,7 @@ async def stop(self) -> None:
     get_logger().info(" Audio stream processor stopped")
 
 def process_audio_chunk(
-    self,
+    self: Any,
     user_id: str,
     username: str,
     guild_id: str,

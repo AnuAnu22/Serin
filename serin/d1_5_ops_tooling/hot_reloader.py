@@ -222,7 +222,7 @@ async def watch_loop() -> None:
             prev_mtimes = get_mtimes()
 
 
-def _signal_handler(signum: int, frame) -> None:
+def _signal_handler(signum: int, frame: object | None) -> None:
     global watcher_running
     log("Shutting down...")
     watcher_running = False

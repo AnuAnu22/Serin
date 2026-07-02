@@ -4,8 +4,11 @@ Natural, Human-like System Prompt. No robotic rules. Just personality.
 
 UPDATED: Uses model factory for maximum modularity.
 """
+from __future__ import annotations
+
 import re
 import secrets
+from typing import TYPE_CHECKING, Any, cast
 
 from serin.d1_1_pipeline_flow.think.personality.humanization import (
     add_conversational_fillers,
@@ -17,6 +20,9 @@ from serin.d1_3_state_core.model_system.interface import ModelInterface
 from serin.d1_3_state_core.thinking_filter import filter_thinking
 from serin.d1_4_config_base.config import config
 
+if TYPE_CHECKING:
+    import discord
+
 
 def _rand() -> float:
     return secrets.randbelow(10_000_000) / 10_000_000
@@ -24,7 +30,7 @@ def _rand() -> float:
 # Global instance (single connector)
 llama: ModelInterface | None = None
 vision_llama: ModelInterface | None = None
-discord_client = None
+discord_client: discord.Client | None = None
 
 async def initialize_llama() -> None:
     """Initialize single vLLM connector via model factory."""
@@ -65,11 +71,11 @@ def _should_use_thinking(message: str, complexity: str = "simple") -> bool:
 
 
 async def get_response_natural(
-    current_messages: list[dict],
+    current_messages: list[dict[str, Any]],
     context: str,
     resolved_last_message: str | None = None,
     tone_modifier: str | None = None,
-    personality_state: dict | None = None,
+    personality_state: dict[str, Any] | None = None,
     message_complexity: str = "simple",
     is_instruction: bool = False
 ) -> str:
@@ -79,9 +85,16 @@ async def get_response_natural(
     if llama is None or not llama.is_connected:
         await initialize_llama()
 
+    if llama is None or not llama.is_connected:
+        return secrets.choice([
+            "brain.exe stopped working",
+            "uh what",
+            "lost my train of thought"
+        ])
+
     try:
         # Build messages
-        messages = []
+        messages: list[dict[str, Any]] = []
 
         # System prompt
         if is_instruction:
@@ -139,7 +152,7 @@ async def get_response_natural(
                             {"type": "image_url", "image_url": {"url": msg['image_url']}}
                         ]}
                     ]
-                    image_desc = await vision_llama.chat_completion(desc_prompt, max_tokens=150)
+                    image_desc = await vision_llama.chat_completion(cast("list[dict[str, str]]", desc_prompt), max_tokens=150)
                     content_str = f"{user_prefix}{msg_content}\n[Image: {image_desc}]"
                 except Exception as e:
                     logger.warning(f" Vision description failed: {e}")
@@ -186,7 +199,7 @@ async def get_response_natural(
         )
         logger.info("PROMPT_DEBUG\n%s", prompt_preview)
 
-        raw_text = await llama.chat_completion(messages, max_tokens=max_tokens, extra_body=extra)
+        raw_text = await llama.chat_completion(cast("list[dict[str, str]]", messages), max_tokens=max_tokens, extra_body=extra)
 
         # Extract response based on model type
         if is_thinking_model:
@@ -332,7 +345,10 @@ def apply_natural_variations(text: str, tone_modifier: str | None = None) -> str
     # Add contractions if not already present
     try:
         import serin_core
-        text = serin_core.apply_contractions(text)
+        if hasattr(serin_core, 'apply_contractions'):
+            text = serin_core.apply_contractions(text)
+        else:
+            raise ImportError
     except ImportError:
         contractions = {
             ' do not ': " dont ",

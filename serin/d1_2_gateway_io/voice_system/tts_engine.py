@@ -41,8 +41,8 @@ class TTSEngine:
         """
         self.model_name = model_name
         self.device = device
-        self.backend = None
-        self.tts = None  # Coqui TTS instance
+        self.backend: str | None = None
+        self.tts: Any = None  # Coqui TTS instance
 
         # Determine which backend to use
         if EDGE_TTS_AVAILABLE:
@@ -75,9 +75,9 @@ class TTSEngine:
         }
 
         self.active_profile = 'default'
-        self.voice_reference = None
+        self.voice_reference: str | None = None
 
-        self.stats = {
+        self.stats: dict[str, Any] = {
             'total_generations': 0,
             'total_duration': 0.0,
             'errors': 0,
@@ -99,12 +99,14 @@ class TTSEngine:
             try:
                 get_logger().info(" Loading XTTS v2 model...")
                 get_logger().info(f"   Device: {self.device}")
-                self.tts = await asyncio.to_thread(
-                    TTS,
-                    model_name=self.model_name,
-                    progress_bar=True,
-                    gpu=(self.device == "cuda")
-                )
+
+                def _init_tts() -> Any:
+                    return TTS(
+                        model_name=self.model_name,
+                        progress_bar=True,
+                        gpu=(self.device == "cuda"),
+                    )
+                self.tts = await asyncio.to_thread(_init_tts)
                 if self.device == "cuda":
                     self.tts.to(self.device)
                 get_logger().info(" XTTS v2 model ready!")

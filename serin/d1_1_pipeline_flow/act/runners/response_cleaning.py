@@ -7,7 +7,9 @@ Sets ctx.final_response.
 """
 from __future__ import annotations
 
-from serin.d1_1_pipeline_flow.act.runners.pipeline import PipelineStage
+from typing import Any
+
+from serin.d1_1_pipeline_flow.act.stages_base import PipelineStage
 from serin.d1_3_state_core.logger import logger
 from serin.d1_3_state_core.message_context import MessageContext
 
@@ -15,7 +17,7 @@ from serin.d1_3_state_core.message_context import MessageContext
 class ResponseCleaningStage(PipelineStage):
     """Filters thinking tags, applies natural variations, fillers, typos."""
 
-    def __init__(self, thinking_filter):
+    def __init__(self, thinking_filter: Any) -> None:
         self.thinking_filter = thinking_filter
 
     async def _run(self, ctx: MessageContext) -> MessageContext:

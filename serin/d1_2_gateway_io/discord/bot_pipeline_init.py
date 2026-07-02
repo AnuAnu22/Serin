@@ -1,12 +1,13 @@
 """MessagePipeline and behavior manager initialization."""
 import asyncio
 from datetime import datetime
-from typing import cast
+from typing import Any, cast
 
 import aiohttp
 import discord
 
 import serin.d1_1_pipeline_flow.think.response_generator
+import serin.d1_2_gateway_io.discord.bot as bot_module
 from serin.d1_2_gateway_io._di import get_logger
 from serin.d1_2_gateway_io.discord import (
     event_handlers,  # noqa: F401  registers event handlers
@@ -15,13 +16,11 @@ from serin.d1_2_gateway_io.discord.bot import (
     background_processor,
     client,
     db_protector,
-    mention_translator,
+    init_database_protection,
     message_crawler,
     message_manager,
     passive_monitor,
     stats,
-    voice_behavior_manager,  # noqa: F401  used via global in on_ready
-    voice_listener,  # noqa: F401  used via global in on_ready
 )
 from serin.d1_2_gateway_io.discord.command_handlers import (
     handle_help_command,
@@ -39,6 +38,29 @@ from serin.d1_5_ops_tooling.control_panel.panel_lifecycle import (
 )
 from serin.d1_5_ops_tooling.control_panel.server import bot_state
 
+__all__ = [
+    "audio_processor",
+    "background_processor",
+    "db_protector",
+    "message_manager",
+    "message_crawler",
+    "passive_monitor",
+    "tts_engine",
+    "voice_behavior_manager",
+    "voice_listener",
+    "voice_manager",
+    "voice_output_manager",
+    "voice_pipeline",
+]
+
+audio_processor: Any | None = None
+tts_engine: Any | None = None
+voice_behavior_manager: Any | None = None
+voice_listener: Any | None = None
+voice_manager: Any | None = None
+voice_output_manager: Any | None = None
+voice_pipeline: Any | None = None
+
 
 @client.event
 async def on_ready() -> None:
@@ -47,15 +69,39 @@ async def on_ready() -> None:
     global voice_listener, audio_processor, voice_pipeline, tts_engine
     global voice_behavior_manager, voice_output_manager, voice_manager
 
+    from serin._di import (
+        init_root,
+        set_crawler,
+        set_mention_translator,
+        set_message_manager,
+        set_qdrant,
+    )
+
+    # Create MentionTranslator (needs the discord.Client instance)
+    from serin.d1_1_pipeline_flow.ingest.context.mention_translator import (
+        MentionTranslator,
+    )
     from serin.d1_2_gateway_io._di import get_logger
     from serin.d1_2_gateway_io.discord.bot import voice_available
     from serin.d1_2_gateway_io.voice_system.tts_engine import TTSEngine
+
+    mention_translator = MentionTranslator(client)
+    set_mention_translator(mention_translator)
+    bot_module.mention_translator = mention_translator
+
+    # Initialize root DI with the gateway logger
+    init_root(get_logger())
+
+    # Validate databases
+    init_database_protection()
 
     stats['start_time'] = asyncio.get_running_loop().time()
 
     # ── Server info ──────────────────────────────────────────────────────
     get_logger().success("=" * 60)
-    get_logger().success(f"Logged in as {client.user} (ID: {client.user.id})")
+    user_str = f"{client.user}" if client.user else "Unknown"
+    user_id_str = f"{client.user.id}" if client.user else "N/A"
+    get_logger().success(f"Logged in as {user_str} (ID: {user_id_str})")
     get_logger().success(f"Connected to {len(client.guilds)} guild(s)")
     get_logger().success("=" * 60)
     total_channels = 0
@@ -76,7 +122,7 @@ async def on_ready() -> None:
     # ── LLM ───────────────────────────────────────────────────────────────
     get_logger().info("Initializing LLM model...")
     await serin.d1_1_pipeline_flow.think.response_generator.initialize_llama()
-    if serin.d1_1_pipeline_flow.think.response_generator.llama.is_connected:
+    if serin.d1_1_pipeline_flow.think.response_generator.llama is not None and serin.d1_1_pipeline_flow.think.response_generator.llama.is_connected:
         get_logger().success("LLM model ready!")
     else:
         get_logger().info("LLM will retry in background every 15s")
@@ -90,6 +136,7 @@ async def on_ready() -> None:
             qdrant_host=config.QDRANT_HOST,
             qdrant_port=config.QDRANT_PORT,
         )
+        set_qdrant(memory_system)
         get_logger().success("Memory system ready!")
     except Exception as e:
         get_logger().exception(f"Memory system failed: {e}")
@@ -106,20 +153,24 @@ async def on_ready() -> None:
         get_logger().error(f"Background processor failed: {e}")
 
     # ── Passive Monitor ───────────────────────────────────────────────────
-    get_logger().info("Initializing passive monitor...")
-    from serin.d1_5_ops_tooling.passive_monitor import PassiveMonitor
-    passive_monitor = PassiveMonitor(
-        memory_system,
-        background_processor,
-        config.ALLOWED_CHANNEL_IDS,
-        mention_translator,
-    )
-    get_logger().success("Passive monitor ready!")
+    if background_processor is not None:
+        get_logger().info("Initializing passive monitor...")
+        from serin.d1_5_ops_tooling.passive_monitor import PassiveMonitor
+        passive_monitor = PassiveMonitor(
+            memory_system,
+            background_processor,
+            config.ALLOWED_CHANNEL_IDS,
+            mention_translator,
+        )
+        get_logger().success("Passive monitor ready!")
+    else:
+        get_logger().warning("Background processor unavailable — skipping passive monitor")
 
     # ── Message Crawler ──────────────────────────────────────────────────
     get_logger().info("Initializing message crawler...")
     from serin.d1_1_pipeline_flow.ingest.sync.crawler import MessageCrawler
     message_crawler = MessageCrawler(client, memory_system, background_processor, mention_translator)
+    set_crawler(message_crawler)
     await message_crawler.start()
     get_logger().success("Message crawler started!")
 
@@ -199,6 +250,7 @@ async def on_ready() -> None:
         memory_system,
         voice_output_manager=voice_output_manager if 'voice_output_manager' in dir() else None,
     )
+    set_message_manager(message_manager)
     get_logger().success("Message manager ready!")
 
     # ── Startup backup ────────────────────────────────────────────────────
@@ -249,7 +301,7 @@ async def on_ready() -> None:
 
     # ── Voice Action Callback ──────────────────────────────────────────────
     if voice_listener and message_manager and hasattr(message_manager, 'voice_action_callback'):
-        async def _handle_voice_action(decision: dict, user_id: str, guild_id: int) -> dict:
+        async def _handle_voice_action(decision: dict[str, Any], user_id: str, guild_id: int) -> dict[str, Any]:
             action = decision.get('action')
             result = {'executed': False, 'message': ''}
             if action == 'join' and voice_listener:

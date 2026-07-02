@@ -9,8 +9,9 @@ high-confidence facts and low-confidence claims are flagged.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
-from serin.d1_1_pipeline_flow.act.runners.pipeline import PipelineStage
+from serin.d1_1_pipeline_flow.act.stages_base import PipelineStage
 from serin.d1_1_pipeline_flow.think.response_generator import (
     build_natural_system_prompt,
 )
@@ -47,7 +48,7 @@ def _confidence_label(conf: float) -> str:
     return "[low confidence]"
 
 
-def _format_memories(memories, max_items: int) -> list[str]:
+def _format_memories(memories: list[dict[str, Any]], max_items: int) -> list[str]:
     """Format a list of memories with time labels, limited to max_items."""
     sorted_mems = sorted(
         memories,
@@ -63,7 +64,7 @@ def _format_memories(memories, max_items: int) -> list[str]:
 class PromptAssemblyStage(PipelineStage):
     """Assembles the final messages array sent to the LLM."""
 
-    def __init__(self, mention_translator):
+    def __init__(self, mention_translator: Any) -> None:
         self.mention_translator = mention_translator
 
     async def _run(self, ctx: MessageContext) -> MessageContext:

@@ -34,6 +34,14 @@ class MemorySyncMonitor:
         self.snapshot_stats: dict[str, Any] = {}
         self.operation_times: defaultdict[str, list[float]] = defaultdict(list)
 
+        # Tracked state for diagnostics (initialized to None, set on first check)
+        self.last_db_snapshot: tuple[int, int] | None = None
+        self.last_queue_size: int | None = None
+        self.last_syncs: int | None = None
+        self.last_drops: int | None = None
+        self.last_message_count: int | None = None
+        self.last_gaps: int | None = None
+
         logger.info(" Memory Sync Monitor initialized")
 
     async def start_monitoring(self) -> None:
@@ -111,8 +119,8 @@ class MemorySyncMonitor:
             import inspect
             try:
                 sig = inspect.signature(self.bg_processor.queue_message)
-                expected_params = ['content', 'user_id', 'username', 'channel_id']
-                for param in expected_params:
+                expected_param_list = ['content', 'user_id', 'username', 'channel_id']
+                for param in expected_param_list:
                     if param not in sig.parameters:
                         api_errors.append(f"CRITICAL: queue_message missing parameter '{param}'")
             except (ValueError, TypeError) as e:
@@ -147,7 +155,7 @@ class MemorySyncMonitor:
                 chroma_count = 0
 
             # Log the comparison
-            if hasattr(self, 'last_db_snapshot'):
+            if self.last_db_snapshot is not None:
                 last_sqlite, last_chroma = self.last_db_snapshot
 
                 # Check for unexpected drops
@@ -177,7 +185,7 @@ class MemorySyncMonitor:
                 queue_size = len(self.bg_processor.processing_queue)
 
                 # Sudden queue drops might indicate race conditions
-                if hasattr(self, 'last_queue_size'):
+                if self.last_queue_size is not None:
                     if self.last_queue_size > queue_size and self.last_queue_size - queue_size > 10:
                         race_signatures.append(f"Large queue drop detected: {self.last_queue_size} -> {queue_size}")
 
@@ -188,7 +196,7 @@ class MemorySyncMonitor:
                 crawler_stats = self.message_crawler.get_stats()
                 quick_syncs = crawler_stats.get('quick_syncs', 0)
 
-                if hasattr(self, 'last_syncs'):
+                if self.last_syncs is not None:
                     if quick_syncs > self.last_syncs + 3:  # More than 3 sync ops in 30s
                         race_signatures.append(f"Rapid sync operations: {quick_syncs} (last: {self.last_syncs})")
 
@@ -219,7 +227,7 @@ class MemorySyncMonitor:
 
                 # Check for drops
                 drops = self.bg_processor.stats.get('queue_drops', 0)
-                if hasattr(self, 'last_drops'):
+                if self.last_drops is not None:
                     new_drops = drops - self.last_drops
                     if new_drops > 0:
                         pressure_alerts.append(f"Queue drops detected: {new_drops} new drops")
@@ -232,7 +240,7 @@ class MemorySyncMonitor:
                 cursor.execute("SELECT COUNT(*) FROM recent_messages")
                 message_count = cursor.fetchone()[0]
 
-                if hasattr(self, 'last_message_count'):
+                if self.last_message_count is not None:
                     growth_rate = (message_count - self.last_message_count) / 30  # per second
                     if growth_rate > 100:  # More than 100 messages per second
                         pressure_alerts.append(f"Rapid message growth: {growth_rate:.1f} msg/sec")
@@ -259,7 +267,7 @@ class MemorySyncMonitor:
                 stats = self.message_crawler.get_stats()
 
                 gaps_found = stats.get('gaps_found', 0)
-                if hasattr(self, 'last_gaps'):
+                if self.last_gaps is not None:
                     new_gaps = gaps_found - self.last_gaps
                     if new_gaps > 0:
                         sync_errors.append(f"New synchronization gaps: {new_gaps}")
@@ -333,7 +341,7 @@ class MemorySyncMonitor:
         logger.info(" Running forced synchronization check...")
 
         # Create a temporary detailed snapshot
-        snapshot = {
+        snapshot: dict[str, Any] = {
             'timestamp': datetime.now().isoformat(),
             'database_state': {},
             'queue_state': {},

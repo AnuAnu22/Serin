@@ -1,11 +1,13 @@
 """Audio transcription — Gemma direct input and storage."""
 
+from __future__ import annotations
+
 from typing import Any
 
 from serin.d1_2_gateway_io._di import get_logger
 
 
-async def _transcribe_and_store(self, item: dict[str, Any]) -> None:
+async def _transcribe_and_store(self: Any, item: dict[str, Any]) -> None:
     """
     Transcribe audio and store in memory / trigger response.
 
@@ -114,7 +116,7 @@ async def _transcribe_and_store(self, item: dict[str, Any]) -> None:
         self.stats['errors'] += 1
 
 
-def check_interrupt(self, user_id: str) -> bool:
+def check_interrupt(self: Any, user_id: str) -> bool:
     """
     Check if a user is currently flagged as speaking.
 
@@ -130,19 +132,20 @@ def check_interrupt(self, user_id: str) -> bool:
     return user_id in self.currently_speaking
 
 
-def get_active_speakers(self) -> set[str]:
+def get_active_speakers(self: Any) -> set[str]:
     """Return a copy of the set of currently speaking user IDs."""
-    return self.currently_speaking.copy()
+    result: set[str] = self.currently_speaking.copy()
+    return result
 
 
-def get_buffer_size(self, user_id: str) -> int:
+def get_buffer_size(self: Any, user_id: str) -> int:
     """Return the current buffer size in bytes for a user (0 if no buffer)."""
     if user_id in self.user_buffers:
         return len(self.user_buffers[user_id])
     return 0
 
 
-def get_stats(self) -> dict[str, Any]:
+def get_stats(self: Any) -> dict[str, Any]:
     """Return processor statistics for monitoring and debugging."""
     return {
         'chunks_received': self.stats['chunks_received'],

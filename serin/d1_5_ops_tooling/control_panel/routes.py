@@ -3,9 +3,9 @@ Enhanced API Routes - Qdrant Migration Support
 Updated endpoints for Qdrant memory system integration
 Converted to FastAPI for integration with web_server.py
 """
-import importlib
+import importlib.util
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -160,7 +160,7 @@ def register_enhanced_routes(app: FastAPI, bot_state: dict[str, Any], broadcast_
             if not profile:
                 raise HTTPException(status_code=404, detail="User not found")
 
-            return profile
+            return cast(dict[str, Any], profile)
         except HTTPException:
             raise
         except Exception as e:
@@ -200,7 +200,7 @@ def register_enhanced_routes(app: FastAPI, bot_state: dict[str, Any], broadcast_
 
             try:
                 from qdrant_client import QdrantClient
-                test_client = QdrantClient(host=request.qdrant_host, port=request.qdrant_port)
+                test_client: Any = QdrantClient(host=request.qdrant_host, port=request.qdrant_port)
                 cluster_info = test_client.get_cluster_info()
 
                 return {

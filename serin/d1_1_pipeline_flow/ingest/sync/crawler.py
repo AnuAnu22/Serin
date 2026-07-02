@@ -183,7 +183,7 @@ class MessageCrawler(BackfillMixin):
             logger.info(f" #{channel.name} - New messages detected, backfilling...")
 
             # Get SQL timestamp - handle both string and datetime formats
-            def safe_datetime_convert(timestamp):
+            def safe_datetime_convert(timestamp: str | datetime) -> datetime:
                 """Safely convert timestamp to datetime, handling both string and datetime inputs"""
                 if isinstance(timestamp, str):
                     return datetime.fromisoformat(timestamp.replace('Z', '+00:00'))

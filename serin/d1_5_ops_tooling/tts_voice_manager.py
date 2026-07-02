@@ -8,8 +8,12 @@ Features:
 - Validate audio formats
 - Voice file metadata
 """
-from pathlib import Path
+from __future__ import annotations
 
+from pathlib import Path
+from typing import Any
+
+from serin.d1_2_gateway_io.voice_system.tts_engine import TTSEngine
 from serin.d1_3_state_core.logger import logger
 
 
@@ -40,7 +44,7 @@ class TTSVoiceManager:
         logger.info(" TTS voice manager initialized")
         logger.info(f"    Voices directory: {self.voices_dir}")
 
-    def _create_readme(self):
+    def _create_readme(self) -> None:
         """Create README in voices directory"""
         readme_path = self.voices_dir / "README.md"
         if not readme_path.exists():
@@ -80,14 +84,14 @@ Place voice reference files here for voice cloning.
             readme_path.write_text(readme_content)
             logger.info(f" Created README: {readme_path}")
 
-    def list_voices(self) -> list[dict]:
+    def list_voices(self) -> list[dict[str, Any]]:
         """
         List all available voice files.
 
         Returns:
             List of dicts with voice file info
         """
-        voices = []
+        voices: list[dict[str, Any]] = []
 
         try:
             for file_path in self.voices_dir.iterdir():
@@ -129,7 +133,7 @@ Place voice reference files here for voice cloning.
             logger.warning(f" Voice file not found: {filename}")
             return None
 
-    def validate_voice_file(self, filename: str) -> dict:
+    def validate_voice_file(self, filename: str) -> dict[str, Any]:
         """
         Validate voice file for TTS use.
 
@@ -139,7 +143,7 @@ Place voice reference files here for voice cloning.
         Returns:
             Dict with validation results
         """
-        result = {
+        result: dict[str, Any] = {
             'valid': False,
             'errors': [],
             'warnings': [],
@@ -193,7 +197,7 @@ Place voice reference files here for voice cloning.
 
         return result
 
-    def load_voice(self, tts_engine, filename: str) -> bool:
+    def load_voice(self, tts_engine: TTSEngine, filename: str) -> bool:
         """
         Load voice file into TTS engine.
 
@@ -232,7 +236,7 @@ Place voice reference files here for voice cloning.
             logger.error(f" Error loading voice: {e}")
             return False
 
-    def clear_voice(self, tts_engine) -> bool:
+    def clear_voice(self, tts_engine: TTSEngine) -> bool:
         """
         Clear voice reference from TTS engine.
 
@@ -250,7 +254,7 @@ Place voice reference files here for voice cloning.
             logger.error(f" Error clearing voice: {e}")
             return False
 
-    def get_voice_info(self, filename: str) -> dict | None:
+    def get_voice_info(self, filename: str) -> dict[str, Any] | None:
         """
         Get detailed info about a voice file.
 
@@ -269,13 +273,13 @@ Place voice reference files here for voice cloning.
                 return voice
         return None
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """Get voice manager statistics"""
         voices = self.list_voices()
 
         total_size = sum(v['size'] for v in voices)
 
-        formats = {}
+        formats: dict[str, int] = {}
         for voice in voices:
             fmt = voice['format']
             formats[fmt] = formats.get(fmt, 0) + 1

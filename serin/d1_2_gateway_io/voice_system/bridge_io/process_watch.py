@@ -1,4 +1,6 @@
 """Process supervision for Rust voice bridge."""
+from __future__ import annotations
+
 import asyncio
 import collections
 import json
@@ -8,7 +10,7 @@ from collections.abc import Callable
 from typing import Any
 
 from serin.d1_2_gateway_io._di import get_logger
-from serin.d1_2_gateway_io.voice_system.bridge import RustStdoutReader
+from serin.d1_2_gateway_io.voice_system.bridge_io.bridge import RustStdoutReader
 
 
 class RustVoiceBridge:
@@ -56,8 +58,8 @@ class RustVoiceBridge:
 
         self.proc: asyncio.subprocess.Process | None = None
         self.reader: RustStdoutReader | None = None
-        self._reader_task: asyncio.Task | None = None
-        self._reader_consumer_task: asyncio.Task | None = None
+        self._reader_task: asyncio.Task[None] | None = None
+        self._reader_consumer_task: asyncio.Task[None] | None = None
         self._running = False
         self._guild_id: int | None = None
         self._channel_id: int | None = None
@@ -67,19 +69,19 @@ class RustVoiceBridge:
 
         # ── Supervisor / crash recovery ──────────────────────────────────────
         self._voice_client: Any | None = None
-        self._last_connection_info: dict | None = None
+        self._last_connection_info: dict[str, Any] | None = None
         self._start_mode: str = "connection_info"  # "voice_client" or "connection_info"
         self._death_event = asyncio.Event()
         self._shutdown_requested = False
-        self._supervisor_task: asyncio.Task | None = None
-        self._reconnect_callback: Callable | None = None
-        self._restart_timestamps: collections.deque = collections.deque(maxlen=5)
+        self._supervisor_task: asyncio.Task[None] | None = None
+        self._reconnect_callback: Callable[..., Any] | None = None
+        self._restart_timestamps: collections.deque[float] = collections.deque(maxlen=5)
 
         # Username cache: maps user_id string to display name
         self._usernames: dict[str, str] = {}
 
         # Stderr ring buffer — captures last N lines for diagnostics on crash
-        self._stderr_buf: collections.deque = collections.deque(maxlen=200)
+        self._stderr_buf: collections.deque[str] = collections.deque(maxlen=200)
 
         # Stats
         self.stats = {
@@ -142,6 +144,9 @@ class RustVoiceBridge:
             # Send ConnectionInfo as JSON on stdin (first line).
             # The Rust binary reads this line synchronously before entering the main loop.
             info_json = json.dumps(info) + "\n"
+            if self.proc.stdin is None:
+                get_logger().error(" Rust process stdin not available")
+                return False
             self.proc.stdin.write(info_json.encode('utf-8'))
             await self.proc.stdin.drain()
 
@@ -204,7 +209,7 @@ class RustVoiceBridge:
                 pass
 
         # Send SHUTDOWN command to Rust, then wait for graceful exit
-        if self.proc and self.proc.returncode is None:
+        if self.proc and self.proc.returncode is None and self.proc.stdin is not None:
             get_logger().info(" Stopping Rust voice receiver...")
             try:
                 self.proc.stdin.write(b"SHUTDOWN\n")
@@ -222,6 +227,32 @@ class RustVoiceBridge:
         self.proc = None
         self.reader = None
         get_logger().info(" Rust voice receiver stopped")
+
+    async def _supervise_rust_process(self) -> None:
+        """Watch the Rust process and handle reconnection on crash."""
+        try:
+            await self._death_event.wait()
+        except asyncio.CancelledError:
+            pass
+
+    def _start_stderr_reader(self) -> None:
+        """Read stderr from the Rust process via an asyncio task."""
+
+        async def _read_stderr() -> None:
+            if self.proc is None or self.proc.stderr is None:
+                return
+            while self._running:
+                try:
+                    line: bytes = await self.proc.stderr.readline()
+                    if not line:
+                        break
+                    decoded: str = line.decode('utf-8', errors='replace').rstrip()
+                    self._stderr_buf.append(decoded)
+                    get_logger().debug(f" [rust:err] {decoded}")
+                except Exception:
+                    break
+
+        asyncio.create_task(_read_stderr())
 
     # -----------------------------------------------------------------------
     # Internal: extract voice server info from discord.py VoiceClient
@@ -402,6 +433,12 @@ class RustVoiceBridge:
     def _handle_leave(self, user_id: str) -> None:
         """A user stopped speaking in voice (no longer in VoiceTick.speaking)."""
         self.stats['leaves'] += 1
+
+    def _handle_process_death(self) -> None:
+        """Handle Rust process death — log diagnostics and signal supervisor."""
+        get_logger().error(" Rust process died unexpectedly")
+        self.stats['errors'] += 1
+        self._death_event.set()
 
     def _handle_tts_done(self) -> None:
         """

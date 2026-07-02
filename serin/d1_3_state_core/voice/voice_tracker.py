@@ -30,8 +30,8 @@ class VoiceTracker:
             memory_system: UnifiedMemorySystem instance
         """
         self.memory = memory_system
-        self.current_voice_states = {}  # user_id -> VoiceState dict
-        self.session_start_times = {}   # user_id -> datetime
+        self.current_voice_states: dict[str, dict[str, Any]] = {}  # user_id -> VoiceState dict
+        self.session_start_times: dict[str, datetime] = {}   # user_id -> datetime
 
         logger.info(" Voice tracker initialized")
 
@@ -202,7 +202,7 @@ class VoiceTracker:
         if user_id not in self.current_voice_states:
             return None
 
-        state = self.current_voice_states[user_id].copy()
+        state: dict[str, Any] = self.current_voice_states[user_id].copy()
 
         # Calculate current duration
         if user_id in self.session_start_times:
@@ -297,7 +297,7 @@ def get_voice_duration_reaction(duration_minutes: int) -> str | None:
 
     # Format duration
     if duration_minutes < 60:
-        duration = duration_minutes
+        duration: int | float = duration_minutes
         unit = "min"
     else:
         duration = round(duration_minutes / 60, 1)

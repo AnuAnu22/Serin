@@ -2,14 +2,13 @@
 import pytest
 from unittest.mock import MagicMock, AsyncMock
 
-from serin.d1_1_pipeline_flow.d2_5_act_stage.d3_1_runners_exec.pipeline import MessagePipeline
+from serin.d1_1_pipeline_flow.act.runners.pipeline import MessagePipeline
 from serin.d1_3_state_core.message_context import MessageContext
-from serin.d1_1_pipeline_flow.d2_5_act_stage.d3_1_runners_exec.d4_1_dispatch_handlers.llm_call import LLMCallStage
-from serin.d1_1_pipeline_flow.d2_5_act_stage.d3_2_stages_logic.decision_temporal import ResponseDecisionStage
+from serin.d1_1_pipeline_flow.act.runners.dispatch.llm_call import LLMCallStage
+from serin.d1_1_pipeline_flow.act.stages.decision_temporal import ResponseDecisionStage
 
 
 def _mock_controller():
-    """Return a response_controller mock that always allows responding."""
     ctrl = MagicMock()
     ctrl.should_respond.return_value = (True, "mentioned")
     return ctrl
@@ -44,19 +43,16 @@ def _mock_personality():
 
 
 def _mock_response_generator():
-    """Generator must be an async callable — LLMCallStage does `await self.generator(...)`."""
     return AsyncMock(return_value="Hello, how can I help you?")
 
 
 def _mock_thinking_filter():
-    """ResponseCleaningStage calls filter() on the thinking_filter."""
     tf = MagicMock()
     tf.filter.return_value = "Hello, how can I help you?"
     return tf
 
 
 def test_build_returns_pipeline():
-    """Pipeline.build() should create a fully-wired MessagePipeline."""
     pipeline = MessagePipeline.build(
         response_controller=_mock_controller(),
         memory_system=_mock_memory_system(),
@@ -72,7 +68,6 @@ def test_build_returns_pipeline():
 
 
 def test_build_stages_in_order():
-    """Stages should be in the expected order."""
     pipeline = MessagePipeline.build(
         response_controller=_mock_controller(),
         memory_system=_mock_memory_system(),
@@ -101,7 +96,6 @@ def test_build_stages_in_order():
 
 @pytest.mark.asyncio
 async def test_process_runs_all_stages(base_context):
-    """Full pipeline process should run all 10 stages and return a complete context."""
     pipeline = MessagePipeline.build(
         response_controller=_mock_controller(),
         memory_system=_mock_memory_system(),

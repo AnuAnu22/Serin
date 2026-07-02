@@ -1,5 +1,7 @@
 """Model factory — creates LLMConnector pointing at llama-swap."""
+from __future__ import annotations
 
+from typing import Any
 
 from .connector import LLMConnector
 from .interface import ModelInterface
@@ -40,7 +42,7 @@ def unload_model(model_name: str) -> bool:
     global loaded_models
     if model_name not in loaded_models:
         return False
-    connector = loaded_models[model_name]
+    connector: Any = loaded_models[model_name]
     connector.client = None
     connector.adapter = None
     del loaded_models[model_name]

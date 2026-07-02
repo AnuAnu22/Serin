@@ -3,9 +3,11 @@ Voice Action Decider - Structured output for voice join/leave decisions.
 Part of the thinking/response pipeline (Option C).
 Decides if Serin should join/leave a voice channel based on conversation context.
 """
+from __future__ import annotations
+
 import json
 import re
-from typing import Any
+from typing import Any, cast
 
 from serin.d1_2_gateway_io._di import get_logger
 
@@ -77,7 +79,10 @@ class VoiceActionDecider:
         personality: dict[str, float],
     ) -> str:
 
-        return """You are Serin's internal voice action system. Decide if Serin should join or leave a voice channel.
+        energy = personality.get("energy", 0.5)
+        sass = personality.get("sass", 0.5)
+
+        return f"""You are Serin's internal voice action system. Decide if Serin should join or leave a voice channel.
 
 CONTEXT:
 {context}
@@ -110,7 +115,7 @@ RESPONSE:
             # Try to extract a complete JSON object between braces first
             json_match = re.search(r'\{.*\}', raw, re.DOTALL)
             if json_match:
-                return json.loads(json_match.group(0))
+                return cast(dict[str, str], json.loads(json_match.group(0)))
 
             # LLM output likely starts without opening brace (prompt provides {)
             # Order matters: close unclosed string BEFORE wrapping in braces
@@ -125,7 +130,7 @@ RESPONSE:
             if not raw.endswith("}"):
                 raw += "}"
 
-            return json.loads(raw)
+            return cast(dict[str, str], json.loads(raw))
         except (json.JSONDecodeError, AttributeError):
             get_logger().warning(f" Failed to parse voice decision: {response[:120]}...")
             return {"action": "none", "reason": "parsing_fallback"}

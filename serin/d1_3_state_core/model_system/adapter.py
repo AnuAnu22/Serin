@@ -7,6 +7,8 @@ import re
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from typing import Any
+
 from serin.d1_3_state_core.logger import logger
 
 
@@ -147,7 +149,7 @@ class ModelAdapter:
 
         logger.info(f" Model adapter initialized: {self.model_type} ({model_name})")
 
-    def format_messages(self, messages: list[dict]) -> list[dict]:
+    def format_messages(self, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Format messages for specific model.
         For OpenAI-compatible APIs, this returns messages as-is.

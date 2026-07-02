@@ -10,11 +10,12 @@ Features:
 - Stats dashboard
 """
 import asyncio
-from typing import Any
+from collections.abc import Awaitable, Callable
+from typing import Any, cast
 
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -52,10 +53,10 @@ def make_json_safe(obj: Any) -> Any:
 # ============================================================================
 # GLOBAL STATE (will be injected by main bot)
 # ============================================================================
-bot_state: dict = {}
+bot_state: dict[str, Any] = {}
 
 # WebSocket connections for live updates
-active_websockets = []
+active_websockets: list[WebSocket] = []
 
 
 # ============================================================================
@@ -107,7 +108,7 @@ app.add_middleware(
 
 # Auth middleware
 @app.middleware("http")
-async def check_auth(request: Request, call_next) -> Any:
+async def check_auth(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Any:
     if config.CONTROL_PANEL_KEY:
         api_key = request.headers.get("X-API-Key", "")
         if api_key != config.CONTROL_PANEL_KEY:
@@ -270,10 +271,10 @@ async def broadcast_event(event_type: str, data: dict[str, Any]) -> None:
         if ws in active_websockets:
             active_websockets.remove(ws)
 
-register_enhanced_routes(app, bot_state, broadcast_event )
+register_enhanced_routes(app, bot_state, broadcast_event)
 
-register_control_routes(app)
-register_voice_routes(app)
+register_control_routes(cast(Any, app))
+register_voice_routes(cast(Any, app))
 # ============================================================================
 # HOMEPAGE
 # ============================================================================
@@ -332,7 +333,7 @@ async def get_stats() -> Any:
 @app.get("/api/health")
 async def get_system_health() -> Any:
     """Get health status of all components"""
-    health = {
+    health: dict[str, Any] = {
         'status': 'healthy',
         'components': {}
     }
@@ -374,7 +375,7 @@ async def get_system_health() -> Any:
 
     return health
 
-def get_current_stats() -> dict[str, Any]:
+def get_current_stats() -> Any:
     """Helper to get current stats from all systems (JSON-safe)"""
     stats = {}
 

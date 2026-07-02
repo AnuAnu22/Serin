@@ -16,70 +16,69 @@ PRODUCTION DATABASE PROTECTION:
 - Graceful shutdown handlers
 """
 
-# TIER 4: Message Crawler
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import discord
 from dotenv import load_dotenv
 
-from serin._di import get_mention_translator
-from serin.d1_2_gateway_io._di import get_logger
+from serin.d1_2_gateway_io._di import get_logger, init_gateway
+from serin.d1_3_state_core.logger import logger as _default_logger
+
+# Initialize gateway DI immediately so module-level get_logger() calls work
+try:
+    get_logger()
+except RuntimeError:
+    init_gateway(_default_logger)
 
 if TYPE_CHECKING:
+    from serin.d1_1_pipeline_flow.ingest.context.mention_translator import (
+        MentionTranslator,
+    )
     from serin.d1_1_pipeline_flow.ingest.core.manager import EnhancedMessageManagerV3
     from serin.d1_1_pipeline_flow.ingest.sync.crawler import MessageCrawler
-from serin.d1_2_gateway_io.voice_system.tts_engine import TTSEngine
+    from serin.d1_5_ops_tooling.tts_voice_manager import TTSVoiceManager
 
-# TIER 1: Core Message Processing
+from serin.d1_2_gateway_io.voice_system.tts_engine import TTSEngine
 from serin.d1_3_state_core.db_protect import (
     DatabaseProtector,
     DatabaseRecoveryError,
     DatabaseValidationError,
     get_database_protector,
 )
-
-# Import centralized config
 from serin.d1_4_config_base.config import config
 from serin.d1_5_ops_tooling.background import BackgroundProcessor
-
-# TIER 3: Background Processing
 from serin.d1_5_ops_tooling.passive_monitor import PassiveMonitor
 
-# TIER 6: Import voice and control panel components
+# Voice components — may not be available
 voice_available = False
 try:
-    from serin.d1_2_gateway_io.voice_system.listener import VoiceListener
-    from serin.d1_2_gateway_io.voice_system.output import VoiceOutputManager
-    from serin.d1_2_gateway_io.voice_system.processor import (
+    from serin.d1_2_gateway_io.voice_system.audio.process.audio_processor import (
         AudioStreamProcessor,
+    )
+    from serin.d1_2_gateway_io.voice_system.audio.process.voice_behavior import (
         VoiceBehaviorManager,
     )
+    from serin.d1_2_gateway_io.voice_system.listener import VoiceListener
+    from serin.d1_2_gateway_io.voice_system.output import VoiceOutputManager
     from serin.d1_2_gateway_io.voice_transcribe.pipeline import VoiceMemoryPipeline
     from serin.d1_2_gateway_io.voice_transcribe.transcriber import WhisperTranscriber
     voice_available = True
 except Exception:
     VoiceListener = AudioStreamProcessor = WhisperTranscriber = None  # type: ignore[assignment,misc]
     VoiceMemoryPipeline = VoiceOutputManager = VoiceBehaviorManager = None  # type: ignore[assignment,misc]
-    get_logger().warning("Voice dependencies not available. Voice features disabled.")
 
-# Load environment variables
 load_dotenv()
 
 get_logger().info("Loading Discord.py...")
 get_logger().info("Loading AI components...")
 
-# ==================================================================================
-# CONFIGURATION
-# ==================================================================================
-
 # Validate token
 if not config.DISCORD_TOKEN:
     raise OSError("DISCORD_TOKEN environment variable not set")
 
-# Allowed channels (where bot can RESPOND)
 if not config.ALLOWED_CHANNEL_IDS:
     config.ALLOWED_CHANNEL_IDS = {
         1298593950436954143,
@@ -96,7 +95,7 @@ get_logger().info(f"Voice input: {'ENABLED' if config.ENABLE_VOICE else 'DISABLE
 get_logger().info(f"Voice output: {'ENABLED' if config.ENABLE_TTS else 'DISABLED'}")
 get_logger().info(f"Control panel: http://127.0.0.1:{config.CONTROL_PANEL_PORT}")
 
-# Intents - single declaration with all required intents
+# Intents
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
@@ -106,7 +105,9 @@ intents.voice_states = True
 
 # Client - single instance
 client = discord.Client(intents=intents)
-mention_translator = get_mention_translator()
+
+# mention_translator is initialized in on_ready() via root DI, not at import time
+mention_translator: MentionTranslator | None = None
 
 # Global State
 start_time: datetime = datetime.now()
@@ -119,50 +120,50 @@ audio_processor: AudioStreamProcessor | None = None
 voice_pipeline: VoiceMemoryPipeline | None = None
 tts_engine: TTSEngine | None = None
 voice_output_manager: VoiceOutputManager | None = None
-voice_manager: VoiceMemoryPipeline | None = None
+voice_manager: TTSVoiceManager | None = None
 voice_behavior_manager: VoiceBehaviorManager | None = None
 
 # Database Protector
 db_protector = DatabaseProtector("./bot_data")
 
-# Initialize database protection system
-get_logger().info("Initializing Database Protection System...")
-database_protector = get_database_protector()
 
-# Validate databases before startup
-try:
-    get_logger().info("Validating database integrity...")
-    validation_results = database_protector.validate_all_databases()
+def init_database_protection() -> None:
+    """Validate databases and set up shutdown handlers. Called from on_ready()."""
+    get_logger().info("Initializing Database Protection System...")
+    database_protector: DatabaseProtector = cast(DatabaseProtector, get_database_protector())
 
-    if validation_results['overall_status'] == 'critical':
-        get_logger().error("CRITICAL database corruption detected!")
-        get_logger().error("Available backups:")
-        for backup in database_protector.list_backups()[:5]:
-            get_logger().error(f"  {backup['created_at']}: {backup['backup_type']}")
+    try:
+        get_logger().info("Validating database integrity...")
+        validation_results = database_protector.validate_all_databases()
 
-        raise DatabaseValidationError("Critical database corruption detected - cannot start")
+        if validation_results['overall_status'] == 'critical':
+            get_logger().error("CRITICAL database corruption detected!")
+            get_logger().error("Available backups:")
+            for backup in database_protector.list_backups()[:5]:
+                get_logger().error(f"  {backup['created_at']}: {backup['backup_type']}")
+            raise DatabaseValidationError("Critical database corruption detected - cannot start")
 
-    elif validation_results['overall_status'] == 'recoverable':
-        get_logger().warning("Recoverable database issues detected - attempting recovery...")
-        recovery_success = database_protector.recover_from_corruption(validation_results)
-        if not recovery_success:
-            get_logger().error("Database recovery failed!")
-            raise DatabaseRecoveryError("Database recovery failed - cannot start")
-        get_logger().info("Database recovery successful!")
+        elif validation_results['overall_status'] == 'recoverable':
+            get_logger().warning("Recoverable database issues detected - attempting recovery...")
+            recovery_success = database_protector.recover_from_corruption(validation_results)
+            if not recovery_success:
+                get_logger().error("Database recovery failed!")
+                raise DatabaseRecoveryError("Database recovery failed - cannot start")
+            get_logger().info("Database recovery successful!")
 
-    else:
-        get_logger().info("Database validation passed")
+        else:
+            get_logger().info("Database validation passed")
 
-except Exception as e:
-    get_logger().error(f"Database validation failed: {e}")
-    get_logger().error("Try restoring from a backup manually")
-    raise
+    except Exception as e:
+        get_logger().error(f"Database validation failed: {e}")
+        get_logger().error("Try restoring from a backup manually")
+        raise
 
-# Set up graceful shutdown handlers
-database_protector.setup_graceful_shutdown()
+    database_protector.setup_graceful_shutdown()
+
 
 # Bot statistics
-stats: dict[str, int | float | None] = {
+stats: dict[str, int | float] = {
     'messages_received': 0,
     'messages_processed': 0,
     'messages_ignored': 0,
@@ -172,5 +173,5 @@ stats: dict[str, int | float | None] = {
     'voice_events': 0,
     'voice_messages': 0,
     'errors': 0,
-    'start_time': None,
+    'start_time': 0,
 }

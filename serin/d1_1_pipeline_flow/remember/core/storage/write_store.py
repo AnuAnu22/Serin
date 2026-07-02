@@ -3,8 +3,13 @@ Extracted from store.py. These are standalone functions that
 operate on a QdrantMemorySystem instance passed as first arg.
 """
 import json
+import sqlite3
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from serin.d1_1_pipeline_flow.remember.core.store import QdrantMemorySystem
 
 from qdrant_client.http import models
 
@@ -16,7 +21,7 @@ from serin.d1_3_state_core.thinking_filter import filter_for_memory
 from serin.d1_4_config_base.debug_logger import log_memory
 
 
-def generate_memory_id(store, source_message_id: str | None, chunk_index: int = 0) -> str:
+def generate_memory_id(store: 'QdrantMemorySystem', source_message_id: str | None, chunk_index: int = 0) -> str:
         """Generate deterministic ID for idempotent ingestion"""
         if source_message_id:
             namespace = uuid.uuid5(uuid.NAMESPACE_DNS, "serin.ai")
@@ -24,14 +29,14 @@ def generate_memory_id(store, source_message_id: str | None, chunk_index: int = 
         else:
             return str(uuid.uuid4())
 
-def _chunk_content(store, content: str, min_tokens: int = 200, max_tokens: int = 600) -> list[str]:
+def _chunk_content(store: 'QdrantMemorySystem', content: str, min_tokens: int = 200, max_tokens: int = 600) -> list[str]:
         """Split content into appropriate chunks."""
         chars_per_token = 4
         max_chars = max_tokens * chars_per_token
 
-        sentences = content.split('. ')
-        chunks = []
-        current_chunk = ""
+        sentences: list[str] = content.split('. ')
+        chunks: list[str] = []
+        current_chunk: str = ""
 
         for sentence in sentences:
             if len(current_chunk) + len(sentence) + 2 <= max_chars:
@@ -54,7 +59,7 @@ def _chunk_content(store, content: str, min_tokens: int = 200, max_tokens: int =
 
         return chunks
 
-def _build_payload(store, content: str, user_id: str, chunk_index: int, total_chunks: int, **kwargs) -> dict:
+def _build_payload(store: 'QdrantMemorySystem', content: str, user_id: str, chunk_index: int, total_chunks: int, **kwargs: Any) -> dict[str, Any]:
         """Build Qdrant payload for memory"""
         return {
             "text": content,
@@ -86,10 +91,10 @@ def _build_payload(store, content: str, user_id: str, chunk_index: int, total_ch
             "total_chunks": total_chunks
         }
 
-def _is_duplicate(store, content: str, user_id: str, source_message_id: str | None = None) -> bool:
+def _is_duplicate(store: 'QdrantMemorySystem', content: str, user_id: str, source_message_id: str | None = None) -> bool:
         """Check if memory already exists"""
         if source_message_id:
-            cursor = store.conn.cursor()
+            cursor: sqlite3.Cursor = store.conn.cursor()
             cursor.execute("SELECT id FROM background_jobs WHERE memory_id LIKE ? AND job_type = 'dedup'",
                           (f"%{source_message_id}%",))
             if cursor.fetchone():
@@ -108,7 +113,7 @@ def _is_duplicate(store, content: str, user_id: str, source_message_id: str | No
                     if results[0]:
                         return True
 
-                existing_id = store._get_existing_memory_id(content, user_id)
+                existing_id = _get_existing_memory_id(store, content, user_id)
                 if existing_id:
                     return True
 
@@ -117,26 +122,24 @@ def _is_duplicate(store, content: str, user_id: str, source_message_id: str | No
 
         return False
 
-def _get_existing_memory_id(store, content: str, user_id: str) -> str | None:
+def _get_existing_memory_id(store: 'QdrantMemorySystem', content: str, user_id: str) -> str | None:
         """Get existing memory ID for duplicate content"""
         if not store.qdrant_client:
             return None
 
         try:
-            should_conditions = [
-                models.FieldCondition(key="person_id", match=models.MatchValue(value=user_id)),
-                models.FieldCondition(key="text", match=models.MatchValue(value=content))
-            ]
-
             results = store.qdrant_client.scroll(
                 collection_name="memories",
-                scroll_filter=models.Filter(must=should_conditions),
+                scroll_filter=models.Filter(must=[
+                    models.FieldCondition(key="person_id", match=models.MatchValue(value=user_id)),
+                    models.FieldCondition(key="text", match=models.MatchValue(value=content))
+                ]),
                 limit=1,
                 with_payload=False
             )
 
             if results[0]:
-                return results[0][0].id
+                return str(results[0][0].id)
 
             return None
 
@@ -144,9 +147,9 @@ def _get_existing_memory_id(store, content: str, user_id: str) -> str | None:
             logger.error(f" Error checking existing memory ID: {e}")
             return None
 
-def _queue_background_jobs(store, memory_ids: list[str], kwargs: dict):
+def _queue_background_jobs(store: 'QdrantMemorySystem', memory_ids: list[str], kwargs: dict[str, Any]) -> None:
         """Queue background processing jobs"""
-        cursor = store.conn.cursor()
+        cursor: sqlite3.Cursor = store.conn.cursor()
 
         for memory_id in memory_ids:
             cursor.execute("""
@@ -161,19 +164,19 @@ def _queue_background_jobs(store, memory_ids: list[str], kwargs: dict):
 
         store.conn.commit()
 
-def add_memory_enhanced(store, content: str, user_id: str, **kwargs) -> str | None:
+def add_memory_enhanced(store: 'QdrantMemorySystem', content: str, user_id: str, **kwargs: Any) -> str | None:
         """Enhanced memory ingestion with chunking and idempotency"""
         content = filter_for_memory(content)
 
         try:
-            if store._is_duplicate(content, user_id, kwargs.get('source_message_id')):
-                existing_id = store._get_existing_memory_id(content, user_id)
+            if _is_duplicate(store, content, user_id, kwargs.get('source_message_id')):
+                existing_id = _get_existing_memory_id(store, content, user_id)
                 if existing_id:
                     return existing_id
 
-            chunks = store._chunk_content(content, min_tokens=200, max_tokens=600)
+            chunks = _chunk_content(store, content, min_tokens=200, max_tokens=600)
 
-            embeddings = []
+            embeddings: list[list[float]] = []
             if store.embedding_model:
                 try:
                     prefixed_chunks = [c for c in chunks]
@@ -193,11 +196,12 @@ def add_memory_enhanced(store, content: str, user_id: str, **kwargs) -> str | No
                 })
                 return None
 
-            memory_ids = []
+            memory_ids: list[str] = []
+            payload: dict[str, Any] = {}
             for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-                memory_id = store.generate_memory_id(kwargs.get('source_message_id'), i)
+                memory_id = generate_memory_id(store, kwargs.get('source_message_id'), i)
 
-                payload = store._build_payload(chunk, user_id, i, len(chunks), **kwargs)
+                payload = _build_payload(store, chunk, user_id, i, len(chunks), **kwargs)
 
                 if store.qdrant_client:
                     try:
@@ -214,7 +218,7 @@ def add_memory_enhanced(store, content: str, user_id: str, **kwargs) -> str | No
 
                 if store.bm25_index:
                     try:
-                        store.bm25_index.add_document(memory_id, chunk, user_id, kwargs.get('channel_id'))
+                        store.bm25_index.add_document(memory_id, chunk, user_id, str(kwargs.get('channel_id', '')))
                     except Exception as e:
                         logger.error(f" Error adding to BM25: {e}")
 

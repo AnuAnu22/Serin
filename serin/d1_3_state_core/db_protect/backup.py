@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import json
 import shutil
 import tarfile
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from serin.d1_3_state_core.db_protect.core import (
     DatabaseProtectorCore,
@@ -13,7 +16,7 @@ from serin.d1_3_state_core.logger import logger
 
 
 class DatabaseProtectorBackup(DatabaseProtectorCore):
-    def list_backups(self) -> list[dict]:
+    def list_backups(self) -> list[dict[str, Any]]:
         backups = []
         try:
             for backup_file in self.backup_dir.glob("*.tar.gz"):
@@ -52,7 +55,7 @@ class DatabaseProtectorBackup(DatabaseProtectorCore):
             backup_path = self.backup_dir / backup_name
             logger.info(f" Creating {backup_type} backup: {backup_name}")
             backup_path.mkdir(parents=True, exist_ok=True)
-            backup_info = {
+            backup_info: dict[str, Any] = {
                 'backup_type': backup_type,
                 'timestamp': timestamp,
                 'created_at': datetime.now().isoformat(),
@@ -131,7 +134,7 @@ class DatabaseProtectorBackup(DatabaseProtectorCore):
         except Exception as e:
             logger.warning(f" Backup cleanup failed: {e}")
 
-    def _extract_and_validate_backup_metadata(self, backup_file: Path) -> dict | None:
+    def _extract_and_validate_backup_metadata(self, backup_file: Path) -> dict[str, Any] | None:
         if not backup_file.exists():
             logger.error(f" Backup file not found: {backup_file}")
             raise FileNotFoundError(f"Backup file not found: {backup_file}")
@@ -165,7 +168,7 @@ class DatabaseProtectorBackup(DatabaseProtectorCore):
             logger.error(f" Unexpected error extracting metadata from {backup_file.name}: {e}")
             return None
 
-    def _locate_metadata_file_in_archive(self, tar_archive) -> str | None:
+    def _locate_metadata_file_in_archive(self, tar_archive: tarfile.TarFile) -> str | None:
         try:
             for member in tar_archive.getmembers():
                 if member.isfile() and member.name.endswith('backup_info.json'):
@@ -177,11 +180,15 @@ class DatabaseProtectorBackup(DatabaseProtectorCore):
             logger.error(f" Error searching for metadata file in archive: {e}")
             return None
 
-    def _decode_backup_metadata_content(self, tar_archive, metadata_file_path: str) -> str | None:
+    def _decode_backup_metadata_content(self, tar_archive: tarfile.TarFile, metadata_file_path: str) -> str | None:
         try:
             metadata_member = tar_archive.getmember(metadata_file_path)
             if metadata_member.isfile():
-                file_content_bytes = tar_archive.extractfile(metadata_member).read()
+                extracted = tar_archive.extractfile(metadata_member)
+                if extracted is None:
+                    logger.error(f" Could not extract metadata file {metadata_file_path}")
+                    return None
+                file_content_bytes = extracted.read()
                 if not file_content_bytes:
                     logger.error(f" Metadata file {metadata_file_path} is empty")
                     return None
@@ -198,10 +205,11 @@ class DatabaseProtectorBackup(DatabaseProtectorCore):
         except Exception as e:
             logger.error(f" Error extracting metadata file {metadata_file_path}: {e}")
             return None
+        return None
 
-    def _parse_and_validate_metadata(self, metadata_content: str, backup_file: Path) -> dict | None:
+    def _parse_and_validate_metadata(self, metadata_content: str, backup_file: Path) -> dict[str, Any] | None:
         try:
-            backup_metadata = json.loads(metadata_content)
+            backup_metadata: dict[str, Any] = json.loads(metadata_content)
             required_fields = ['backup_type', 'timestamp', 'created_at']
             missing_fields = [field for field in required_fields if field not in backup_metadata]
             if missing_fields:

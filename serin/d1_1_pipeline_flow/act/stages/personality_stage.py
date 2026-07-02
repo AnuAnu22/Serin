@@ -7,6 +7,8 @@ Populates ctx.personality_context and ctx.tone_modifier.
 """
 from __future__ import annotations
 
+from typing import Any
+
 from serin.d1_1_pipeline_flow.act.stages_base import PipelineStage
 from serin.d1_3_state_core.logger import logger
 from serin.d1_3_state_core.message_context import MessageContext
@@ -15,7 +17,7 @@ from serin.d1_3_state_core.message_context import MessageContext
 class PersonalityStage(PipelineStage):
     """Applies personality traits, tone, and conversation mood."""
 
-    def __init__(self, personality, mood_state=None):
+    def __init__(self, personality: Any, mood_state: Any = None) -> None:
         self.personality = personality
         self.mood_state = mood_state
 

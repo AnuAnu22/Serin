@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import asyncio
-import importlib
+from importlib import util
 from typing import Any
 
 from serin.d1_2_gateway_io._di import get_logger
@@ -28,7 +30,7 @@ class VoiceOutputManager:
         self.voice_listener = voice_listener
 
         # Queue of (text, guild_id) tuples — processed one at a time
-        self.sentence_queue = asyncio.Queue()
+        self.sentence_queue: asyncio.Queue[tuple[str, int]] = asyncio.Queue()
 
         # Current state
         self.is_speaking = False
@@ -39,7 +41,7 @@ class VoiceOutputManager:
         self.interrupt_event = asyncio.Event()
 
         # Background task
-        self.processing_task = None
+        self.processing_task: asyncio.Task[None] | None = None
         self.is_running = False
 
         get_logger().info(" Voice output manager initialized")
@@ -207,7 +209,7 @@ class VoiceOutputManager:
         """
         import re
         parts = re.split(r'([.?!]+)', text)
-        sentences = []
+        sentences: list[str] = []
         current = ""
         for part in parts:
             current += part
@@ -241,16 +243,16 @@ Features:
 - Natural prosody
 """
 # Check TTS backend availability
-EDGE_TTS_AVAILABLE = importlib.util.find_spec("edge_tts") is not None
+EDGE_TTS_AVAILABLE = util.find_spec("edge_tts") is not None
 COQUI_TTS_AVAILABLE = (
-    importlib.util.find_spec("numpy") is not None
-    and importlib.util.find_spec("torch") is not None
-    and importlib.util.find_spec("TTS") is not None
+    util.find_spec("numpy") is not None
+    and util.find_spec("torch") is not None
+    and util.find_spec("TTS") is not None
 )
 
 
 # edge-tts voice presets by mood/style
-EDGE_VOICE_PRESETS = {
+EDGE_VOICE_PRESETS: dict[str, str] = {
     'default': 'en-US-GuyNeural',
     'energetic': 'en-US-ChristopherNeural',
     'calm': 'en-US-AriaNeural',
@@ -261,7 +263,7 @@ EDGE_VOICE_PRESETS = {
 }
 
 # Edge TTS rate modifiers per profile
-EDGE_RATE_MAP = {
+EDGE_RATE_MAP: dict[str, str] = {
     'default': '+0%',
     'fast': '+20%',
     'slow': '-15%',

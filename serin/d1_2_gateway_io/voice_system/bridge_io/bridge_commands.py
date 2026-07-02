@@ -1,15 +1,21 @@
 """Commands sent to Rust voice bridge."""
+from __future__ import annotations
 
 import asyncio
 import json
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from serin.d1_2_gateway_io._di import get_logger
-from serin.d1_2_gateway_io.voice_system.bridge import RustStdoutReader
+from serin.d1_2_gateway_io.voice_system.bridge_io.bridge import RustStdoutReader
+
+if TYPE_CHECKING:
+    from serin.d1_2_gateway_io.voice_system.bridge_io.process_watch import (
+        RustVoiceBridge,
+    )
 
 
-async def send_tts_audio(self, audio_data: bytes) -> None:
+async def send_tts_audio(self: RustVoiceBridge, audio_data: bytes) -> None:
     """
     Send TTS audio data to the Rust binary for voice channel playback.
 
@@ -29,12 +35,12 @@ async def send_tts_audio(self, audio_data: bytes) -> None:
     try:
         header = f"SPEAK:{len(audio_data)}\n".encode()
         get_logger().info(f" Writing {len(header) + len(audio_data)} bytes to Rust stdin")
-        await self._write_stdin(header + audio_data)
+        await _write_stdin(self, header + audio_data)
     except Exception as e:
         get_logger().error(f" Error sending TTS audio: {e}")
 
 
-async def interrupt(self) -> None:
+async def interrupt(self: RustVoiceBridge) -> None:
     """
     Interrupt current TTS playback.
 
@@ -44,12 +50,12 @@ async def interrupt(self) -> None:
     if not self.proc or not self.proc.stdin:
         return
     try:
-        await self._write_stdin(b"INTERRUPT\n")
+        await _write_stdin(self, b"INTERRUPT\n")
     except Exception:
         get_logger().exception("Failed to send INTERRUPT to Rust bridge")
 
 
-async def _write_stdin(self, data: bytes) -> None:
+async def _write_stdin(self: RustVoiceBridge, data: bytes) -> None:
     """
     Thread-safe async write to Rust stdin.
 
@@ -70,7 +76,7 @@ async def _write_stdin(self, data: bytes) -> None:
 
 
 async def start_with_info(
-    self, guild_id: int, channel_id: int, connection_info: dict
+    self: RustVoiceBridge, guild_id: int, channel_id: int, connection_info: dict[str, Any]
 ) -> bool:
     """
     Start the Rust voice receiver using pre-captured ConnectionInfo.
@@ -110,6 +116,9 @@ async def start_with_info(
         )
 
         info_json = json.dumps(connection_info) + "\n"
+        if self.proc.stdin is None:
+            get_logger().error(" Rust process stdin not available")
+            return False
         self.proc.stdin.write(info_json.encode('utf-8'))
         await self.proc.stdin.drain()
 
@@ -145,16 +154,16 @@ async def start_with_info(
 # -----------------------------------------------------------------------
 
 
-def is_running(self) -> bool:
+def is_running(self: RustVoiceBridge) -> bool:
     """Check if the Rust process is alive (not None and still running)."""
     return self.proc is not None and self.proc.returncode is None
 
 
-def get_stats(self) -> dict[str, Any]:
+def get_stats(self: RustVoiceBridge) -> dict[str, Any]:
     """Get bridge statistics (chunks, joins, leaves, errors, etc.)."""
     return {
         **self.stats,
-        'process_alive': self.is_running(),
+        'process_alive': is_running(self),
         'guild_id': self._guild_id,
         'channel_id': self._channel_id,
     }

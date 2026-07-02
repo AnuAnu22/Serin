@@ -1,5 +1,7 @@
 """Audio stream processor — per-user PCM buffer, VAD, and transcription pipeline."""
 
+from __future__ import annotations
+
 import asyncio
 import os
 import secrets
@@ -77,7 +79,7 @@ class AudioStreamProcessor:
 
         # Per-user silence timers — a fallback for when the Rust bridge stops sending chunks entirely.
         # The timer fires after silence_threshold seconds. If audio arrives, the timer is cancelled/rescheduled.
-        self._silence_timers: dict[str, asyncio.Task | None] = {}
+        self._silence_timers: dict[str, asyncio.Task[Any] | None] = {}
 
         # Per-user voice burst counter — counts consecutive voice frames to distinguish real speech from noise.
         # Only resets the silence counter if the burst reaches 25 frames (0.5s of continuous voice).
@@ -93,13 +95,13 @@ class AudioStreamProcessor:
         # Set of user IDs currently flagged as speaking (used for interrupt detection).
         # When a user is in this set and the bot is speaking, an interrupt is triggered.
         # The user is removed from this set when their silence threshold fires.
-        self.currently_speaking: set = set()
+        self.currently_speaking: set[str] = set()
 
         # Async queue for transcription jobs — processed one at a time by _process_queue().
         # maxsize=50 prevents unbounded memory growth if the LLM falls behind.
-        self.processing_queue = asyncio.Queue(maxsize=50)
-        self.is_running = False
-        self.processing_task = None
+        self.processing_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=50)
+        self.is_running: bool = False
+        self.processing_task: asyncio.Task[Any] | None = None
 
         # Voice Activity Detection settings
         # VAD_THRESHOLD: RMS energy level above which a frame is considered "voice".
@@ -111,7 +113,7 @@ class AudioStreamProcessor:
         self.SILENCE_FRAMES_THRESHOLD = int(silence_threshold * self.FRAMES_PER_SECOND)
         self.MAX_BUFFER_BYTES = MAX_BUFFER_BYTES_GEMMA if (self.llm_connector and self.supports_audio) else MAX_BUFFER_BYTES_WHISPER
 
-        self.stats = {
+        self.stats: dict[str, Any] = {
             'chunks_received': 0,
             'chunks_processed': 0,
             'users_speaking': 0,
@@ -129,56 +131,56 @@ class AudioStreamProcessor:
         })
 
     # ── Delegation to split-out modules ────────────────────────────────────
-    def _detect_voice_activity(self, audio_data):
+    def _detect_voice_activity(self, audio_data: bytes) -> bool:
         from serin.d1_2_gateway_io.voice_system.audio.audio_vad import (
             _detect_voice_activity,
         )
         return _detect_voice_activity(self, audio_data)
 
-    def process_audio_chunk(self, user_id, username, guild_id, channel_id, audio_data):
+    def process_audio_chunk(self, user_id: str, username: str, guild_id: str, channel_id: str, audio_data: bytes) -> None:
         from serin.d1_2_gateway_io.voice_system.audio.audio_utils import (
             process_audio_chunk as _process_audio_chunk,
         )
         return _process_audio_chunk(self, user_id, username, guild_id, channel_id, audio_data)
 
-    def _queue_for_transcription(self, user_id, audio_data, username):
+    def _queue_for_transcription(self, user_id: str, username: str, guild_id: str, channel_id: str) -> None:
         from serin.d1_2_gateway_io.voice_system.audio.audio_vad import (
             _queue_for_transcription,
         )
-        return _queue_for_transcription(self, user_id, audio_data, username)
+        return _queue_for_transcription(self, user_id, username, guild_id, channel_id)
 
-    def _cancel_silence_timer(self, user_id):
+    def _cancel_silence_timer(self, user_id: str) -> None:
         from serin.d1_2_gateway_io.voice_system.audio.audio_vad import (
             _cancel_silence_timer,
         )
         return _cancel_silence_timer(self, user_id)
 
-    def _schedule_silence_timer(self, user_id, username, audio_data, channel_id):
+    def _schedule_silence_timer(self, user_id: str, username: str, guild_id: str, channel_id: str) -> None:
         from serin.d1_2_gateway_io.voice_system.audio.audio_vad import (
             _schedule_silence_timer,
         )
-        return _schedule_silence_timer(self, user_id, username, audio_data, channel_id)
+        return _schedule_silence_timer(self, user_id, username, guild_id, channel_id)
 
-    def _is_locked(self, guild_id):
+    def _is_locked(self, guild_id: str) -> bool:
         from serin.d1_2_gateway_io.voice_system.audio.audio_vad import _is_locked
         return _is_locked(self, guild_id)
 
-    def _release_lock(self, guild_id):
+    def _release_lock(self, guild_id: str) -> None:
         from serin.d1_2_gateway_io.voice_system.audio.audio_vad import _release_lock
         return _release_lock(self, guild_id)
 
-    def _set_lock(self, guild_id, duration=20.0):
+    def _set_lock(self, guild_id: str, duration: float = 20.0) -> None:
         from serin.d1_2_gateway_io.voice_system.audio.audio_vad import _set_lock
         return _set_lock(self, guild_id, duration)
 
     @staticmethod
-    def _pcm_to_wav_base64(audio_data, sample_rate=16000):
+    def _pcm_to_wav_base64(audio_data: bytes, sample_rate: int = 16000) -> str:
         from serin.d1_2_gateway_io.voice_system.audio.audio_utils import (
             _pcm_to_wav_base64,
         )
         return _pcm_to_wav_base64(audio_data, sample_rate)
 
-    async def _transcribe_with_gemma(self, audio_data, username="User"):
+    async def _transcribe_with_gemma(self, audio_data: bytes, username: str = "User") -> str | None:
         from serin.d1_2_gateway_io.voice_system.audio.audio_utils import (
             _transcribe_with_gemma,
         )
@@ -188,7 +190,7 @@ class AudioStreamProcessor:
         from serin.d1_2_gateway_io.voice_system.audio.audio_vad import _process_queue
         return await _process_queue(self)
 
-    async def _transcribe_and_store(self, item: dict) -> None:
+    async def _transcribe_and_store(self, item: dict[str, Any]) -> None:
         from serin.d1_2_gateway_io.voice_system.audio.audio_transcribe import (
             _transcribe_and_store,
         )
@@ -200,7 +202,7 @@ class AudioStreamProcessor:
         )
         return check_interrupt(self, user_id)
 
-    def get_active_speakers(self):
+    def get_active_speakers(self) -> set[str]:
         from serin.d1_2_gateway_io.voice_system.audio.audio_transcribe import (
             get_active_speakers,
         )
@@ -212,7 +214,7 @@ class AudioStreamProcessor:
         )
         return get_buffer_size(self, user_id)
 
-    def get_stats(self):
+    def get_stats(self) -> dict[str, Any]:
         from serin.d1_2_gateway_io.voice_system.audio.audio_transcribe import get_stats
         return get_stats(self)
 

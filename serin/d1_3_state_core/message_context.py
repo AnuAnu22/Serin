@@ -27,18 +27,18 @@ class MessageContext:
     should_respond: bool = False
     halt_reason: str = ""  # non-empty = pipeline halted early
     intent: str = "statement"  # from PerceptionResult
-    response_plan: dict = field(default_factory=dict)  # from ResponsePlannerStage
+    response_plan: dict[str, Any] = field(default_factory=dict)  # from ResponsePlannerStage
 
     # ── Memory retrieval ──────────────────────────────────────────────────────
-    memories: list[dict] = field(default_factory=list)
-    facts: list[dict] = field(default_factory=list)  # From FactStore
-    beliefs: list[dict] = field(default_factory=list)  # From BeliefStore
-    evidence_memories: list[dict] = field(default_factory=list)
-    episode_memories: list[dict] = field(default_factory=list)
-    utterance_memories: list[dict] = field(default_factory=list)
-    recent_messages: list[dict] = field(default_factory=list)
-    user_profile: dict = field(default_factory=dict)
-    relationships: list[dict] = field(default_factory=list)
+    memories: list[dict[str, Any]] = field(default_factory=list)
+    facts: list[dict[str, Any]] = field(default_factory=list)  # From FactStore
+    beliefs: list[dict[str, Any]] = field(default_factory=list)  # From BeliefStore
+    evidence_memories: list[dict[str, Any]] = field(default_factory=list)
+    episode_memories: list[dict[str, Any]] = field(default_factory=list)
+    utterance_memories: list[dict[str, Any]] = field(default_factory=list)
+    recent_messages: list[dict[str, Any]] = field(default_factory=list)
+    user_profile: dict[str, Any] = field(default_factory=dict)
+    relationships: list[dict[str, Any]] = field(default_factory=list)
 
     # ── Temporal / context ────────────────────────────────────────────────────
     temporal_refs: list[str] = field(default_factory=list)
@@ -48,7 +48,7 @@ class MessageContext:
     # ── Prompt assembly ───────────────────────────────────────────────────────
     system_prompt: str = ""
     context_block: str = ""
-    built_messages: list[dict] = field(default_factory=list)  # [{role, content}]
+    built_messages: list[dict[str, Any]] = field(default_factory=list)  # [{role, content}]
 
     # ── LLM response ──────────────────────────────────────────────────────────
     raw_response: str = ""

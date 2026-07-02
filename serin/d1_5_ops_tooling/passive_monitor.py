@@ -11,7 +11,9 @@ import discord
 from serin.d1_3_state_core.logger import logger
 
 if TYPE_CHECKING:
-    from serin.d1_3_state_core.voice.mention_translator import MentionTranslator
+    from serin.d1_1_pipeline_flow.ingest.context.mention_translator import (
+        MentionTranslator,
+    )
     from serin.d1_5_ops_tooling.background import BackgroundProcessor
 
 
@@ -92,14 +94,15 @@ class PassiveMonitor:
                     username=username,
                     channel_id=channel_id,
                     server_id=server_id,
-                    timestamp=message.created_at.isoformat()
+                    timestamp=message.created_at
                 )
 
             # Log based on channel type
+            channel_name: str | None = getattr(message.channel, 'name', None)
             if is_allowed_channel:
-                logger.debug(f" Active: {username} in #{message.channel.name}")
+                logger.debug(f" Active: {username} in #{channel_name}")
             else:
-                logger.debug(f" Passive: {username} in #{message.channel.name} (monitoring only)")
+                logger.debug(f" Passive: {username} in #{channel_name} (monitoring only)")
 
         except Exception as e:
             logger.error(f" Error in passive monitor: {e}")

@@ -59,7 +59,7 @@ class VoiceBehaviorManager:
         self.creator_user_ids: set[str] = set()
 
         # Runtime state
-        self._behavior_check_task: asyncio.Task | None = None
+        self._behavior_check_task: asyncio.Task[None] | None = None
         self._is_running: bool = False
         self._vc_join_time: dict[int, datetime] = {}
         self._last_speech_time: dict[int, datetime] = {}

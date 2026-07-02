@@ -5,13 +5,16 @@ This file owns the connection to external storage (Qdrant, SQLite) and exposes
 it via QdrantMemorySystem. Pure domain logic (fact extraction, belief state
 machines) lives in sibling modules evidence.py and beliefs.py.
 """
+from __future__ import annotations
+
 import importlib
 import os
 import shutil
 import sqlite3
 import time as time_mod
+from typing import Any
 
-from serin.d1_1_pipeline_flow.remember.core.bm25_index import SQLiteBM25Index
+from serin.d1_3_state_core.bm25_index import SQLiteBM25Index
 from serin.d1_3_state_core.logger import logger
 from serin.d1_3_state_core.memory.belief_store import BeliefStore
 from serin.d1_3_state_core.memory.evidence_store import FactStore
@@ -48,10 +51,11 @@ class QdrantMemorySystem:
         os.makedirs(data_dir, exist_ok=True)
 
         # Initialize Qdrant client with retry
+        self.qdrant_client: QdrantClient | None = None
         if QDRANT_AVAILABLE:
             for attempt in range(3):
                 try:
-                    self.qdrant_client = QdrantClient(host=qdrant_host, port=qdrant_port, timeout=5.0)
+                    self.qdrant_client = QdrantClient(host=qdrant_host, port=qdrant_port, timeout=5)
                     # Test connection
                     self.qdrant_client.get_collections()
                     logger.info(f" Qdrant client connected to {qdrant_host}:{qdrant_port}")
@@ -67,6 +71,7 @@ class QdrantMemorySystem:
             self.qdrant_client = None
 
         # Initialize embedding service
+        self.embedding_model: SentenceTransformer | None = None
         if EMBEDDING_AVAILABLE:
             try:
                 self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -81,6 +86,7 @@ class QdrantMemorySystem:
             self.embedding_dim = 384
 
         # Initialize BM25 index
+        self.bm25_index: SQLiteBM25Index | None = None
         if BM25_AVAILABLE:
             try:
                 self.bm25_index = SQLiteBM25Index(os.path.join(data_dir, "memory_fts.db"))
@@ -104,11 +110,11 @@ class QdrantMemorySystem:
             self._setup_collection()
 
         # Background job queue (simplified implementation)
-        self.background_jobs = []
+        self.background_jobs: list[Any] = []
 
         logger.info(" Qdrant Memory System ready")
 
-    def _init_sqlite_robust(self):
+    def _init_sqlite_robust(self) -> None:
         """Initialize SQLite with corruption handling"""
         try:
             self._connect_and_init_schema()
@@ -118,7 +124,7 @@ class QdrantMemorySystem:
             # Try again with fresh DB
             self._connect_and_init_schema()
 
-    def _connect_and_init_schema(self):
+    def _connect_and_init_schema(self) -> None:
         """Connect to DB and initialize schema"""
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=30.0)
         self.conn.row_factory = sqlite3.Row
@@ -134,7 +140,7 @@ class QdrantMemorySystem:
         self.conn.execute("PRAGMA synchronous=NORMAL")
         self._init_sqlite_schema()
 
-    def _handle_corruption(self):
+    def _handle_corruption(self) -> None:
         """Handle corrupted database by backing up and deleting"""
         if os.path.exists(self.db_path):
             timestamp = int(time_mod.time())
@@ -154,7 +160,7 @@ class QdrantMemorySystem:
             except Exception as e:
                 logger.error(f" Error moving corrupt DB: {e}")
 
-    def _init_sqlite_schema(self):
+    def _init_sqlite_schema(self) -> None:
         """Initialize SQLite tables for structured data"""
         cursor = self.conn.cursor()
 
@@ -344,7 +350,7 @@ class QdrantMemorySystem:
         self.conn.commit()
         logger.debug(" SQLite schema initialized")
 
-    def _setup_collection(self):
+    def _setup_collection(self) -> None:
         """Setup Qdrant collection with optimized configuration"""
         logger.debug("Entering _setup_collection")
         if not self.qdrant_client:
@@ -393,7 +399,7 @@ class QdrantMemorySystem:
     # Stats & Maintenance
     # ========================================================================
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """Get memory system statistics"""
         cursor = self.conn.cursor()
 
@@ -425,7 +431,7 @@ class QdrantMemorySystem:
     # ========================================================================
 
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Cleanup"""
         if hasattr(self, 'conn'):
             self.conn.close()

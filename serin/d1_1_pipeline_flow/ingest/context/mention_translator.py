@@ -69,7 +69,7 @@ class MentionTranslator:
         # Pattern: <@123456789> or <@!123456789> (! is for nickname mentions)
         mention_pattern = r'<@!?(\d+)>'
 
-        def replace_mention(match):
+        def replace_mention(match: re.Match[str]) -> str:
             user_id = match.group(1)
 
             # Try cache first
@@ -124,7 +124,7 @@ class MentionTranslator:
         # Matches @Rin but not email@example.com
         mention_pattern = r'(?<!\w)@(\w+)'
 
-        def replace_username(match):
+        def replace_username(match: re.Match[str]) -> str:
             username = match.group(1).lower()
 
             # Check cache

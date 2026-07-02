@@ -1,6 +1,7 @@
 import asyncio
 import os
-from typing import Any
+from collections.abc import Callable
+from typing import Any, Protocol
 
 from pydantic import BaseModel
 
@@ -8,7 +9,12 @@ from serin.d1_3_state_core.logger import logger
 from serin.d1_4_config_base.config import config
 
 
-def register_voice_routes(app):
+class _RouteApp(Protocol):
+    def get(self, path: str, **kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]: ...
+    def post(self, path: str, **kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]: ...
+
+
+def register_voice_routes(app: _RouteApp) -> None:
     """Register voice management routes."""
     from serin.d1_5_ops_tooling.control_panel.server import (
         ChannelControl,
@@ -452,7 +458,7 @@ def register_voice_routes(app):
             return {'success': False, 'error': str(e)}
 
 
-    async def _run_manual_sync(crawler):
+    async def _run_manual_sync(crawler: Any) -> None:
         """Background task for manual sync"""
         try:
             logger.info(" Manual sync triggered from control panel")

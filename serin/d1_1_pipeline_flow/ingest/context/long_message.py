@@ -2,6 +2,8 @@
 Long Message Handler - React naturally to walls of text
 Humans don't always process long messages well - they react to length
 """
+from __future__ import annotations
+
 import secrets
 from typing import Any
 
@@ -19,12 +21,12 @@ class LongMessageHandler:
     """
 
     # Thresholds
-    LONG_MESSAGE_WORDS = 80  # 80+ words = long
-    WALL_OF_TEXT_WORDS = 150  # 150+ words = wall of text
-    MANY_SENTENCES = 8  # 8+ sentences = complex
+    LONG_MESSAGE_WORDS: int = 80  # 80+ words = long
+    WALL_OF_TEXT_WORDS: int = 150  # 150+ words = wall of text
+    MANY_SENTENCES: int = 8  # 8+ sentences = complex
 
     # Natural reactions to long messages
-    REACTIONS = {
+    REACTIONS: dict[str, list[str]] = {
         "acknowledge": [
             "damn that's an essay lol",
             "okay that's a lot to unpack",
@@ -46,7 +48,7 @@ class LongMessageHandler:
         ]
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.reaction_chance = 0.15  # 15% chance to react to long messages
         logger.info(" Long message handler initialized")
 
@@ -91,8 +93,8 @@ class LongMessageHandler:
 
     def should_react_to_length(
         self,
-        message_analysis: dict,
-        personality_state: dict | None = None
+        message_analysis: dict[str, Any],
+        personality_state: dict[str, Any] | None = None
     ) -> bool:
         """
         Decide if bot should react to message length.
@@ -118,7 +120,7 @@ class LongMessageHandler:
 
         return _rand() < chance
 
-    def get_length_reaction(self, message_analysis: dict) -> str | None:
+    def get_length_reaction(self, message_analysis: dict[str, Any]) -> str | None:
         """
         Get natural reaction to long message.
 
@@ -138,14 +140,14 @@ class LongMessageHandler:
         logger.debug(f" Length reaction: '{reaction}'")
         return reaction
 
-    def should_add_length_note_to_context(self, message_analysis: dict) -> bool:
+    def should_add_length_note_to_context(self, message_analysis: dict[str, Any]) -> bool:
         """
         Check if we should note message length in context for LLM.
         Helps LLM understand to acknowledge or summarize.
         """
-        return message_analysis['is_wall']
+        return bool(message_analysis['is_wall'])
 
-    def get_context_note(self, message_analysis: dict) -> str:
+    def get_context_note(self, message_analysis: dict[str, Any]) -> str:
         """
         Get context note for LLM about message length.
         """
@@ -157,7 +159,7 @@ class LongMessageHandler:
 
 
 # Global instance
-_length_handler = None
+_length_handler: LongMessageHandler | None = None
 
 def get_length_handler() -> LongMessageHandler:
     """Get or create global length handler"""
@@ -167,7 +169,7 @@ def get_length_handler() -> LongMessageHandler:
     return _length_handler
 
 
-def analyze_message_length(content: str) -> dict:
+def analyze_message_length(content: str) -> dict[str, Any]:
     """
     Convenience function to analyze message length.
 

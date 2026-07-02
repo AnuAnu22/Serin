@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta
+from typing import Any, cast
 
 import discord
 
@@ -12,7 +13,13 @@ from serin.d1_3_state_core.logger import logger
 class BackfillMixin:
     """Mixin providing backfill methods for MessageCrawler."""
 
-    async def _backfill_channel(self, channel: discord.TextChannel, limit: int = None) -> int:
+    # Attributes set by MessageCrawler.__init__
+    mention_translator: Any
+    memory: Any
+    bg_processor: Any
+    max_messages_per_channel: int
+
+    async def _backfill_channel(self, channel: discord.TextChannel, limit: int | None = None) -> int:
         """
         Backfill entire channel up to limit.
         Robust implementation with rate limiting and batching.
@@ -24,7 +31,7 @@ class BackfillMixin:
             logger.info(f" Backfilling #{channel.name} (up to {limit} messages)")
 
             backfilled = 0
-            batch = []
+            batch: list[dict[str, Any]] = []
             batch_size = 100  # Process in chunks of 100
 
             # Use an iterator to control the flow manually
@@ -116,7 +123,7 @@ class BackfillMixin:
         """
         try:
             backfilled = 0
-            batch = []
+            batch: list[dict[str, Any]] = []
 
             async for message in channel.history(after=after, oldest_first=True):
                 if message.author.bot:
@@ -172,7 +179,7 @@ class BackfillMixin:
         """
         try:
             # Handle both string and datetime timestamps
-            def safe_datetime_convert(ts_input):
+            def safe_datetime_convert(ts_input: str | datetime) -> datetime:
                 """Safely convert timestamp to datetime, handling both string and datetime inputs"""
                 if isinstance(ts_input, str):
                     return datetime.fromisoformat(ts_input.replace('Z', '+00:00'))
@@ -226,7 +233,7 @@ class BackfillMixin:
             logger.error(f" Error backfilling around position: {e}")
             return 0
 
-    async def _process_batch_with_context(self, batch: list[dict]):
+    async def _process_batch_with_context(self, batch: list[dict[str, Any]]) -> None:
         """
         Process a batch of messages with 5-message context for summarization.
 
@@ -265,11 +272,11 @@ class BackfillMixin:
                     unique_messages.append(msg)
 
             # Sort by timestamp (handle both datetime and string formats)
-            def get_sort_key(msg):
+            def get_sort_key(msg: dict[str, Any]) -> datetime:
                 timestamp = msg['timestamp']
                 if isinstance(timestamp, str):
                     return datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                return timestamp
+                return cast(datetime, timestamp)
 
             unique_messages.sort(key=get_sort_key)
 

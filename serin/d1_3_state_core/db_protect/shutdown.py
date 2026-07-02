@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 import os
+import signal
 from datetime import datetime
+from typing import Any
 
 from serin.d1_3_state_core.db_protect.recovery import DatabaseProtectorRecovery
 from serin.d1_3_state_core.logger import logger
@@ -8,9 +12,8 @@ from serin.d1_3_state_core.logger import logger
 class DatabaseProtectorShutdown(DatabaseProtectorRecovery):
     def setup_graceful_shutdown(self) -> None:
         import atexit
-        import signal
         self._shutdown_in_progress = False
-        def shutdown_handler(signum, frame):
+        def shutdown_handler(signum: int, frame: object | None) -> None:
             if self._shutdown_in_progress:
                 logger.info(" Force exit requested")
                 os._exit(1)
@@ -19,7 +22,7 @@ class DatabaseProtectorShutdown(DatabaseProtectorRecovery):
             logger.info(" Graceful shutdown initiated...")
             self.graceful_shutdown()
             os._exit(0)
-        def cleanup_on_exit():
+        def cleanup_on_exit() -> None:
             if not self._shutdown_in_progress:
                 logger.info(" Performing cleanup on exit...")
                 self.graceful_shutdown()
@@ -38,7 +41,7 @@ class DatabaseProtectorShutdown(DatabaseProtectorRecovery):
         except Exception as e:
             logger.error(f" Graceful shutdown error: {e}")
 
-    def get_health_status(self) -> dict:
+    def get_health_status(self) -> dict[str, Any]:
         return {
             'timestamp': datetime.now().isoformat(),
             'last_backup_time': self.last_backup_time,

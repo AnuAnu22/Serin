@@ -16,7 +16,7 @@ import uuid
 from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Any
+from typing import IO, Any, Protocol, cast, runtime_checkable
 
 # Resolve paths relative to THIS file, not the working directory
 _PROJECT_ROOT = Path(__file__).parent
@@ -31,7 +31,18 @@ def success(self: logging.Logger, message: str, *args: object, **kwargs: Any) ->
     if self.isEnabledFor(SUCCESS_LEVEL):
         self._log(SUCCESS_LEVEL, message, args, **kwargs)
 
-logging.Logger.success = success  # type: ignore[attr-defined]
+setattr(logging.Logger, 'success', success)
+
+
+@runtime_checkable
+class LoggerProtocol(Protocol):
+    def debug(self, msg: str, *args: Any, **kwargs: Any) -> None: ...
+    def info(self, msg: str, *args: Any, **kwargs: Any) -> None: ...
+    def warning(self, msg: str, *args: Any, **kwargs: Any) -> None: ...
+    def error(self, msg: str, *args: Any, **kwargs: Any) -> None: ...
+    def exception(self, msg: str, *args: Any, **kwargs: Any) -> None: ...
+    def critical(self, msg: str, *args: Any, **kwargs: Any) -> None: ...
+    def success(self, msg: str, *args: Any, **kwargs: Any) -> None: ...
 
 
 class ContextFilter(logging.Filter):
@@ -108,13 +119,13 @@ class ColoredFormatter(TextFormatter):
         return formatted
 
 
-def setup_logging() -> logging.Logger:
+def setup_logging() -> LoggerProtocol:
     """Initialize the root logger with console + file handlers."""
     root_logger = logging.getLogger("serin")
 
     # Guard: if handlers already exist, don't add more
     if root_logger.handlers:
-        return root_logger
+        return cast(LoggerProtocol, root_logger)
 
     # --- Log level from env ---
     log_level_str = os.getenv("LOG_LEVEL", "DEBUG").upper()
@@ -126,16 +137,15 @@ def setup_logging() -> logging.Logger:
     root_logger.setLevel(log_level)
 
     # --- Console handler (colored for text, plain for json) ---
-    console_output = (
-        sys.stdout.buffer
-        if hasattr(sys.stdout, "buffer")
-        else sys.stdout
-    )
     try:
         import io
-        console_stream = io.TextIOWrapper(console_output, encoding="utf-8")  # type: ignore[arg-type]
+        buf = getattr(sys.stdout, "buffer", None)
+        if buf is not None:
+            console_stream: IO[str] = io.TextIOWrapper(buf, encoding="utf-8")
+        else:
+            console_stream = sys.stdout
     except (AttributeError, TypeError):
-        console_stream = sys.stdout  # type: ignore[assignment]
+        console_stream = sys.stdout
 
     console_handler = logging.StreamHandler(console_stream)
     if log_format == "json":
@@ -179,7 +189,10 @@ def setup_logging() -> logging.Logger:
     ):
         logging.getLogger(noisy_logger_name).setLevel(logging.WARNING)
 
-    return root_logger
+    return cast(LoggerProtocol, root_logger)
+
+
+logger = setup_logging()
 
 
 def get_correlation_id() -> str:

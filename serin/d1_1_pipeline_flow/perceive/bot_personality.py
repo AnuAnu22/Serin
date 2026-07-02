@@ -2,8 +2,11 @@
 Bot Personality - Opinion & Preference System
 The bot has its own preferences, opinions, and can express them naturally.
 """
+from __future__ import annotations
+
 import secrets
 import sqlite3
+from typing import Any
 
 from serin.d1_3_state_core.logger import logger
 
@@ -105,7 +108,7 @@ class BotPersonality:
             self.conn.commit()
             logger.info(f" Loaded {len(defaults)} default preferences")
 
-    def get_preference(self, category: str, item: str) -> dict | None:
+    def get_preference(self, category: str, item: str) -> dict[str, Any] | None:
         """Get bot's preference for a specific item"""
         cursor = self.conn.cursor()
         cursor.execute("""
@@ -148,8 +151,8 @@ class BotPersonality:
         """, (category, item))
         self.conn.commit()
 
-        stance = pref['stance']
-        reason = pref['reason']
+        stance: str = pref['stance']
+        reason: str | None = pref['reason']
 
         # Generate natural expression based on stance and intensity
         if stance == 'love':
@@ -241,7 +244,7 @@ class BotPersonality:
 
         logger.debug(f"💭 Set preference: {category}/{item} = {stance}")
 
-    def get_opinion(self, topic: str) -> dict | None:
+    def get_opinion(self, topic: str) -> dict[str, Any] | None:
         """Get bot's opinion on a topic"""
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM bot_opinions WHERE topic = ?", (topic,))
@@ -265,8 +268,8 @@ class BotPersonality:
         """, (topic,))
         self.conn.commit()
 
-        confidence = opinion['confidence']
-        opinion_text = opinion['opinion_text']
+        confidence: float = opinion['confidence']
+        opinion_text: str = opinion['opinion_text']
 
         # Add confidence modifiers
         if confidence > 0.8:
@@ -306,7 +309,7 @@ class BotPersonality:
         # Check if bot has an opinion on this topic
         opinion = self.get_opinion(topic)
         if opinion:
-            confidence = opinion['confidence']
+            confidence: float = opinion['confidence']
             # Higher confidence means more likely to disagree
             return _rand() < confidence
 
@@ -345,10 +348,10 @@ class BotPersonality:
             return ""
 
         # Build natural-sounding context
-        loves = []
-        likes = []
-        dislikes = []
-        hates = []
+        loves: list[str] = []
+        likes: list[str] = []
+        dislikes: list[str] = []
+        hates: list[str] = []
 
         for pref in preferences:
             item = pref['item'].replace('_', ' ')
@@ -364,7 +367,7 @@ class BotPersonality:
                 hates.append(item)
 
         # Create natural sentences
-        context_parts = []
+        context_parts: list[str] = []
         if loves:
             context_parts.append(f"I'm really into {' and '.join(loves)}")
         if likes:
@@ -389,13 +392,13 @@ class BotPersonality:
         cursor.execute("SELECT category, item FROM bot_preferences")
 
         for row in cursor.fetchall():
-            item = row['item'].replace('_', ' ')
+            item: str = row['item'].replace('_', ' ')
             if item in message_lower:
-                return (row['category'], row['item'])
+                return (str(row['category']), str(row['item']))
 
         return None
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Cleanup"""
         if hasattr(self, 'conn'):
             self.conn.close()

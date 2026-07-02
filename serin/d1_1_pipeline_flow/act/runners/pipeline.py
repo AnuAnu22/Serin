@@ -14,6 +14,8 @@ Usage:
 """
 from __future__ import annotations
 
+from typing import Any
+
 from serin.d1_1_pipeline_flow.act.stages_base import PipelineStage
 from serin.d1_3_state_core.logger import logger
 from serin.d1_3_state_core.message_context import MessageContext
@@ -27,15 +29,15 @@ class MessagePipeline:
     def build(
         cls,
         *,
-        response_controller,
-        memory_system,
-        retrieval,
-        personality,
-        temporal_context,
-        response_generator,
-        thinking_filter,
-        mention_translator,
-        mood_state=None,
+        response_controller: Any,
+        memory_system: Any,
+        retrieval: Any,
+        personality: Any,
+        temporal_context: Any,
+        response_generator: Any,
+        thinking_filter: Any,
+        mention_translator: Any,
+        mood_state: Any = None,
     ) -> MessagePipeline:
         """
         Factory method — wires all dependencies into stages.

@@ -2,6 +2,8 @@
 Correction Handler - Learning from User Corrections
 Detects when users correct the bot and updates memories accordingly.
 """
+from __future__ import annotations
+
 import re
 from typing import Any
 
@@ -31,8 +33,8 @@ class CorrectionDetector:
         self,
         message: str,
         previous_bot_response: str,
-        context: list[dict] | None = None
-    ) -> dict | None:
+        context: list[dict[str, Any]] | None = None
+    ) -> dict[str, Any] | None:
         """
         Detect if message is correcting the bot.
 
@@ -80,8 +82,8 @@ class CorrectionDetector:
         self,
         message: str,
         bot_response: str,
-        context: list[dict] | None = None
-    ) -> dict | None:
+        context: list[dict[str, Any]] | None = None
+    ) -> dict[str, Any] | None:
         """
         Extract what's being corrected and the correct information.
         Uses simple pattern matching (no LLM needed for most cases).
@@ -179,7 +181,7 @@ class MemoryCorrector:
 
     def apply_correction(
         self,
-        correction: dict,
+        correction: dict[str, Any],
         user_id: str,
         username: str,
         channel_id: str
@@ -209,9 +211,9 @@ class MemoryCorrector:
 
         # Find related memories (search for original statement)
         if original:
-            related_memories = self.memory.search_memories(
+            related_memories: list[dict[str, Any]] = self.memory.search_memories(
                 query=original,
-                n_results=5
+                limit=5
             )
 
             # Mark old memories as corrected
@@ -240,7 +242,7 @@ class MemoryCorrector:
         self,
         user_id: str | None = None,
         limit: int = 10
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         Get history of corrections.
 
@@ -252,10 +254,10 @@ class MemoryCorrector:
             List of correction memories
         """
         # Search for memories containing "corrected from"
-        corrections = self.memory.search_memories(
+        corrections: list[dict[str, Any]] = self.memory.search_memories(
             query="corrected from",
             user_id=user_id,
-            n_results=limit
+            limit=limit
         )
 
         return corrections
@@ -276,7 +278,7 @@ CORRECTION_ACKNOWLEDGMENTS = [
 ]
 
 
-def get_correction_acknowledgment(correction: dict) -> str:
+def get_correction_acknowledgment(correction: dict[str, Any]) -> str:
     """
     Generate natural acknowledgment for correction.
 

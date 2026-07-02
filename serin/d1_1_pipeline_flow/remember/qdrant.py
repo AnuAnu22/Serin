@@ -8,7 +8,7 @@ implementations. They have been split into:
 
 All existing imports from serin.memory.qdrant continue to work.
 """
-from serin.d1_1_pipeline_flow.remember.core.bm25_index import SQLiteBM25Index
 from serin.d1_1_pipeline_flow.remember.core.store import QdrantMemorySystem
+from serin.d1_3_state_core.bm25_index import SQLiteBM25Index
 
 __all__ = ["QdrantMemorySystem", "SQLiteBM25Index"]

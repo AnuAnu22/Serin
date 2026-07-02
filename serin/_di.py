@@ -4,16 +4,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from logging import Logger
-
     from serin.d1_1_pipeline_flow.ingest.context.mention_translator import (
         MentionTranslator,
     )
     from serin.d1_1_pipeline_flow.ingest.core.manager import EnhancedMessageManagerV3
     from serin.d1_1_pipeline_flow.ingest.sync.crawler import MessageCrawler
     from serin.d1_1_pipeline_flow.remember.qdrant import QdrantMemorySystem
+    from serin.d1_3_state_core.logger import LoggerProtocol
 
-_logger: Logger | None = None
+_logger: LoggerProtocol | None = None
 _mention_translator: MentionTranslator | None = None
 _message_manager: EnhancedMessageManagerV3 | None = None
 _crawler: MessageCrawler | None = None
@@ -21,13 +20,13 @@ _qdrant: QdrantMemorySystem | None = None
 
 
 def init_root(
-    logger: Logger,
+    logger: LoggerProtocol,
 ) -> None:
     global _logger
     _logger = logger
 
 
-def get_logger() -> Logger:
+def get_logger() -> LoggerProtocol:
     if _logger is None:
         raise RuntimeError("Root not initialized")
     return _logger

@@ -7,12 +7,15 @@ NO UDP, NO voice websocket, NO DAVE from py-cord. Rust owns all voice transport.
 
 Phase 2 (future): Rust gateway shard eliminates py-cord from voice entirely.
 """
+from __future__ import annotations
+
 import asyncio
 import os
 import sys
-from typing import Any
+from typing import Any, cast
 
 import discord
+from discord.abc import Connectable
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Import VoiceProtocol from _types to avoid requiring py-cord[voice] deps
@@ -21,7 +24,7 @@ from discord.voice._types import VoiceProtocol
 from serin.d1_2_gateway_io._di import get_logger
 
 
-class InfoCaptureProtocol(VoiceProtocol):
+class InfoCaptureProtocol(VoiceProtocol[discord.Client]):
     """
     Captures voice ConnectionInfo from gateway events without establishing
     any actual voice connection (no UDP, no voice websocket, no DAVE).
@@ -32,7 +35,7 @@ class InfoCaptureProtocol(VoiceProtocol):
     endpoint, token, and session_id needed by Rust's songbird driver.
     """
 
-    def __init__(self, client: discord.Client, channel: discord.VoiceChannel) -> None:
+    def __init__(self, client: discord.Client, channel: Connectable) -> None:
         super().__init__(client, channel)
         self.server_event = asyncio.Event()
         self.state_event = asyncio.Event()
@@ -43,7 +46,8 @@ class InfoCaptureProtocol(VoiceProtocol):
 
     async def connect(self, *, timeout: float, reconnect: bool) -> None:
         """Join voice channel and wait for gateway events (NO UDP/DAVE)."""
-        await self.channel.guild.change_voice_state(channel=self.channel)
+        channel = cast(discord.VoiceChannel, self.channel)
+        await channel.guild.change_voice_state(channel=channel)
 
         try:
             await asyncio.wait_for(
@@ -51,12 +55,12 @@ class InfoCaptureProtocol(VoiceProtocol):
                 timeout=timeout or 15.0,
             )
         except TimeoutError:
-            await self.channel.guild.change_voice_state(channel=None)
+            await cast(discord.VoiceChannel, self.channel).guild.change_voice_state(channel=None)
             raise
 
         self._info_gathered = True
 
-    async def on_voice_server_update(self, data) -> None:
+    async def on_voice_server_update(self, data: discord.RawVoiceServerUpdateEvent) -> None:
         """Called by py-cord state machine when VOICE_SERVER_UPDATE arrives.
         data is RawVoiceServerUpdateEvent with .endpoint, .token, .guild_id attrs.
         """
@@ -64,7 +68,7 @@ class InfoCaptureProtocol(VoiceProtocol):
         self.token = data.token
         self.server_event.set()
 
-    async def on_voice_state_update(self, data) -> None:
+    async def on_voice_state_update(self, data: discord.RawVoiceStateUpdateEvent) -> None:
         """Called by py-cord state machine when VOICE_STATE_UPDATE arrives.
         Called only for the bot's own voice state (py-cord filters in parse_voice_state_update).
         data is RawVoiceStateUpdateEvent with .session_id attr.
@@ -76,7 +80,7 @@ class InfoCaptureProtocol(VoiceProtocol):
         """Leave voice channel and clean up."""
         if self._info_gathered or force:
             try:
-                await self.channel.guild.change_voice_state(channel=None)
+                await cast(discord.VoiceChannel, self.channel).guild.change_voice_state(channel=None)
             except Exception:
                 get_logger().exception("Failed to disconnect voice state")
         super().cleanup()
@@ -88,26 +92,26 @@ class InfoCaptureProtocol(VoiceProtocol):
             "endpoint": self.endpoint,
             "token": self.token,
             "session_id": self.session_id,
-            "guild_id": self.channel.guild.id,
-            "channel_id": self.channel.id,
-            "user_id": self.client.user.id,
+            "guild_id": cast(discord.VoiceChannel, self.channel).guild.id,
+            "channel_id": cast(discord.VoiceChannel, self.channel).id,
+            "user_id": self.client.user.id if self.client.user else 0,
         }
 
 
 class VoiceListener:
     def __init__(self, client: discord.Client, audio_processor: Any) -> None:
-        self.client = client
-        self.audio_processor = audio_processor
+        self.client: discord.Client = client
+        self.audio_processor: Any = audio_processor
 
         self.rust_bridge: Any | None = None
         self._protocol: InfoCaptureProtocol | None = None
         self._active_guild_id: int | None = None
 
-        self.transcription_enabled = True
-        self.auto_join_on_mention = True
+        self.transcription_enabled: bool = True
+        self.auto_join_on_mention: bool = True
         self._join_in_progress: set[int] = set()
 
-        self.stats = {
+        self.stats: dict[str, Any] = {
             'connections': 0,
             'total_audio_chunks': 0,
             'active_channels': set(),
@@ -225,15 +229,15 @@ class VoiceListener:
     def is_connected(self) -> bool:
         return self.rust_bridge is not None and self.rust_bridge.is_running()
 
-    def get_status(self) -> dict:
-        connections = []
+    def get_status(self) -> dict[str, Any]:
+        connections: list[dict[str, Any]] = []
 
         if self._active_guild_id is not None and self.is_connected():
             guild = self.client.get_guild(self._active_guild_id)
             if guild:
-                member_names = []
+                member_names: list[dict[str, Any]] = []
                 try:
-                    for m in guild.me.voice.channel.members if guild.me.voice else []:
+                    for m in guild.me.voice.channel.members if guild.me.voice and guild.me.voice.channel else []:
                         member_names.append({
                             'id': str(m.id),
                             'name': m.name,
@@ -247,7 +251,7 @@ class VoiceListener:
                     'guild_id': str(self._active_guild_id),
                     'guild_name': guild.name,
                     'channel_id': self._channel_id() or 'unknown',
-                    'channel_name': str(guild.me.voice.channel.name) if guild.me.voice else 'unknown',
+                    'channel_name': str(guild.me.voice.channel.name) if guild.me.voice and guild.me.voice.channel else 'unknown',
                     'members': len(member_names),
                     'member_names': member_names,
                     'receiver_mode': 'rust',
@@ -262,7 +266,7 @@ class VoiceListener:
             'receiver_mode': 'rust',
         }
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         stats = {
             'connected': self.is_connected(),
             'active_channels': len(self.stats['active_channels']),

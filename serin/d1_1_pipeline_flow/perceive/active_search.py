@@ -2,8 +2,11 @@
 Active Search Module - The "Thinking" Brain
 Decides when to search and what to search for.
 """
+from __future__ import annotations
+
 import json
 import re
+from typing import Any, cast
 
 from serin.d1_3_state_core.logger import logger
 from serin.d1_3_state_core.model_system.interface import ModelInterface
@@ -111,7 +114,7 @@ RESPONSE:
 {"""
         return base_prompt
 
-    def _parse_decision(self, response: str) -> dict:
+    def _parse_decision(self, response: str) -> dict[str, Any]:
         """Parse the LLM response into a dict"""
         try:
             # Try to find JSON object using regex
@@ -120,7 +123,7 @@ RESPONSE:
 
             if json_match:
                 json_str = json_match.group(0)
-                return json.loads(json_str)
+                return cast(dict[str, Any], json.loads(json_str))
 
             # Fallback: Try to parse the whole thing if regex failed (unlikely but safe)
             cleaned = response.strip()
@@ -129,7 +132,7 @@ RESPONSE:
             if not cleaned.startswith('{'):
                 cleaned = '{' + cleaned
 
-            return json.loads(cleaned)
+            return cast(dict[str, Any], json.loads(cleaned))
 
         except (json.JSONDecodeError, AttributeError):
             logger.warning(f" Failed to parse thinking response: {response[:200]}...")

@@ -4,8 +4,10 @@ Prevents <think>, [Thinking], etc. from appearing in responses or memory
 """
 from __future__ import annotations
 
+import importlib
 import re
 from re import Pattern
+from typing import Any, cast
 
 from serin.d1_3_state_core.logger import logger
 
@@ -65,8 +67,9 @@ class ThinkingFilter:
             return text
 
         try:
-            import serin_core
-            return serin_core.filter_thinking(text)
+            serin_core = importlib.import_module("serin_core")
+            _filter_fn: Any = getattr(serin_core, "filter_thinking")
+            return cast(str, _filter_fn(text))
         except ImportError:
             original_length = len(text)
             cleaned = text

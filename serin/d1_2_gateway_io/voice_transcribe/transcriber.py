@@ -181,7 +181,7 @@ class WhisperTranscriber:
             indices = np.linspace(0, len(audio) - 1, target_length)
             resampled = np.interp(indices, np.arange(len(audio)), audio)
 
-            return resampled.astype(np.int16)
+            return np.asarray(resampled, dtype=np.int16)
 
         except Exception as e:
             get_logger().error(f" Error resampling audio: {e}")

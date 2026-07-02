@@ -100,7 +100,7 @@ class TemporalParser:
         return result.replace(hour=12, minute=0, second=0, microsecond=0)
 
     @staticmethod
-    def _parse_time_span(match: re.Match, reference: datetime) -> datetime:
+    def _parse_time_span(match: re.Match[str], reference: datetime) -> datetime:
         """Parse 'X days/weeks/months ago'"""
         quantity_str = match.group(1)
         unit = match.group(2)

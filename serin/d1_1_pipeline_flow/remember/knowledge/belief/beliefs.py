@@ -10,9 +10,12 @@ State machine:
 Confidence is computed from the evidence/claim ratio using Bayesian update.
 """
 
+from __future__ import annotations
+
 import json
 import uuid
 from datetime import datetime
+from typing import Any
 
 from serin.d1_3_state_core.logger import logger
 
@@ -31,7 +34,7 @@ def _build_search_query(template: str, **kwargs: str) -> str:
 class BeliefStore:
     """SQLite-backed belief store with state machine and Bayesian confidence."""
 
-    def __init__(self, conn):
+    def __init__(self, conn: Any) -> None:
         self.conn = conn
 
     # ── CRUD ────────────────────────────────────────────────────────────────
@@ -137,11 +140,11 @@ class BeliefStore:
             )
 
         self.conn.commit()
-        return belief_id
+        return str(belief_id)
 
     # ── Inference ───────────────────────────────────────────────────────────
 
-    def infer_beliefs_from_facts(self, query: str = '') -> list[dict]:
+    def infer_beliefs_from_facts(self, query: str = '') -> list[dict[str, Any]]:
         """Scan active facts and infer/update beliefs with state."""
         cursor = self.conn.cursor()
         facts = cursor.execute("""
@@ -208,7 +211,7 @@ class BeliefStore:
 
     # ── Retrieval ───────────────────────────────────────────────────────────
 
-    def get_relevant_beliefs(self, query: str, limit: int = 3) -> list[dict]:
+    def get_relevant_beliefs(self, query: str, limit: int = 3) -> list[dict[str, Any]]:
         """Retrieve active beliefs relevant to a query."""
         cursor = self.conn.cursor()
         keywords = [w.lower() for w in query.split()

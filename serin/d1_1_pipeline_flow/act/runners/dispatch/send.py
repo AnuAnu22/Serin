@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import secrets
 
-from serin.d1_1_pipeline_flow.act.runners.pipeline import PipelineStage
+from serin.d1_1_pipeline_flow.act.stages_base import PipelineStage
 from serin.d1_3_state_core.logger import logger
 from serin.d1_3_state_core.message_context import MessageContext
 
@@ -22,7 +22,7 @@ def _uniform(a: float, b: float) -> float:
 class SendStage(PipelineStage):
     """Sends the final response with realistic typing delay."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     async def _run(self, ctx: MessageContext) -> MessageContext:

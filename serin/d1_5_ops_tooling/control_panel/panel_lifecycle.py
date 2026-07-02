@@ -1,4 +1,6 @@
 """Server lifecycle, bot state, and WebSocket handler."""
+from __future__ import annotations
+
 import asyncio
 import logging
 from datetime import datetime
@@ -80,7 +82,7 @@ async def start_server(app: Any = None, host: str = "127.0.0.1", port: int = 808
 class WebSocketLogHandler(logging.Handler):
     """Custom log handler that broadcasts to WebSocket clients"""
 
-    def emit(self, record) -> None:
+    def emit(self, record: logging.LogRecord) -> None:
         try:
             log_entry = {
                 'timestamp': datetime.now().isoformat(),
@@ -96,8 +98,8 @@ class WebSocketLogHandler(logging.Handler):
             logger.exception("WebSocket log handler emit failed")
 
 
-def register_lifecycle_routes(app):
+def register_lifecycle_routes(app: Any) -> None:
     """Register lifecycle routes."""
     ws_handler = WebSocketLogHandler()
     ws_handler.setLevel(logging.INFO)
-    logger.addHandler(ws_handler)
+    logging.getLogger().addHandler(ws_handler)

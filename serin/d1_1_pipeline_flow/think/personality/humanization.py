@@ -1,7 +1,10 @@
 """Conversational fillers and realistic typos — humanize bot responses."""
 
+from __future__ import annotations
+
 import re
 import secrets
+from typing import Any
 
 from serin.d1_3_state_core.logger import logger
 
@@ -51,14 +54,14 @@ class ConversationalFillers:
         "honestly", "tbh", "ngl", "fr", "literally"
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.injection_rate = 0.08  # 8% base chance per message
         logger.info(" Conversational fillers initialized")
 
     def add_fillers(
         self,
         text: str,
-        personality_state: dict | None = None,
+        personality_state: dict[str, Any] | None = None,
         message_complexity: str = "simple"
     ) -> str:
         """
@@ -99,7 +102,7 @@ class ConversationalFillers:
         """Check if the text contains a concession or agreement that should not be diluted."""
         return any(re.search(p, text.lower()) for p in self.CONCESSION_PATTERNS)
 
-    def _should_add_fillers(self, text: str, personality_state: dict | None = None) -> bool:
+    def _should_add_fillers(self, text: str, personality_state: dict[str, Any] | None = None) -> bool:
         """Decide if fillers should be added"""
 
         # Skip fillers on concession sentences — don't dilute a clean agreement
@@ -129,7 +132,7 @@ class ConversationalFillers:
     def _determine_filler_type(
         self,
         text: str,
-        personality_state: dict | None = None,
+        personality_state: dict[str, Any] | None = None,
         complexity: str = "simple"
     ) -> str:
         """
@@ -222,7 +225,7 @@ def get_filler_engine() -> ConversationalFillers:
 
 def add_conversational_fillers(
     text: str,
-    personality_state: dict | None = None,
+    personality_state: dict[str, Any] | None = None,
     complexity: str = "simple"
 ) -> str:
     """
@@ -306,7 +309,7 @@ class RealisticTypos:
         "yes", "no", "stop", "help"
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.base_typo_rate = 0.03  # 3% base chance
         self.max_typos_per_message = 1  # Only 1 typo max per message
         logger.info(" Realistic typos initialized")
@@ -314,7 +317,7 @@ class RealisticTypos:
     def add_typos(
         self,
         text: str,
-        personality_state: dict | None = None,
+        personality_state: dict[str, Any] | None = None,
         is_important: bool = False
     ) -> str:
         """
@@ -346,7 +349,7 @@ class RealisticTypos:
         else:
             return self._common_misspelling(text)
 
-    def _should_add_typo(self, text: str, personality_state: dict | None = None) -> bool:
+    def _should_add_typo(self, text: str, personality_state: dict[str, Any] | None = None) -> bool:
         """Decide if we should add a typo"""
 
         # Check for protected words
@@ -461,7 +464,7 @@ class RealisticTypos:
 
         return ' '.join(words)
 
-    def add_protected_word(self, word: str):
+    def add_protected_word(self, word: str) -> None:
         """Add a word to never typo (like user names)"""
         self.PROTECTED_WORDS.add(word.lower())
 
@@ -479,7 +482,7 @@ def get_typo_engine() -> RealisticTypos:
 
 def add_realistic_typos(
     text: str,
-    personality_state: dict | None = None,
+    personality_state: dict[str, Any] | None = None,
     is_important: bool = False
 ) -> str:
     """

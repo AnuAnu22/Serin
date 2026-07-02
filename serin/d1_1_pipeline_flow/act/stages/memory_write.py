@@ -6,6 +6,8 @@ Qdrant memory after the response has been sent.
 """
 from __future__ import annotations
 
+from typing import Any
+
 from serin.d1_1_pipeline_flow.act.stages_base import PipelineStage
 from serin.d1_3_state_core.logger import logger
 from serin.d1_3_state_core.message_context import MessageContext
@@ -14,7 +16,7 @@ from serin.d1_3_state_core.message_context import MessageContext
 class MemoryWriteStage(PipelineStage):
     """Writes the interaction to the memory system after sending."""
 
-    def __init__(self, memory_system):
+    def __init__(self, memory_system: Any) -> None:
         self.memory = memory_system
 
     async def _run(self, ctx: MessageContext) -> MessageContext:

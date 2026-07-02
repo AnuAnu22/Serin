@@ -8,6 +8,8 @@ Features:
 - Integration with background processor
 - Voice-specific metadata
 """
+from __future__ import annotations
+
 import os
 import sys
 from datetime import datetime
@@ -32,7 +34,7 @@ class VoiceMemoryPipeline:
         self.message_manager = message_manager
 
         # Track recent voice messages for context
-        self.recent_voice_messages = {}  # channel_id -> list of recent messages
+        self.recent_voice_messages: dict[str, list[dict[str, Any]]] = {}  # channel_id -> list of recent messages
 
         # Stats
         self.stats = {
@@ -161,7 +163,7 @@ class VoiceMemoryPipeline:
             List of recent messages
         """
         if channel_id in self.recent_voice_messages:
-            return self.recent_voice_messages[channel_id][-limit:]
+            return list(self.recent_voice_messages[channel_id][-limit:])
         return []
 
     def get_stats(self) -> dict[str, Any]:

@@ -1,26 +1,30 @@
 """Bridge crash recovery and reconnection."""
+from __future__ import annotations
+
 import asyncio
+import io
 import threading
 import time
 from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, cast
 
 from serin.d1_2_gateway_io._di import get_logger
+from serin.d1_2_gateway_io.voice_system.bridge_io.bridge_commands import start_with_info
+
+if TYPE_CHECKING:
+    from serin.d1_2_gateway_io.voice_system.bridge_io.process_watch import (
+        RustVoiceBridge,
+    )
 
 
-def _handle_process_death(self) -> None:
+def _handle_process_death(self: RustVoiceBridge) -> None:
     """Handle Rust process unexpected death — log diagnostics and trigger supervisor."""
     self.stats['errors'] += 1
 
-    # Retry poll() a few times — OS may not have reaped the process yet
+    # Check process exit code
     exit_code = None
     if self.proc:
-        import time
-        for _ in range(10):
-            self.proc.poll()
-            exit_code = self.proc.returncode
-            if exit_code is not None:
-                break
-            time.sleep(0.05)
+        exit_code = self.proc.returncode
 
     if exit_code is None:
         get_logger().error("voice.process_died", extra={
@@ -45,7 +49,7 @@ def _handle_process_death(self) -> None:
     if self._stderr_buf:
         get_logger().error("voice.process_stderr", extra={
             "line_count": len(self._stderr_buf),
-            "lines": "\n".join(self._stderr_buf[-20:]),
+            "lines": "\n".join(list(self._stderr_buf)[-20:]),
             "guild_id": str(self._guild_id),
         })
 
@@ -56,7 +60,7 @@ def _handle_process_death(self) -> None:
 # Supervisor: monitors Rust process health and re-spawns on crash
 # -----------------------------------------------------------------------
 
-async def _supervise_rust_process(self) -> None:
+async def _supervise_rust_process(self: RustVoiceBridge) -> None:
     """
     Background supervisor task: waits for the Rust process to die,
     then attempts to re-spawn it with rate limiting.
@@ -114,8 +118,8 @@ async def _supervise_rust_process(self) -> None:
                     guild_id, channel_id, self._voice_client
                 )
             elif self._last_connection_info:
-                success = await self.start_with_info(
-                    guild_id, channel_id, self._last_connection_info
+                success = await start_with_info(
+                    self, guild_id, channel_id, self._last_connection_info
                 )
             else:
                 get_logger().error("No connection info available for restart — giving up")
@@ -137,7 +141,7 @@ async def _supervise_rust_process(self) -> None:
             # Allow retry by clearing death event and looping
             self._death_event.clear()
 
-def set_reconnect_callback(self, callback: Callable | None) -> None:
+def set_reconnect_callback(self: RustVoiceBridge, callback: Callable[..., Any] | None) -> None:
     """
     Set a callback to be called when the Rust process is re-spawned after a crash.
 
@@ -154,16 +158,18 @@ def set_reconnect_callback(self, callback: Callable | None) -> None:
 # with appropriate log levels. A ring buffer of the last 200 lines is
 # kept for crash diagnostics.
 
-def _start_stderr_reader(self) -> None:
+def _start_stderr_reader(self: RustVoiceBridge) -> None:
     """Spawn a daemon thread to read Rust stderr into a ring buffer and Python get_logger()."""
     if not self.proc or not self.proc.stderr:
         return
 
-    def _reader():
+    proc = self.proc
+
+    def _reader() -> None:
         try:
-            import io as _io
-            stderr_text = _io.TextIOWrapper(
-                self.proc.stderr,
+            stderr_bytes = cast(io.RawIOBase, proc.stderr)
+            stderr_text = io.TextIOWrapper(
+                io.BufferedReader(stderr_bytes),
                 encoding='utf-8',
                 errors='replace',
                 line_buffering=True,
@@ -191,7 +197,7 @@ def _start_stderr_reader(self) -> None:
 # Public: update username mapping for logging
 # -----------------------------------------------------------------------
 
-def set_username(self, user_id: str, username: str) -> None:
+def set_username(self: RustVoiceBridge, user_id: str, username: str) -> None:
     """Map a user_id to a display name for logging purposes."""
     self._usernames[user_id] = username
 

@@ -11,12 +11,14 @@ but it cannot ignore high-confidence beliefs or direct evidence.
 """
 from __future__ import annotations
 
-from serin.d1_1_pipeline_flow.act.runners.pipeline import PipelineStage
+from typing import cast
+
+from serin.d1_1_pipeline_flow.act.stages_base import PipelineStage
 from serin.d1_3_state_core.logger import logger
 from serin.d1_3_state_core.message_context import MessageContext
 
 # Intent → default strategy
-_INTENT_STRATEGY = {
+_INTENT_STRATEGY: dict[str, dict[str, str | float]] = {
     "seek_validation": {"base_stance": "agree", "strength_bonus": 0.2},
     "seek_explanation": {"base_stance": "neutral", "strength_bonus": 0.0},
     "seek_argument": {"base_stance": "disagree_gently", "strength_bonus": 0.1},
@@ -102,7 +104,8 @@ class ResponsePlannerStage(PipelineStage):
 
                         if is_negation and not is_agreement:
                             # User is contradicting a strong belief
-                            stance = "disagree_firmly" if strategy["base_stance"] in (
+                            base_stance_val = cast(str, strategy["base_stance"])
+                            stance = "disagree_firmly" if base_stance_val in (
                                 "disagree_gently", "disagree_firmly"
                             ) else "disagree_gently"
                             constraints.append(
@@ -115,7 +118,7 @@ class ResponsePlannerStage(PipelineStage):
                                 f"The user agrees with your belief that {content}."
                             )
                         else:
-                            stance = strategy["base_stance"]
+                            stance = cast(str, strategy["base_stance"])
                             constraints.append(
                                 f"You believe {content}. The user's "
                                 f"statement '{user_claim}' is noted."
@@ -143,8 +146,9 @@ class ResponsePlannerStage(PipelineStage):
                 pass  # No constraint from unknown beliefs
 
         # Strengthen stance based on intent
-        if stance == "neutral" and strategy["base_stance"] != "neutral":
-            stance = strategy["base_stance"]
+        base_stance = cast(str, strategy["base_stance"])
+        if stance == "neutral" and base_stance != "neutral":
+            stance = base_stance
 
         # ── 3. Build response plan ───────────────────────────────────────
         ctx.response_plan = {

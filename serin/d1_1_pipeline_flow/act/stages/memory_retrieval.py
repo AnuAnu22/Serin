@@ -7,6 +7,8 @@ ctx.recent_messages, and ctx.user_profile.
 """
 from __future__ import annotations
 
+from typing import Any
+
 from serin.d1_1_pipeline_flow.act.stages_base import PipelineStage
 from serin.d1_3_state_core.logger import logger
 from serin.d1_3_state_core.message_context import MessageContext
@@ -36,7 +38,7 @@ class MemoryRetrievalStage(PipelineStage):
         "third person",
     ]
 
-    def __init__(self, memory_system, retrieval):
+    def __init__(self, memory_system: Any, retrieval: Any) -> None:
         self.memory = memory_system
         self.retrieval = retrieval
 
@@ -68,11 +70,11 @@ class MemoryRetrievalStage(PipelineStage):
         utterance_memories = context_data.get("utterance_memories", [])
 
         # Apply garbage filter to facts and all memory types
-        def _clean_garbage(memories):
-            clean = []
+        def _clean_garbage(memories: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            clean: list[dict[str, Any]] = []
             for mem in memories:
-                content = mem.get("content", "")
-                is_garbage = any(
+                content: str = mem.get("content", "")
+                is_garbage: bool = any(
                     pattern.lower() in content.lower()
                     for pattern in self.GARBAGE_PATTERNS
                 )

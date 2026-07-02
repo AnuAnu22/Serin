@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from serin.d1_1_pipeline_flow.remember.temporal import (
     TemporalFormatter,
@@ -36,11 +36,11 @@ class ConversationContextBuilder:
 
     def build_context(
         self,
-        user_messages: list[dict],
+        user_messages: list[dict[str, Any]],
         channel_id: str | None = None,
         query_time_hint: str | None = None,
-        mood_state: dict | None = None,
-    ) -> dict:
+        mood_state: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Build structured context using type-specific retrieval.
         Each memory type gets its own query, its own limit, and its own
@@ -55,7 +55,7 @@ class ConversationContextBuilder:
         # 1. Working memory — always present, from SQLite
         recent_messages = []
         if channel_id:
-            recent_messages = self.memory.get_recent_conversation_from_sqlite(
+            recent_messages = self.memory.get_recent_conversation(
                 channel_id=channel_id,
                 limit=15,
             )
@@ -69,27 +69,21 @@ class ConversationContextBuilder:
         evidence_memories = self.memory.search_memories(
             query=search_query,
             user_id=primary_user_id,
-            n_results=3,
-            memory_type='evidence',
-            time_decay_days=90,
+            limit=3,
         )
 
         # 3. Episode memories (summaries) — secondary, separate retrieval
         episode_memories = self.memory.search_memories(
             query=search_query,
             user_id=primary_user_id,
-            n_results=2,
-            memory_type='summary',
-            time_decay_days=90,
+            limit=2,
         )
 
         # 4. Regular utterance memories — lowest priority, limited to 2
         utterance_memories = self.memory.search_memories(
             query=search_query,
             user_id=primary_user_id,
-            n_results=2,
-            memory_type='utterance',
-            time_decay_days=60,
+            limit=2,
         )
 
         # Mood-based filtering: when mood is chill/low-energy, strip argument
@@ -111,9 +105,7 @@ class ConversationContextBuilder:
                 utterance_memories = self.memory.search_memories(
                     query=search_query,
                     user_id=primary_user_id,
-                    n_results=3,
-                    memory_type='utterance',
-                    time_decay_days=60,
+                    limit=3,
                 )
 
         # 5. Relationships
@@ -160,23 +152,12 @@ class ConversationContextBuilder:
         query: str,
         user_id: str,
         time_range: tuple[datetime, datetime]
-    ) -> list[dict]:
-        """
-        Search memories within specific time range.
-
-        Args:
-            query: Search query
-            user_id: User ID filter
-            time_range: (start_time, end_time) tuple
-
-        Returns:
-            List of memories within time range
-        """
+    ) -> list[dict[str, Any]]:
         # Get broader set of memories
         all_memories = self.memory.search_memories(
             query=query,
             user_id=user_id,
-            n_results=20  # Get more, then filter
+            limit=20  # Get more, then filter
         )
 
         start_time, end_time = time_range
@@ -200,7 +181,7 @@ class ConversationContextBuilder:
 
         return filtered[:5]  # Return top 5
 
-    def format_context_for_llm(self, context: dict) -> str:
+    def format_context_for_llm(self, context: dict[str, Any]) -> str:
         """
         Format context as a narrative internal monologue.
         This forces the LLM to synthesize memories rather than reading a list.
@@ -267,7 +248,7 @@ class ConversationContextBuilder:
 
         return "\n\n".join(narrative_parts)
 
-    def resolve_referents(self, current_message: str, recent_messages: list[dict]) -> str:
+    def resolve_referents(self, current_message: str, recent_messages: list[dict[str, Any]]) -> str:
         """
         Resolve "them", "that", "it" to actual referents from recent messages.
         Makes conversation feel continuous.

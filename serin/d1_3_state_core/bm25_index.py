@@ -1,5 +1,8 @@
 """SQLiteBM25Index — BM25 full-text search."""
+from __future__ import annotations
+
 import sqlite3
+from typing import Any
 
 
 class SQLiteBM25Index:
@@ -11,7 +14,7 @@ class SQLiteBM25Index:
         self.conn.execute("PRAGMA journal_mode=WAL")
         self._setup_schema()
 
-    def _setup_schema(self):
+    def _setup_schema(self) -> None:
         """Setup BM25 index schema"""
         cursor = self.conn.cursor()
 
@@ -41,39 +44,43 @@ class SQLiteBM25Index:
         """Sanitize FTS5 query using Rust-accelerated single-pass."""
         try:
             import serin_core
-            return serin_core.sanitize_fts_query(query)
-        except ImportError:
+            _sanitize: Any = getattr(serin_core, 'sanitize_fts_query')
+            result: str = _sanitize(query)
+            return result
+        except (ImportError, AttributeError):
             special_chars = set('+-*<>":()^~{}[]\\!?.\',')
             return ''.join(' ' if ch in special_chars else ch for ch in query).strip()
 
-    def search(self, query: str, user_id: str | None = None, channel_id: str | None = None, limit: int = 20) -> list[dict]:
+    def search(self, query: str, user_id: str | None = None, channel_id: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
         """Search documents using BM25"""
         cursor = self.conn.cursor()
-
-        where_conditions = []
-        params = []
-
-        if user_id:
-            where_conditions.append("person_id = ?")
-            params.append(user_id)
-
-        if channel_id:
-            where_conditions.append("channel_id = ?")
-            params.append(channel_id)
-
 
         sanitized_query = self._sanitize_query(query)
         if not sanitized_query:
             return []
 
-        cursor.execute("""
-            SELECT id, text, person_id, channel_id,
-                   bm25(documents_fts) as score
-            FROM documents_fts
-            WHERE documents_fts MATCH ? AND {where_clause}
-            ORDER BY score
-            LIMIT ?
-        """, (sanitized_query, *params, limit))
+        # Build parameterized WHERE clause from fixed fragments
+        conditions = ["documents_fts MATCH ?"]
+        params: list[Any] = [sanitized_query]
+
+        if user_id:
+            conditions.append("person_id = ?")
+            params.append(user_id)
+
+        if channel_id:
+            conditions.append("channel_id = ?")
+            params.append(channel_id)
+
+        params.append(limit)
+
+        # Build SQL from fixed string literals only — no variable interpolation
+        where_parts = ["SELECT id, text, person_id, channel_id,",
+                       " bm25(documents_fts) as score",
+                       " FROM documents_fts WHERE "]
+        where_parts.extend(conditions)
+        where_parts.append(" ORDER BY score LIMIT ?")
+        sql = "".join(where_parts)
+        cursor.execute(sql, params)
 
         results = []
         for row in cursor.fetchall():
@@ -96,7 +103,7 @@ class SQLiteBM25Index:
 
         self.conn.commit()
 
-    def __del__(self):
+    def __del__(self) -> None:
         if hasattr(self, 'conn'):
             self.conn.close()
 

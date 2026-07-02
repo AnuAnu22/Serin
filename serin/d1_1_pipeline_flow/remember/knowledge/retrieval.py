@@ -3,11 +3,16 @@ Enhanced Memory Retrieval System for Human-like Behavior
 Improves memory selection, relevance scoring, and personality consistency
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from serin.d1_3_state_core.logger import logger
+
+if TYPE_CHECKING:
+    from serin.d1_1_pipeline_flow.remember.qdrant import QdrantMemorySystem
 
 
 @dataclass
@@ -15,7 +20,7 @@ class HumanLikeMemoryQuery:
     """Enhanced query structure for human-like memory retrieval"""
     query: str
     user_id: str
-    conversation_context: list[dict] | None = None
+    conversation_context: list[dict[str, Any]] | None = None
     emotional_state: str = "neutral"
     conversation_phase: str = "casual"  # casual, focused, emotional
     personality_mood: str = "friendly"
@@ -24,12 +29,12 @@ class HumanLikeMemoryQuery:
 class PersonalityConsistencyAnalyzer:
     """Analyzes and maintains personality consistency in memory retrieval"""
 
-    def __init__(self, memory_system: Any) -> None:
-        self.memory: Any = memory_system
+    def __init__(self, memory_system: QdrantMemorySystem) -> None:
+        self.memory: QdrantMemorySystem = memory_system
         self.personality_weights: dict[str, float] = {}
-        self.conversation_history: dict[str, list[dict]] = {}
+        self.conversation_history: dict[str, list[dict[str, Any]]] = {}
 
-    def analyze_user_personality(self, user_id: str) -> dict:
+    def analyze_user_personality(self, user_id: str) -> dict[str, Any]:
         """Analyze user's personality traits and communication style"""
         try:
             # Get user profile
@@ -41,11 +46,11 @@ class PersonalityConsistencyAnalyzer:
             recent_memories = self.memory.search_memories(
                 query="conversation style communication",
                 user_id=user_id,
-                n_results=20
+                limit=20
             )
 
             # Analyze communication patterns
-            communication_patterns = []
+            communication_patterns: list[str] = []
             for memory in recent_memories:
                 content = memory.get('content', '').lower()
                 # Simple pattern analysis - could be enhanced with NLP
@@ -71,10 +76,10 @@ class PersonalityConsistencyAnalyzer:
 class HumanLikeMemoryRetriever:
     """Enhanced memory retrieval system designed for human-like behavior"""
 
-    def __init__(self, memory_system: Any) -> None:
-        self.memory: Any = memory_system
+    def __init__(self, memory_system: QdrantMemorySystem) -> None:
+        self.memory: QdrantMemorySystem = memory_system
         self.personality_analyzer: PersonalityConsistencyAnalyzer = PersonalityConsistencyAnalyzer(memory_system)
-        self.retrieval_history: dict[str, list[dict]] = {}
+        self.retrieval_history: dict[str, list[dict[str, Any]]] = {}
         self.human_behavior_weights: dict[str, float] = {
             "relevance": 0.35,
             "recency": 0.25,
@@ -83,7 +88,7 @@ class HumanLikeMemoryRetriever:
             "emotional_resonance": 0.10
         }
 
-    def search_memories_human_like(self, query: HumanLikeMemoryQuery) -> list[dict]:
+    def search_memories_human_like(self, query: HumanLikeMemoryQuery) -> list[dict[str, Any]]:
         """
         Enhanced memory search optimized for human-like behavior patterns
         """
@@ -123,15 +128,15 @@ class HumanLikeMemoryRetriever:
             logger.error(f" Human-like memory search failed: {e}")
             return []
 
-    def _get_memory_candidates(self, query: HumanLikeMemoryQuery) -> list[dict]:
+    def _get_memory_candidates(self, query: HumanLikeMemoryQuery) -> list[dict[str, Any]]:
         """Get memory candidates using multiple strategies"""
-        candidates = []
+        candidates: list[dict[str, Any]] = []
 
         # Strategy 1: Direct semantic search
-        direct_results = self.memory.search_memories(
+        direct_results: list[dict[str, Any]] = self.memory.search_memories(
             query=query.query,
             user_id=query.user_id,
-            n_results=15
+            limit=15
         )
         candidates.extend(direct_results)
 
@@ -141,7 +146,7 @@ class HumanLikeMemoryRetriever:
             context_results = self.memory.search_memories(
                 query=context_query,
                 user_id=query.user_id,
-                n_results=10
+                limit=10
             )
             candidates.extend(context_results)
 
@@ -150,18 +155,19 @@ class HumanLikeMemoryRetriever:
         candidates.extend(temporal_candidates)
 
         # Remove duplicates based on memory ID
-        seen_ids = set()
-        unique_candidates = []
+        seen_ids: set[int] = set()
+        unique_candidates: list[dict[str, Any]] = []
         for candidate in candidates:
-            if candidate not in seen_ids:
+            candidate_id = id(candidate)
+            if candidate_id not in seen_ids:
                 unique_candidates.append(candidate)
-                seen_ids.add(id(candidate))
+                seen_ids.add(candidate_id)
 
         return unique_candidates[:20]  # Limit to top 20 candidates
 
-    def _build_context_query(self, conversation_context: list[dict], original_query: str) -> str:
+    def _build_context_query(self, conversation_context: list[dict[str, Any]], original_query: str) -> str:
         """Build enhanced query using conversation context"""
-        context_terms = []
+        context_terms: list[str] = []
 
         # Add recent conversation topics
         for msg in conversation_context[-5:]:
@@ -175,7 +181,7 @@ class HumanLikeMemoryRetriever:
         all_terms = [original_query] + context_terms
         return " ".join(all_terms[:8])  # Limit to 8 terms total
 
-    def _get_temporal_candidates(self, query: HumanLikeMemoryQuery) -> list[dict]:
+    def _get_temporal_candidates(self, query: HumanLikeMemoryQuery) -> list[dict[str, Any]]:
         """Get temporally relevant memory candidates"""
         try:
             # Get memories from different time periods
@@ -186,23 +192,23 @@ class HumanLikeMemoryRetriever:
                 ("this_month", now - timedelta(days=30))
             ]
 
-            temporal_candidates = []
-            for period_name, cutoff_date in time_periods:
+            temporal_candidates: list[dict[str, Any]] = []
+            for _, cutoff_date in time_periods:
                 # Get memories from this period
-                period_results = self.memory.search_memories(
+                period_results: list[dict[str, Any]] = self.memory.search_memories(
                     query=query.query,
                     user_id=query.user_id,
-                    n_results=5
+                    limit=5
                 )
 
                 # Filter by time period - handle both string and datetime timestamps
-                def safe_datetime_convert(timestamp):
+                def safe_datetime_convert(timestamp: str | datetime) -> datetime:
                     """Safely convert timestamp to datetime, handling both string and datetime inputs"""
                     if isinstance(timestamp, str):
                         return datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
                     return timestamp
 
-                period_filtered = [
+                period_filtered: list[dict[str, Any]] = [
                     mem for mem in period_results
                     if safe_datetime_convert(mem['timestamp']) >= cutoff_date
                 ]
@@ -217,12 +223,12 @@ class HumanLikeMemoryRetriever:
 
     def _apply_human_like_scoring(
         self,
-        candidates: list[dict],
+        candidates: list[dict[str, Any]],
         query: HumanLikeMemoryQuery,
-        user_personality: dict
-    ) -> list[dict]:
+        user_personality: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Apply human-like relevance scoring algorithm"""
-        scored_memories = []
+        scored_memories: list[dict[str, Any]] = []
 
         for memory in candidates:
             # Base relevance score (existing ChromaDB score)
@@ -266,11 +272,11 @@ class HumanLikeMemoryRetriever:
 
         return scored_memories
 
-    def _calculate_human_recency(self, memory: dict) -> float:
+    def _calculate_human_recency(self, memory: dict[str, Any]) -> float:
         """Calculate human-like recency score (more nuanced than linear decay)"""
         try:
             # Handle both string and datetime timestamps
-            def safe_datetime_convert(timestamp):
+            def safe_datetime_convert(timestamp: str | datetime) -> datetime:
                 if isinstance(timestamp, str):
                     return datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
                 return timestamp
@@ -296,8 +302,8 @@ class HumanLikeMemoryRetriever:
 
     def _calculate_personality_match(
         self,
-        memory: dict,
-        user_personality: dict,
+        memory: dict[str, Any],
+        user_personality: dict[str, Any],
         mood: str
     ) -> float:
         """Calculate personality consistency score"""
@@ -332,7 +338,7 @@ class HumanLikeMemoryRetriever:
         except Exception:
             return 0.5  # Default neutral score
 
-    def _calculate_emotional_resonance(self, memory: dict, target_emotion: str) -> float:
+    def _calculate_emotional_resonance(self, memory: dict[str, Any], target_emotion: str) -> float:
         """Calculate emotional resonance score"""
         try:
             memory_emotion = memory.get('emotional_tone', 'neutral')
@@ -356,15 +362,15 @@ class HumanLikeMemoryRetriever:
 
     def _filter_conversation_aware_memories(
         self,
-        candidates: list[dict],
+        candidates: list[dict[str, Any]],
         query: HumanLikeMemoryQuery
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Filter memories based on conversation awareness"""
         if not query.conversation_context:
             return candidates
 
         # Get recent conversation topics for filtering
-        recent_topics = set()
+        recent_topics: set[str] = set()
         for msg in query.conversation_context[-5:]:
             content = msg.get('content', '').lower()
             words = content.split()
@@ -373,7 +379,7 @@ class HumanLikeMemoryRetriever:
             recent_topics.update(topics[:2])  # Top 2 per message
 
         # Filter candidates based on topic relevance
-        conversation_aware = []
+        conversation_aware: list[dict[str, Any]] = []
         for memory in candidates:
             content = memory.get('content', '').lower()
             topic_relevance = sum(1 for topic in recent_topics if topic in content)
@@ -390,12 +396,12 @@ class HumanLikeMemoryRetriever:
 
     def _apply_personality_consistency(
         self,
-        candidates: list[dict],
+        candidates: list[dict[str, Any]],
         query: HumanLikeMemoryQuery,
-        user_personality: dict
-    ) -> list[dict]:
+        user_personality: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Apply personality consistency validation"""
-        consistent_memories = []
+        consistent_memories: list[dict[str, Any]] = []
 
         for memory in candidates:
             # Check if memory content contradicts user's personality
@@ -423,18 +429,17 @@ class HumanLikeMemoryRetriever:
 
     def _sort_by_human_like_priority(
         self,
-        candidates: list[dict],
+        candidates: list[dict[str, Any]],
         query: HumanLikeMemoryQuery
-    ) -> list[dict]:
-        """Sort memories by human-like priority rules"""
+    ) -> list[dict[str, Any]]:
 
-        def human_priority_score(memory):
+        def human_priority_score(memory: dict[str, Any]) -> float:
             """Calculate human-like priority score"""
-            scores = [
-                memory.get('human_relevance', 0) * 0.4,
-                memory.get('conversation_relevance', 0) * 0.3,
-                memory.get('personality_consistency', 0) * 0.2,
-                1.0 / max(1, memory.get('age_days', 1)) * 0.1  # Recency bonus
+            scores: list[float] = [
+                float(memory.get('human_relevance', 0)) * 0.4,
+                float(memory.get('conversation_relevance', 0)) * 0.3,
+                float(memory.get('personality_consistency', 0)) * 0.2,
+                1.0 / max(1, float(memory.get('age_days', 1))) * 0.1  # Recency bonus
             ]
             return sum(scores)
 

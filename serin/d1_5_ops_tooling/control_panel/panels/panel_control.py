@@ -1,9 +1,18 @@
-from typing import Any
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import Any, Protocol
 
 from serin.d1_3_state_core.logger import logger
 
 
-def register_control_routes(app):
+class _RouteApp(Protocol):
+    def get(self, path: str, **kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]: ...
+    def post(self, path: str, **kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]: ...
+    def delete(self, path: str, **kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]: ...
+
+
+def register_control_routes(app: _RouteApp) -> None:
     """Register TTS, profile, settings routes."""
     """TTS, voice profiles, behavior, settings, and background endpoints."""
     @app.get("/api/tts/voices")

@@ -1,20 +1,15 @@
 """Dependency injection container for gateway layer."""
-from __future__ import annotations
+from serin.d1_3_state_core.logger import LoggerProtocol
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from logging import Logger
-
-_logger: Logger | None = None
+_logger: LoggerProtocol | None = None
 
 
-def init_gateway(logger: Logger) -> None:
+def init_gateway(logger: LoggerProtocol) -> None:
     global _logger
     _logger = logger
 
 
-def get_logger() -> Logger:
+def get_logger() -> LoggerProtocol:
     if _logger is None:
         raise RuntimeError("Gateway not initialized")
     return _logger

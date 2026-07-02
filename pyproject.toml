@@ -84,25 +84,21 @@ root_packages = ["serin"]
 name = "Layer boundaries"
 type = "layers"
 layers = [
-    "serin.ops",       # highest layer — can import everything below
-    "serin.gateway",   # can import pipeline, state, config
-    "serin.pipeline",  # can import state, config
-    "serin.state",     # can import config
-    "serin.config",    # lowest layer — imports nothing external
+    "serin.d1_5_ops_tooling",
+    "serin.d1_2_gateway_io",
+    "serin.d1_1_pipeline_flow",
+    "serin.d1_3_state_core",
+    "serin.d1_4_config_base",
 ]
 ignore_imports = [
-    # Known architecture violations — need layer refactoring:
-    # state imports BM25Index from pipeline — move to state or define interface in state
-    "serin.state.memory_store -> serin.pipeline.remember.core.bm25_index",
-    # gateway initializes ops-layer components — inject through pipeline/state
-    "serin.gateway.discord.bot -> serin.ops.background",
-    "serin.gateway.discord.bot_pipeline_init -> serin.ops.background",
-    "serin.gateway.discord.bot -> serin.ops.passive_monitor",
-    "serin.gateway.discord.bot_pipeline_init -> serin.ops.passive_monitor",
-    "serin.gateway.discord.bot -> serin.ops.control_panel.panel_lifecycle",
-    "serin.gateway.discord.bot_pipeline_init -> serin.ops.control_panel.panel_lifecycle",
-    "serin.gateway.discord.bot_pipeline_init -> serin.ops.control_panel.server",
-    "serin.gateway.discord.bot_pipeline_init -> serin.ops.tts_voice_manager",
+    "serin.d1_2_gateway_io.discord.bot -> serin.d1_5_ops_tooling.background",
+    "serin.d1_2_gateway_io.discord.bot -> serin.d1_5_ops_tooling.passive_monitor",
+    "serin.d1_2_gateway_io.discord.bot -> serin.d1_5_ops_tooling.tts_voice_manager",
+    "serin.d1_2_gateway_io.discord.bot_pipeline_init -> serin.d1_5_ops_tooling.background",
+    "serin.d1_2_gateway_io.discord.bot_pipeline_init -> serin.d1_5_ops_tooling.passive_monitor",
+    "serin.d1_2_gateway_io.discord.bot_pipeline_init -> serin.d1_5_ops_tooling.control_panel.panel_lifecycle",
+    "serin.d1_2_gateway_io.discord.bot_pipeline_init -> serin.d1_5_ops_tooling.control_panel.server",
+    "serin.d1_2_gateway_io.discord.bot_pipeline_init -> serin.d1_5_ops_tooling.tts_voice_manager",
 ]
 
 [tool.wily]

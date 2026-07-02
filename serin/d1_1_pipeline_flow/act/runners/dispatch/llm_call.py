@@ -6,7 +6,9 @@ This is the most expensive stage — always check timings here.
 """
 from __future__ import annotations
 
-from serin.d1_1_pipeline_flow.act.runners.pipeline import PipelineStage
+from typing import Any
+
+from serin.d1_1_pipeline_flow.act.stages_base import PipelineStage
 from serin.d1_3_state_core.logger import logger
 from serin.d1_3_state_core.message_context import MessageContext
 
@@ -14,7 +16,7 @@ from serin.d1_3_state_core.message_context import MessageContext
 class LLMCallStage(PipelineStage):
     """Invokes the LLM and stores the raw response."""
 
-    def __init__(self, response_generator):
+    def __init__(self, response_generator: Any) -> None:
         self.generator = response_generator
 
     async def _run(self, ctx: MessageContext) -> MessageContext:

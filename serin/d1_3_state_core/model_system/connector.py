@@ -1,4 +1,6 @@
 """Single LLM connector for llama-swap / any OpenAI-compatible backend."""
+from __future__ import annotations
+
 import asyncio
 import os
 import sys
@@ -74,6 +76,7 @@ class LLMConnector(ModelInterface):
             time.sleep(self.RETRY_INTERVAL)
             try:
                 self._try_connect()
+                assert self.adapter is not None
                 logger.success(f"LLM reconnected to {self.base_url}")
                 logger.info(
                     f"LLM ready - Model: {self.model_name} ({self.adapter.get_model_type()}), "
@@ -95,6 +98,7 @@ class LLMConnector(ModelInterface):
         for attempt in range(3):
             try:
                 self._try_connect()
+                assert self.adapter is not None
                 logger.info(
                     f"LLM ready - Model: {self.model_name} ({self.adapter.get_model_type()}), "
                     f"Temp: {self.temperature}, Top-P: {self.top_p}"
@@ -122,7 +126,7 @@ class LLMConnector(ModelInterface):
         temperature: float | None = None,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs
+        **kwargs: Any
     ) -> str:
         if self.client is None or self.adapter is None:
             raise RuntimeError("Client not initialized. Call load_model() first.")
@@ -165,7 +169,7 @@ class LLMConnector(ModelInterface):
         temperature: float | None = None,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs
+        **kwargs: Any
     ) -> str:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
@@ -179,7 +183,7 @@ class LLMConnector(ModelInterface):
         temperature: float | None = None,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs
+        **kwargs: Any
     ) -> str:
         if self.client is None or self.adapter is None:
             raise RuntimeError("Client not initialized. Call load_model() first.")
@@ -216,7 +220,7 @@ class LLMConnector(ModelInterface):
         temperature: float | None = None,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs
+        **kwargs: Any
     ) -> str:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(

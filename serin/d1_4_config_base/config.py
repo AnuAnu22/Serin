@@ -14,12 +14,13 @@ Key classes:
 """
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any
 
 from dotenv import load_dotenv
 
-from serin.d1_3_state_core.logger import logger
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()

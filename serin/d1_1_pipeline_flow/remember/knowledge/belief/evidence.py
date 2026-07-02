@@ -5,8 +5,11 @@ with keyword-based retrieval. Each fact has a source_type indicating its
 reliability tier and an auto-supersede mechanism for board/game state.
 """
 
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
+from typing import Any
 
 from serin.d1_3_state_core.logger import logger
 
@@ -38,7 +41,7 @@ class FactStore:
     invalidate older active facts of the same category.
     """
 
-    def __init__(self, conn):
+    def __init__(self, conn: Any) -> None:
         self.conn = conn
 
     # ── CRUD ────────────────────────────────────────────────────────────────
@@ -82,7 +85,7 @@ class FactStore:
         return fact_id
 
     def get_active_facts(self, category: str | None = None,
-                         limit: int = 10) -> list[dict]:
+                         limit: int = 10) -> list[dict[str, Any]]:
         """Retrieve active facts, optionally filtered by category."""
         cursor = self.conn.cursor()
         if category:
@@ -101,7 +104,7 @@ class FactStore:
             """, (limit,))
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_relevant_facts(self, query: str, limit: int = 5) -> list[dict]:
+    def get_relevant_facts(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
         """Retrieve active facts relevant to a query using keyword overlap.
 
         This is intentionally simple — facts are small, atomic, and keyword

@@ -1,7 +1,10 @@
 """Message processing — voice input, message handling, batch flushing."""
+from __future__ import annotations
+
 import asyncio
 import base64
 from datetime import datetime
+from typing import Any
 
 import discord
 
@@ -14,7 +17,7 @@ from serin.d1_4_config_base.config import config
 from serin.d1_4_config_base.debug_logger import log_correction, log_message
 
 
-async def process_voice_input(self, user_id: str, username: str, channel_id: str, transcription: str, wav_b64: str | None = None) -> None:
+async def process_voice_input(self: Any, user_id: str, username: str, channel_id: str, transcription: str, wav_b64: str | None = None) -> None:
     """Process voice input and generate voice response."""
     try:
         logger.info("Processing voice input from %s: '%s'", username, transcription)
@@ -53,7 +56,7 @@ async def process_voice_input(self, user_id: str, username: str, channel_id: str
         formatted_context += "\n\n[SYSTEM: You are speaking in a voice channel. Keep responses concise, conversational, and natural. Avoid long lists or code blocks. Use fillers like 'Hmm' or 'Let's see' if you need to think.]"
 
         if wav_b64:
-            voice_messages = [{
+            voice_messages: list[Any] = [{
                 "role": "user",
                 "content": [
                     {"type": "text", "text": formatted_context},
@@ -61,17 +64,20 @@ async def process_voice_input(self, user_id: str, username: str, channel_id: str
                 ],
             }]
             from serin.d1_1_pipeline_flow.think.response_generator import (
-                llama as llm_connector,
+                llama as _llm_connector,
             )
-            if llm_connector is None:
+            if _llm_connector is None:
                 from serin.d1_1_pipeline_flow.think.response_generator import (
                     initialize_llama,
                 )
                 await initialize_llama()
                 from serin.d1_1_pipeline_flow.think.response_generator import (
-                    llama as llm_connector,
+                    llama as _llm_connector,
                 )
-            response = await llm_connector.chat_completion(
+            if _llm_connector is None:
+                logger.error("LLM connector not available for voice input")
+                return
+            response = await _llm_connector.chat_completion(
                 voice_messages,
                 max_tokens=300,
                 temperature=1.0,
@@ -109,11 +115,11 @@ async def process_voice_input(self, user_id: str, username: str, channel_id: str
     except Exception as e:
         logger.exception("Error processing voice input: %s", e)
 
-async def start(self) -> None:
+async def start(self: Any) -> None:
     """Start the manager."""
     logger.info("Enhanced MessageManager started")
 
-async def process_message(self, message: discord.Message) -> None:
+async def process_message(self: Any, message: discord.Message) -> None:
     """Process incoming message with all pre-processing, then delegate to pipeline."""
     try:
         user_id = str(message.author.id)

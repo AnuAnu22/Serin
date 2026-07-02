@@ -2,6 +2,7 @@ import shutil
 import sqlite3
 import tarfile
 from pathlib import Path
+from typing import Any
 
 from serin.d1_3_state_core.db_protect.backup import DatabaseProtectorBackup
 from serin.d1_3_state_core.logger import logger
@@ -19,7 +20,7 @@ def _insert_table(table_name: str, placeholders: str) -> str:
 
 
 class DatabaseProtectorRecovery(DatabaseProtectorBackup):
-    def recover_from_corruption(self, validation_results: dict) -> bool:
+    def recover_from_corruption(self, validation_results: dict[str, Any]) -> bool:
         logger.warning("Starting database corruption recovery...")
         try:
             sqlite_valid = validation_results['sqlite_validation'].get('valid', False)

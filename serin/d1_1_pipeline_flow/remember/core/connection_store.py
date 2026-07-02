@@ -26,7 +26,7 @@ def connect_with_retry(host: str, port: int, max_attempts: int = 3) -> Any | Non
 
     for attempt in range(max_attempts):
         try:
-            client = QdrantClient(host=host, port=port, timeout=5.0)
+            client = QdrantClient(host=host, port=port, timeout=5)
             client.get_collections()
             logger.info(f" Qdrant client connected to {host}:{port}")
             return client
@@ -64,7 +64,7 @@ def find_qdrant_container() -> str | None:
             filters={"ancestor": config.QDRANT_DOCKER_IMAGE},
         )
         if containers:
-            return containers[0].name
+            return str(containers[0].name)
     except Exception:
         logger.exception("Failed to find Qdrant container by image")
 
@@ -74,7 +74,7 @@ def find_qdrant_container() -> str | None:
         for c in containers:
             image_tags = c.image.tags if hasattr(c.image, 'tags') else []
             if any("qdrant" in tag.lower() for tag in image_tags):
-                return c.name
+                return str(c.name)
     except Exception:
         logger.exception("Failed to list Docker containers for Qdrant search")
 
@@ -111,7 +111,7 @@ def ensure_qdrant_docker(host: str, port: int) -> Any | None:
         for _ in range(30):
             time_mod.sleep(1)
             try:
-                qclient = QdrantClient(host=host, port=port, timeout=5.0)
+                qclient = QdrantClient(host=host, port=port, timeout=5)
                 qclient.get_collections()
                 logger.success(f" Qdrant Docker container ready on {host}:{port}")
                 return qclient

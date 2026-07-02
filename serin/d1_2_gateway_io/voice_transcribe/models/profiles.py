@@ -2,6 +2,9 @@
 Voice Profiles - Manage TTS Voice Profiles
 Different voice characteristics for different contexts/moods.
 """
+from __future__ import annotations
+
+from typing import Any
 
 from serin.d1_2_gateway_io._di import get_logger
 
@@ -25,7 +28,7 @@ class VoiceProfile:
         self.repetition_penalty = repetition_penalty
         self.description = description
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary"""
         return {
             'name': self.name,
@@ -45,7 +48,7 @@ class VoiceProfileManager:
 
     def __init__(self) -> None:
         self.profiles: dict[str, VoiceProfile] = {}
-        self.active_profile = 'default'
+        self.active_profile: str = 'default'
 
         # Load default profiles
         self._load_default_profiles()
@@ -53,7 +56,7 @@ class VoiceProfileManager:
         get_logger().info(" Voice profile manager initialized")
         get_logger().info(f"    Loaded {len(self.profiles)} default profiles")
 
-    def _load_default_profiles(self):
+    def _load_default_profiles(self) -> None:
         """Load default voice profiles"""
 
         # Default - Standard voice
@@ -165,7 +168,7 @@ class VoiceProfileManager:
         """Get active profile"""
         return self.profiles[self.active_profile]
 
-    def list_profiles(self) -> list:
+    def list_profiles(self) -> list[str]:
         """List all profile names"""
         return list(self.profiles.keys())
 
@@ -222,7 +225,7 @@ class VoiceProfileManager:
         self.add_profile(profile)
         return profile
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """Get profile manager stats"""
         return {
             'total_profiles': len(self.profiles),
@@ -243,7 +246,7 @@ def get_profile_manager() -> VoiceProfileManager:
     return _profile_manager
 
 
-def get_voice_profiles() -> list:
+def get_voice_profiles() -> list[VoiceProfile]:
     """Get all voice profiles (module-level convenience)"""
     return list(get_profile_manager().profiles.values())
 

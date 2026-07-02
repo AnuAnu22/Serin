@@ -1,17 +1,24 @@
 """User management methods — profiles, traits, relationships.
 Extracted from store.py.
 """
+from __future__ import annotations
+
 import json
+import sqlite3
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
 from qdrant_client.http import models
 
 from serin.d1_3_state_core.logger import logger
 
+if TYPE_CHECKING:
+    from serin.d1_1_pipeline_flow.remember.core.store import QdrantMemorySystem
 
-def upsert_user(store, user_id: str, username: str, display_name: str = None) -> None:
+
+def upsert_user(store: QdrantMemorySystem, user_id: str, username: str, display_name: str | None = None) -> None:
         """Create or update user profile"""
-        cursor = store.conn.cursor()
+        cursor: sqlite3.Cursor = store.conn.cursor()
         try:
             cursor.execute("""
                 INSERT INTO users (user_id, username, display_name, last_seen)
@@ -25,19 +32,19 @@ def upsert_user(store, user_id: str, username: str, display_name: str = None) ->
         except Exception as e:
             logger.error(f" Error upserting user: {e}")
 
-def update_user_activity(store, user_id: str, message_length: int) -> None:
+def update_user_activity(store: QdrantMemorySystem, user_id: str, message_length: int) -> None:
         """Update user activity metrics"""
-        cursor = store.conn.cursor()
+        cursor: sqlite3.Cursor = store.conn.cursor()
         try:
             cursor.execute("SELECT total_messages, avg_message_length FROM users WHERE user_id = ?", (user_id,))
-            result = cursor.fetchone()
+            result: sqlite3.Row | None = cursor.fetchone()
 
             if result:
-                total_msgs = result['total_messages']
-                avg_len = result['avg_message_length']
+                total_msgs: int = result['total_messages']
+                avg_len: float = result['avg_message_length']
 
-                new_total = total_msgs + 1
-                new_avg = ((avg_len * total_msgs) + message_length) / new_total
+                new_total: int = total_msgs + 1
+                new_avg: float = ((avg_len * total_msgs) + message_length) / new_total
 
                 cursor.execute("""
                     UPDATE users SET
@@ -50,9 +57,9 @@ def update_user_activity(store, user_id: str, message_length: int) -> None:
         except Exception as e:
             logger.error(f" Error updating user activity: {e}")
 
-def get_user_profile(store, user_id: str) -> dict | None:
+def get_user_profile(store: QdrantMemorySystem, user_id: str) -> dict[str, Any] | None:
         """Get user profile"""
-        cursor = store.conn.cursor()
+        cursor: sqlite3.Cursor = store.conn.cursor()
         cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
         result = cursor.fetchone()
 
@@ -63,9 +70,9 @@ def get_user_profile(store, user_id: str) -> dict | None:
             return profile
         return None
 
-def update_user_traits(store, user_id: str, traits: list[str] | None = None, interests: list[str] | None = None) -> None:
+def update_user_traits(store: QdrantMemorySystem, user_id: str, traits: list[str] | None = None, interests: list[str] | None = None) -> None:
         """Update user personality traits and interests"""
-        cursor = store.conn.cursor()
+        cursor: sqlite3.Cursor = store.conn.cursor()
         try:
             cursor.execute("SELECT personality_traits, interests FROM users WHERE user_id = ?", (user_id,))
             result = cursor.fetchone()
@@ -93,9 +100,9 @@ def update_user_traits(store, user_id: str, traits: list[str] | None = None, int
         except Exception as e:
             logger.error(f" Error updating traits: {e}")
 
-def log_activity(store, user_id: str, channel_id: str, message_length: int, sentiment: float) -> None:
+def log_activity(store: QdrantMemorySystem, user_id: str, channel_id: str, message_length: int, sentiment: float) -> None:
         """Log user activity for pattern analysis"""
-        cursor = store.conn.cursor()
+        cursor: sqlite3.Cursor = store.conn.cursor()
         try:
             now = datetime.now()
             cursor.execute("""
@@ -107,12 +114,12 @@ def log_activity(store, user_id: str, channel_id: str, message_length: int, sent
         except Exception as e:
             logger.error(f" Error logging activity: {e}")
 
-def update_relationship(store, user_a_id: str, user_b_id: str, interaction_type: str = 'message') -> None:
+def update_relationship(store: QdrantMemorySystem, user_a_id: str, user_b_id: str, interaction_type: str = 'message') -> None:
         """Update relationship between two users"""
         if user_a_id > user_b_id:
             user_a_id, user_b_id = user_b_id, user_a_id
 
-        cursor = store.conn.cursor()
+        cursor: sqlite3.Cursor = store.conn.cursor()
         try:
             cursor.execute("""
                 INSERT INTO relationships (user_a_id, user_b_id, interaction_count, last_interaction)
@@ -141,9 +148,9 @@ def update_relationship(store, user_a_id: str, user_b_id: str, interaction_type:
         except Exception as e:
             logger.error(f" Error updating relationship: {e}")
 
-def get_user_relationships(store, user_id: str, min_strength: float = 0.1) -> list[dict]:
+def get_user_relationships(store: QdrantMemorySystem, user_id: str, min_strength: float = 0.1) -> list[dict[str, Any]]:
         """Get all relationships for a user"""
-        cursor = store.conn.cursor()
+        cursor: sqlite3.Cursor = store.conn.cursor()
         cursor.execute("""
             SELECT r.*,
                    CASE WHEN r.user_a_id = ? THEN ub.username ELSE ua.username END as other_username,
@@ -158,9 +165,9 @@ def get_user_relationships(store, user_id: str, min_strength: float = 0.1) -> li
 
         return [dict(row) for row in cursor.fetchall()]
 
-    # ========================================================================
-    # Stats & Maintenance
-    # ========================================================================
+# ========================================================================
+# Stats & Maintenance
+# ========================================================================
 
 
 """Recent messages cache — SQLite-backed message history.
@@ -169,7 +176,7 @@ Extracted from store.py.
 
 
 def store_recent_message(
-    store,
+    store: QdrantMemorySystem,
     user_id: str,
     username: str,
     channel_id: str,
@@ -178,7 +185,7 @@ def store_recent_message(
     timestamp: datetime | None = None
     ) -> None:
     """Store recent message in SQLite"""
-    cursor = store.conn.cursor()
+    cursor: sqlite3.Cursor = store.conn.cursor()
     try:
         ts = timestamp or datetime.now()
 
@@ -203,9 +210,9 @@ def store_recent_message(
     except Exception as e:
         logger.error(f" Error storing recent message: {e}")
 
-def get_latest_message(store, channel_id: str) -> dict | None:
+def get_latest_message(store: QdrantMemorySystem, channel_id: str) -> dict[str, Any] | None:
         """Get most recent message from a channel"""
-        cursor = store.conn.cursor()
+        cursor: sqlite3.Cursor = store.conn.cursor()
         cursor.execute("""
             SELECT message_id, user_id, username, content, timestamp
             FROM recent_messages
@@ -217,9 +224,9 @@ def get_latest_message(store, channel_id: str) -> dict | None:
         result = cursor.fetchone()
         return dict(result) if result else None
 
-def get_recent_conversation_from_sqlite(store, channel_id: str, limit: int = 20) -> list[dict]:
+def get_recent_conversation_from_sqlite(store: QdrantMemorySystem, channel_id: str, limit: int = 20) -> list[dict[str, Any]]:
         """Get recent conversation from SQLite (short-term buffer)."""
-        cursor = store.conn.cursor()
+        cursor: sqlite3.Cursor = store.conn.cursor()
         try:
             cursor.execute("""
                 SELECT user_id, username, content, timestamp
@@ -228,8 +235,8 @@ def get_recent_conversation_from_sqlite(store, channel_id: str, limit: int = 20)
                 ORDER BY timestamp DESC
                 LIMIT ?
             """, (channel_id, limit))
-            rows = cursor.fetchall()
-            messages = []
+            rows: list[sqlite3.Row] = cursor.fetchall()
+            messages: list[dict[str, Any]] = []
             for row in reversed(rows):
                 messages.append({
                     'user_id': row['user_id'],
@@ -242,20 +249,21 @@ def get_recent_conversation_from_sqlite(store, channel_id: str, limit: int = 20)
             logger.error(f" Error reading recent messages: {e}")
             return []
 
-def get_message_count(store, channel_id: str) -> int:
+def get_message_count(store: QdrantMemorySystem, channel_id: str) -> int:
         """Get total message count for a channel"""
-        cursor = store.conn.cursor()
+        cursor: sqlite3.Cursor = store.conn.cursor()
         cursor.execute("""
             SELECT COUNT(*) as count
             FROM recent_messages
             WHERE channel_id = ?
         """, (channel_id,))
 
-        return cursor.fetchone()['count']
+        row: sqlite3.Row | None = cursor.fetchone()
+        return row['count'] if row is not None else 0
 
-def get_message_at_position(store, channel_id: str, position: int) -> dict | None:
+def get_message_at_position(store: QdrantMemorySystem, channel_id: str, position: int) -> dict[str, Any] | None:
         """Get message at specific position (0 = oldest)"""
-        cursor = store.conn.cursor()
+        cursor: sqlite3.Cursor = store.conn.cursor()
         cursor.execute("""
             SELECT message_id, user_id, username, content, timestamp
             FROM recent_messages
@@ -268,13 +276,13 @@ def get_message_at_position(store, channel_id: str, position: int) -> dict | Non
         return dict(result) if result else None
 
 def get_messages_around_timestamp(
-    store,
+    store: QdrantMemorySystem,
     channel_id: str,
-    timestamp,
+    timestamp: str | datetime,
     radius: int = 2
-    ) -> list[dict]:
-    """Get messages around a timestamp (\u00b1radius)"""
-    def safe_datetime_convert(ts):
+    ) -> list[dict[str, Any]]:
+    """Get messages around a timestamp (±radius)"""
+    def safe_datetime_convert(ts: str | datetime) -> datetime:
         if isinstance(ts, str):
             try:
                 return datetime.fromisoformat(ts.replace('Z', '+00:00'))
@@ -282,8 +290,8 @@ def get_messages_around_timestamp(
                 return datetime.now()
         return ts
 
-    ts = safe_datetime_convert(timestamp)
-    cursor = store.conn.cursor()
+    ts: datetime = safe_datetime_convert(timestamp)
+    cursor: sqlite3.Cursor = store.conn.cursor()
 
     cursor.execute("""
         SELECT message_id, user_id, username, content, timestamp
@@ -308,9 +316,9 @@ def get_messages_around_timestamp(
 
     return before + after
 
-def get_message_by_id(store, message_id: str) -> dict | None:
+def get_message_by_id(store: QdrantMemorySystem, message_id: str) -> dict[str, Any] | None:
         """Get a specific message by its ID"""
-        cursor = store.conn.cursor()
+        cursor: sqlite3.Cursor = store.conn.cursor()
         cursor.execute("""
             SELECT message_id, user_id, username, content, timestamp
             FROM recent_messages
@@ -321,7 +329,7 @@ def get_message_by_id(store, message_id: str) -> dict | None:
         return dict(result) if result else None
 
 
-def cleanup_old_memories(store, days_old: int = 90, min_importance: float = 0.3) -> None:
+def cleanup_old_memories(store: QdrantMemorySystem, days_old: int = 90, min_importance: float = 0.3) -> int:
         """Remove old, unimportant memories"""
         try:
             cutoff = (datetime.now() - timedelta(days=days_old)).isoformat()

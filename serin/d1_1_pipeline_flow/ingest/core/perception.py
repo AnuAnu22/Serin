@@ -2,21 +2,28 @@
 from __future__ import annotations
 
 import re
-from dataclasses import field
+from dataclasses import dataclass, field
 from typing import Any
 
 from serin.d1_1_pipeline_flow.ingest.core.manager import EnhancedMessageManagerV3
 
+_EVIDENCE_PATTERNS = [
+    r'\|.*\|.*\|',        # Board states (pipes with separators)
+    r'https?://\S+',       # URLs
+    r'```[\s\S]*?```',     # Code blocks
+    r'"[^"]{20,}"',        # Long quotes (20+ chars)
+]
 
-def _detect_evidence(self, content: str) -> bool:
+
+def _detect_evidence(self: Any, content: str) -> bool:
     """Detect if content contains factual evidence (boards, links, code, quotes)."""
-    for pattern in self._EVIDENCE_PATTERNS:
+    for pattern in _EVIDENCE_PATTERNS:
         if re.search(pattern, content):
             return True
     return False
 
 
-def _perceive_message(self, content: str, user_id: str, username: str) -> PerceptionResult:
+def _perceive_message(self: Any, content: str, user_id: str, username: str) -> PerceptionResult:
     """Analyze message before storage — classify, extract evidence, claims, facts.
 
     This is the perception layer. It transforms raw text into structured
@@ -52,7 +59,7 @@ def _perceive_message(self, content: str, user_id: str, username: str) -> Percep
         result.speech_act = 'disagreement'
 
     # Evidence?
-    if self._detect_evidence(content):
+    if _detect_evidence(self, content):
         result.speech_act = 'evidence'
         result.is_objective = True
 
@@ -179,7 +186,7 @@ def _perceive_message(self, content: str, user_id: str, username: str) -> Percep
     # ── 5. Derive facts from evidence — board parsing + rule application ──
     for block in result.evidence_blocks:
         if block['type'] == 'board':
-            derived = self._derive_from_board(block['content'])
+            derived = _derive_from_board(self, block['content'])
             for fact in derived:
                 result.extracted_facts.append(fact)
                 result.observations.append(
@@ -222,7 +229,7 @@ def _perceive_message(self, content: str, user_id: str, username: str) -> Percep
     return result
 
 
-def _parse_board(self, board_text: str) -> list[list[str]] | None:
+def _parse_board(self: Any, board_text: str) -> list[list[str]] | None:
     """Parse a pipe-delimited board into a 2D grid.
 
     Handles:
@@ -234,7 +241,7 @@ def _parse_board(self, board_text: str) -> list[list[str]] | None:
     if not lines:
         return None
 
-    grid = []
+    grid: list[list[str]] = []
     for line in lines:
         # Strip leading/trailing pipes, split on |
         cells = [c.strip() for c in line.strip('|').split('|')]
@@ -253,7 +260,7 @@ def _parse_board(self, board_text: str) -> list[list[str]] | None:
     return grid
 
 
-def _derive_from_board(self, board_text: str) -> list[dict]:
+def _derive_from_board(self: Any, board_text: str) -> list[dict[str, Any]]:
     """Derive game-level facts from a parsed board state.
 
     Applies known game rules:
@@ -261,11 +268,11 @@ def _derive_from_board(self, board_text: str) -> list[dict]:
       - Tic-tac-toe: 3 in a row → win condition met
     Returns list of derived facts with confidence and category.
     """
-    grid = self._parse_board(board_text)
+    grid = _parse_board(self, board_text)
     if not grid:
         return []
 
-    derived = []
+    derived: list[dict[str, Any]] = []
     rows, cols = len(grid), len(grid[0])
 
     # Detect game type
@@ -284,7 +291,7 @@ def _derive_from_board(self, board_text: str) -> list[dict]:
         return derived
 
     # Check for pieces
-    piece_positions = {'.': [], '_': []}
+    piece_positions: dict[str, list[tuple[int, int]]] = {'.': [], '_': []}
     for r in range(rows):
         for c in range(cols):
             cell = grid[r][c]
@@ -352,10 +359,10 @@ def _derive_from_board(self, board_text: str) -> list[dict]:
     return derived
 
 
-def _analyze_personality(self, user_id: str, content: str) -> list[str]:
+def _analyze_personality(self: Any, user_id: str, content: str) -> list[str]:
     """Analyze message and update personality traits. Returns detected traits."""
-    traits = []
-    interests = []
+    traits: list[str] = []
+    interests: list[str] = []
     content_lower = content.lower()
 
     if any(w in content_lower for w in [            "lol", "haha", "lmao"]):
@@ -386,7 +393,7 @@ def _analyze_personality(self, user_id: str, content: str) -> list[str]:
     return traits
 
 
-def _get_emotional_tone(self, sentiment_score: float) -> str:
+def _get_emotional_tone(self: Any, sentiment_score: float) -> str:
     """Convert sentiment score to emotional tone"""
     if sentiment_score > 0.5:
         return "happy"
@@ -399,7 +406,7 @@ def _get_emotional_tone(self, sentiment_score: float) -> str:
     return "neutral"
 
 
-def _detect_topic(self, content: str) -> str | None:
+def _detect_topic(self: Any, content: str) -> str | None:
     """Simple topic detection"""
     content_lower = content.lower()
     topics = {
@@ -418,14 +425,15 @@ def _detect_topic(self, content: str) -> str | None:
     return None
 
 
-def get_user_profile(self, user_id: str) -> dict[str, Any] | None:
+def get_user_profile(self: Any, user_id: str) -> dict[str, Any] | None:
     """Get user profile"""
-    return self.memory.get_user_profile(user_id)
+    result: dict[str, Any] | None = self.memory.get_user_profile(user_id)
+    return result
 
 
-def get_memory_stats(self) -> dict[str, Any]:
+def get_memory_stats(self: Any) -> dict[str, Any]:
     """Get memory statistics"""
-    stats = self.memory.get_stats()
+    stats: dict[str, Any] = self.memory.get_stats()
     stats["manager_stats"] = self.stats
     stats["enhanced_context"] = {
         "improvements_used": self.stats["context_improvements"],
@@ -446,6 +454,7 @@ MessageManagerV3 = EnhancedMessageManagerV3
 """PerceptionResult and message classification patterns."""
 
 
+@dataclass
 class PerceptionResult:
     """Structured analysis of an incoming message before storage.
 
@@ -460,10 +469,10 @@ class PerceptionResult:
     is_objective: bool  # primarily factual/verifiable?
     evidence_class: str = 'conversation'  # world | conversation | social | system
     intent: str = 'statement'  # seek_validation | seek_explanation | seek_argument | seek_joke | social | question | command | statement
-    evidence_blocks: list[dict] = field(default_factory=list)  # [{type, content, metadata, evidence_class}]
-    claims: list[dict] = field(default_factory=list)  # [{claimant, content, category}]
-    observations: list[str] = field(default_factory=list)  # verifiable observations extracted
-    extracted_facts: list[dict] = field(default_factory=list)  # [{content, category, confidence, source_type}]
+    evidence_blocks: list[dict[str, Any]] = field(default_factory=lambda: [])  # [{type, content, metadata, evidence_class}]
+    claims: list[dict[str, Any]] = field(default_factory=lambda: [])  # [{claimant, content, category}]
+    observations: list[str] = field(default_factory=lambda: [])  # verifiable observations extracted
+    extracted_facts: list[dict[str, Any]] = field(default_factory=lambda: [])  # [{content, category, confidence, source_type}]
 
 
 # ── Perception patterns ──────────────────────────────────────────────────────

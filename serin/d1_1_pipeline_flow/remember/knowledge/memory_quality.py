@@ -1,4 +1,6 @@
 """Memory quality assessment — clarity, density, relevance scoring."""
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Any
 
@@ -20,7 +22,7 @@ class MemoryQualityAssessor:
             'poor': 0.2
         }
 
-    def assess_memory_quality(self, memory_content: str, metadata: dict) -> dict:
+    def assess_memory_quality(self, memory_content: str, metadata: dict[str, Any]) -> dict[str, Any]:
         """Assess the quality of a memory for human-like conversations"""
         try:
             quality_factors = {
@@ -101,10 +103,10 @@ class MemoryQualityAssessor:
         except Exception:
             return 0.5
 
-    def _assess_emotional_context(self, metadata: dict) -> float:
+    def _assess_emotional_context(self, metadata: dict[str, Any]) -> float:
         """Assess emotional context richness"""
-        emotional_tone = metadata.get('emotional_tone', 'neutral')
-        importance = metadata.get('importance', 0.5)
+        emotional_tone: str = metadata.get('emotional_tone', 'neutral')  # type: ignore[no-untyped-call]
+        importance: float = metadata.get('importance', 0.5)  # type: ignore[no-untyped-call]
 
         # Emotional richness scoring
         if emotional_tone == 'neutral':
@@ -112,30 +114,30 @@ class MemoryQualityAssessor:
         else:
             return min(1.0, 0.6 + importance * 0.4)
 
-    def _assess_personal_relevance(self, metadata: dict) -> float:
+    def _assess_personal_relevance(self, metadata: dict[str, Any]) -> float:
         """Assess personal relevance"""
-        importance = metadata.get('importance', 0.5)
-        participants = metadata.get('participants', [])
+        importance: float = metadata.get('importance', 0.5)  # type: ignore[no-untyped-call]
+        participants: list[str] = metadata.get('participants', [])  # type: ignore[no-untyped-call]
 
         # Personal relevance based on importance and participant count
-        personal_score = importance
+        personal_score: float = importance
         if len(participants) > 1:  # Social interaction
             personal_score += 0.1
 
         return min(1.0, personal_score)
 
-    def _assess_temporal_relevance(self, metadata: dict) -> float:
+    def _assess_temporal_relevance(self, metadata: dict[str, Any]) -> float:
         """Assess temporal relevance"""
         try:
             # Handle both string and datetime timestamps
-            def safe_datetime_convert(timestamp):
+            def safe_datetime_convert(timestamp: str | datetime) -> datetime:
                 if isinstance(timestamp, str):
                     return datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
                 return timestamp
 
-            timestamp = safe_datetime_convert(metadata['timestamp'])
+            timestamp: datetime = safe_datetime_convert(metadata['timestamp'])
             now = datetime.now()
-            age_days = (now - timestamp).days
+            age_days: int = (now - timestamp).days
 
             if age_days == 0:
                 return 1.0  # Very recent
@@ -158,7 +160,7 @@ class MemoryQualityAssessor:
                 return category
         return 'poor'
 
-    def _generate_quality_suggestions(self, quality_factors: dict) -> list[str]:
+    def _generate_quality_suggestions(self, quality_factors: dict[str, Any]) -> list[str]:
         """Generate suggestions for memory quality improvement"""
         suggestions = []
 

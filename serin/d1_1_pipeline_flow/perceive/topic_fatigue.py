@@ -2,8 +2,11 @@
 Topic Fatigue - Track conversation topics and show natural boredom
 Humans get less enthusiastic about topics after discussing them repeatedly
 """
+from __future__ import annotations
+
 import time
 from collections import defaultdict
+from typing import Any
 
 from serin.d1_3_state_core.logger import logger
 
@@ -16,7 +19,7 @@ class TopicFatigue:
 
     def __init__(self) -> None:
         # channel_id -> {topic: [timestamps]}
-        self.topic_history = defaultdict(lambda: defaultdict(list))
+        self.topic_history: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
 
         # Thresholds
         self.FATIGUE_MESSAGE_COUNT = 10  # 10+ messages on same topic
@@ -122,7 +125,7 @@ class TopicFatigue:
         self,
         channel_id: str,
         limit: int = 3
-    ) -> list[tuple]:
+    ) -> list[tuple[str, int]]:
         """
         Get most discussed topics in channel.
 
@@ -143,9 +146,9 @@ class TopicFatigue:
 
     def apply_fatigue_to_personality(
         self,
-        personality_state: dict,
+        personality_state: dict[str, Any],
         fatigue_level: float
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Modify personality state based on topic fatigue.
 
@@ -194,7 +197,7 @@ class TopicFatigue:
 
 
 # Global instance
-_fatigue_tracker = None
+_fatigue_tracker: TopicFatigue | None = None
 
 def get_fatigue_tracker() -> TopicFatigue:
     """Get or create global fatigue tracker"""

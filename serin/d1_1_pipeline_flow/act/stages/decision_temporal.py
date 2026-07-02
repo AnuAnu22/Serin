@@ -6,6 +6,8 @@ Sets ctx.should_respond. If False, sets ctx.halt_reason and pipeline halts.
 """
 from __future__ import annotations
 
+from typing import Any
+
 from serin.d1_1_pipeline_flow.act.stages_base import PipelineStage
 from serin.d1_3_state_core.logger import logger
 from serin.d1_3_state_core.message_context import MessageContext
@@ -14,7 +16,7 @@ from serin.d1_3_state_core.message_context import MessageContext
 class ResponseDecisionStage(PipelineStage):
     """Decides whether to respond based on mention, rate limits, and DM rules."""
 
-    def __init__(self, response_controller):
+    def __init__(self, response_controller: Any) -> None:
         self.controller = response_controller
 
     async def _run(self, ctx: MessageContext) -> MessageContext:
@@ -53,7 +55,7 @@ class ResponseDecisionStage(PipelineStage):
 class TemporalStage(PipelineStage):
     """Parses and resolves temporal references in user input."""
 
-    def __init__(self, temporal_context):
+    def __init__(self, temporal_context: Any) -> None:
         self.temporal = temporal_context
 
     async def _run(self, ctx: MessageContext) -> MessageContext:
