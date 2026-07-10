@@ -96,5 +96,5 @@ async def main() -> None:
         get_logger().exception(f"Fatal error in main: {e}")
     finally:
         get_logger().info("Bot shutdown complete")
-        if not not client.is_closed():
+        if not client.is_closed():
             await client.close()
