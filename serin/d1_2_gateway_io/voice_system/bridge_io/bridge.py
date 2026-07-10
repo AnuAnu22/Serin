@@ -148,7 +148,7 @@ class RustStdoutReader:
             result = await asyncio.wait_for(self.events.get(), timeout=timeout)
             if result is self._EOF:
                 raise EOFError("Rust stdout pipe closed")
-            assert isinstance(result, tuple)
+            assert isinstance(result, tuple)  # nosec B101
             return result
         except TimeoutError:
             return None

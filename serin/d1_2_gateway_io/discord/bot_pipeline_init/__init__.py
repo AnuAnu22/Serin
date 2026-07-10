@@ -1,17 +1,20 @@
-"""MessagePipeline and behavior manager initialization."""
+"""MessagePipeline and behavior manager initialization.
+
+This package is the folder form of the former ``bot_pipeline_init.py`` (Rule 2:
+a file over 500 lines becomes a folder). ``on_ready``, ``on_message`` and the
+module-level subsystem globals stay here so their ``global`` bindings resolve in
+the package namespace; ``main`` lives in ``main_entry.py`` and is re-exported.
+"""
+
 import asyncio
 from datetime import datetime
-from typing import Any, cast
+from typing import Any
 
-import aiohttp
 import discord
 
 import serin.d1_1_pipeline_flow.think.response_generator
 import serin.d1_2_gateway_io.discord.bot as bot_module
 from serin.d1_2_gateway_io._di import get_logger
-from serin.d1_2_gateway_io.discord import (
-    event_handlers,  # noqa: F401  registers event handlers
-)
 from serin.d1_2_gateway_io.discord.bot import (
     background_processor,
     client,
@@ -27,10 +30,6 @@ from serin.d1_2_gateway_io.discord.command_handlers import (
     handle_profile_command,
     handle_stats_command,
 )
-from serin.d1_3_state_core.db_protect import (
-    DatabaseRecoveryError,
-    DatabaseValidationError,
-)
 from serin.d1_4_config_base.config import config
 from serin.d1_5_ops_tooling.control_panel.panel_lifecycle import (
     init_bot_state,
@@ -38,12 +37,17 @@ from serin.d1_5_ops_tooling.control_panel.panel_lifecycle import (
 )
 from serin.d1_5_ops_tooling.control_panel.server import bot_state
 
+from .main_entry import main
+
 __all__ = [
     "audio_processor",
     "background_processor",
     "db_protector",
+    "main",
     "message_manager",
     "message_crawler",
+    "on_message",
+    "on_ready",
     "passive_monitor",
     "tts_engine",
     "voice_behavior_manager",
@@ -363,6 +367,7 @@ async def on_ready() -> None:
     get_logger().success("Press Ctrl+C to stop")
     get_logger().success("=" * 60)
 
+
 @client.event
 async def on_message(message: discord.Message) -> None:
     """Handle incoming messages from ALL channels"""
@@ -427,79 +432,6 @@ async def on_message(message: discord.Message) -> None:
     except Exception as e:
         stats['errors'] += 1
         get_logger().exception(f"Error in on_message: {e}")
-
-async def main() -> None:
-    """Main async function with database protection"""
-    try:
-        get_logger().info("=" * 60)
-        get_logger().info("Serin Discord Bot")
-        get_logger().info("WITH DATABASE PROTECTION")
-        get_logger().info("=" * 60)
-
-        if config.DEBUG_MODE:
-            get_logger().info("Debug mode enabled - verbose logging active")
-
-        get_logger().info("Configuration:")
-        get_logger().info(f"   Trace messages: {config.TRACE_MESSAGES}")
-        get_logger().info(f"   Response channels: {len(config.ALLOWED_CHANNEL_IDS)}")
-        get_logger().info("   Monitoring: ALL channels (passive learning)")
-        get_logger().info(f"   Maintenance interval: {config.MAINTENANCE_INTERVAL_HOURS}h")
-        get_logger().info("   Cross-server memory: ENABLED")
-        get_logger().info(f"   Voice tracking: {config.ENABLE_VOICE}")
-        get_logger().info("   Multi-model: ENABLED (via factory)")
-        get_logger().info("   Temporal awareness: ENABLED")
-        get_logger().info("   Correction learning: ENABLED")
-        get_logger().info("   Database Protection: ENABLED")
-        get_logger().info("=" * 60)
-
-        # Set up discord client reference
-        serin.d1_1_pipeline_flow.think.response_generator.discord_client = client
-        get_logger().debug("Discord client reference set")
-
-        max_retries = 5
-        retry_count = 0
-
-        while retry_count < max_retries:
-            try:
-                async with client:
-                    # Start maintenance task (only here, not in on_ready)
-                    get_logger().info("Starting maintenance task...")
-                    asyncio.create_task(event_handlers.run_maintenance())
-                    get_logger().debug("Maintenance task scheduled")
-
-                    # Start Discord client with retry
-                    get_logger().info(f"Connecting to Discord (Attempt {retry_count + 1}/{max_retries})...")
-                    await client.start(cast(str, config.DISCORD_TOKEN))
-                    break
-
-            except (aiohttp.ClientError, discord.ConnectionClosed, discord.GatewayNotFound) as e:
-                retry_count += 1
-                if retry_count < max_retries:
-                    wait_time = min(30, 2 ** retry_count)
-                    get_logger().warning(f"Connection attempt {retry_count} failed: {e}")
-                    get_logger().info(f"Retrying in {wait_time} seconds...")
-                    await asyncio.sleep(wait_time)
-                else:
-                    get_logger().error(f"Failed to connect after {max_retries} attempts: {e}")
-                    raise
-
-    except KeyboardInterrupt:
-        get_logger().info("Received keyboard interrupt (Ctrl+C)")
-
-    except DatabaseValidationError as e:
-        get_logger().error(f"Database validation failed: {e}")
-        get_logger().error("Manual intervention required")
-
-    except DatabaseRecoveryError as e:
-        get_logger().error(f"Database recovery failed: {e}")
-        get_logger().error("Try restoring from backup manually")
-
-    except Exception as e:
-        get_logger().exception(f"Fatal error in main: {e}")
-    finally:
-        get_logger().info("Bot shutdown complete")
-        if not client.is_closed():
-            await client.close()
 
 
 if __name__ == "__main__":

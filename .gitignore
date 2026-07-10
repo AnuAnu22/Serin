@@ -141,6 +141,10 @@ cython_debug/
 *.swp
 *.swo
 
+# Generated artifacts (do not commit)
+graphify-out/
+.ua/
+
 # Project specific
 logs/
 test_output_*.txt

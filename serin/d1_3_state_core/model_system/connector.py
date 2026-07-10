@@ -76,7 +76,7 @@ class LLMConnector(ModelInterface):
             time.sleep(self.RETRY_INTERVAL)
             try:
                 self._try_connect()
-                assert self.adapter is not None
+                assert self.adapter is not None  # nosec B101
                 logger.success(f"LLM reconnected to {self.base_url}")
                 logger.info(
                     f"LLM ready - Model: {self.model_name} ({self.adapter.get_model_type()}), "
@@ -98,7 +98,7 @@ class LLMConnector(ModelInterface):
         for attempt in range(3):
             try:
                 self._try_connect()
-                assert self.adapter is not None
+                assert self.adapter is not None  # nosec B101
                 logger.info(
                     f"LLM ready - Model: {self.model_name} ({self.adapter.get_model_type()}), "
                     f"Temp: {self.temperature}, Top-P: {self.top_p}"
