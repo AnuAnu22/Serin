@@ -1,0 +1,7 @@
+==> Config: cosmic-ray.conf
+==> Session: /home/user3/Documents/SerinBot/Serin/tmp/cr-session-all/session.sqlite
+==> Max survival: 0%
+==> [1/4] baseline
+[07/10/26 21:58:19] INFO     INFO:root:Reading config from 'cosmic-ray.conf'                                                                                                     config.py:115
+                    INFO     INFO:cosmic_ray.commands.execute:Beginning execution                                                                                                execute.py:46
+                    INFO     INFO:cosmic_ray.testing:Running test (timeout=999999.0): uv run pytest tests/                                                                       testing.py:37
