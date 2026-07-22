@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from serin.d1_5_ops_tooling.control_panel.server.state import make_json_safe
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state import make_json_safe
 
 
 class TestMakeJsonSafe:

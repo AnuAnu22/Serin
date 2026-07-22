@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from serin.d1_1_pipeline_flow.ingest.core.perception.personality import analyze_personality, detect_topic, get_emotional_tone
+from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_1_core_perception.d5_3_perception_personality import analyze_personality, detect_topic, get_emotional_tone
 
 
 class TestAnalyzePersonality:

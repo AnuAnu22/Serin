@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
-from serin.d1_5_ops_tooling.control_panel.server.state import active_websockets
-from serin.d1_5_ops_tooling.control_panel.server.websocket import (
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state import active_websockets
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_5_server_websocket import (
     broadcast_event,
     broadcast_log,
 )

@@ -105,5 +105,5 @@ def test_undefined_scan_runs() -> None:
 
 
 def test_voice_available() -> None:
-    from serin.d1_2_gateway_io.discord.bot import voice_available
+    from serin.d1_2_gateway_io.d2_1_io_discord.d3_2_discord_bot import voice_available
     assert voice_available is True

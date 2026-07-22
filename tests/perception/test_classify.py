@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from serin.d1_1_pipeline_flow.ingest.core.perception.classify import detect_evidence, perceive_message
-from serin.d1_1_pipeline_flow.ingest.core.perception.result import JOKE_MARKERS, PerceptionResult
+from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_1_core_perception.d5_2_perception_classify import detect_evidence, perceive_message
+from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_1_core_perception.d5_5_perception_result import JOKE_MARKERS, PerceptionResult
 
 
 class TestDetectEvidence:

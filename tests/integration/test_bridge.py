@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from serin.d1_2_gateway_io.voice_system.bridge_io.bridge import RustStdoutReader
-from serin.d1_2_gateway_io.voice_system.bridge_io.process_watch import RustVoiceBridge
+from serin.d1_2_gateway_io.d2_2_voice_system.d3_2_bridge_io.d4_1_io_bridge import RustStdoutReader
+from serin.d1_2_gateway_io.d2_2_voice_system.d3_2_bridge_io.d4_4_process_watch import RustVoiceBridge
 
 
 def test_reader_has_expected_interface():

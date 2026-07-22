@@ -11,11 +11,11 @@ import pytest
 def _patch_deps() -> None:
     """Mock every import that on_ready() pulls in so it can run in isolation."""
     # Patch modules directly rather than via monkeypatch dotted strings
-    import serin.d1_1_pipeline_flow.think.response_generator as rg
-    import serin.d1_2_gateway_io._di as gateway_di
-    import serin.d1_2_gateway_io.discord.bot as bot_m
-    import serin.d1_2_gateway_io.discord.bot_pipeline_init as bpi
-    import serin._di as root_di
+    import serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator as rg
+    import serin.d1_2_gateway_io.d2_4_io_di as gateway_di
+    import serin.d1_2_gateway_io.d2_1_io_discord.d3_2_discord_bot as bot_m
+    import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init as bpi
+    import serin.d1_1_serin_di as root_di
 
     self = _patch_deps  # type: ignore[attr-defined]
     # Use class-level storage for patches
@@ -64,41 +64,41 @@ def _patch_deps() -> None:
     rg.get_response_natural = MagicMock()
 
     # Mock other internal imports
-    import serin.d1_1_pipeline_flow.ingest.context.mention_translator as mt
+    import serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_1_ingest_context.d4_3_mention_translator as mt
     mt.MentionTranslator = lambda *a, **kw: MagicMock()
 
     bot_m.init_database_protection = MagicMock()
     bot_m.db_protector = MagicMock()
     bpi.db_protector = MagicMock()
 
-    import serin.d1_1_pipeline_flow.remember.qdrant as qd
+    import serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_3_remember_qdrant as qd
     mock_qd = MagicMock()
     qd.QdrantMemorySystem = lambda *a, **kw: mock_qd
 
-    import serin.d1_5_ops_tooling.background as bg
+    import serin.d1_5_ops_tooling.d2_2_tooling_background as bg
     mock_bg = MagicMock()
     mock_bg.start = AsyncMock()
     bg.BackgroundProcessor = lambda *a, **kw: mock_bg
     bpi.background_processor = mock_bg
     bot_m.background_processor = mock_bg
 
-    import serin.d1_5_ops_tooling.passive_monitor as pm
+    import serin.d1_5_ops_tooling.d2_4_passive_monitor as pm
     mock_pm = MagicMock()
     pm.PassiveMonitor = lambda *a, **kw: mock_pm
 
-    import serin.d1_1_pipeline_flow.ingest.sync.crawler as cr
+    import serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_3_ingest_sync.d4_2_sync_crawler as cr
     mock_crawler = MagicMock()
     mock_crawler.start = AsyncMock()
     cr.MessageCrawler = lambda *a, **kw: mock_crawler
     bpi.message_crawler = mock_crawler
     bot_m.message_crawler = mock_crawler
 
-    import serin.d1_1_pipeline_flow.remember.sync_monitor as sm
+    import serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_4_sync_monitor as sm
     mock_sync = MagicMock()
     mock_sync.start_monitoring = AsyncMock()
     sm.MemorySyncMonitor = lambda *a, **kw: mock_sync
 
-    import serin.d1_1_pipeline_flow.ingest.core.manager as mgr
+    import serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_4_core_manager as mgr
     mock_mm = MagicMock()
     mock_mm.response_controller = MagicMock()
     mock_mm.context_builder = MagicMock()
@@ -109,18 +109,18 @@ def _patch_deps() -> None:
     mgr.EnhancedMessageManagerV3 = lambda *a, **kw: mock_mm
     bpi.message_manager = mock_mm
 
-    import serin.d1_1_pipeline_flow.act.runners.pipeline as pl
+    import serin.d1_1_pipeline_flow.d2_1_flow_act.d3_1_act_runners.d4_2_runners_pipeline as pl
     mock_pipeline = MagicMock()
     pl.MessagePipeline.build = MagicMock(return_value=mock_pipeline)
 
-    import serin.d1_3_state_core.thinking_filter as tf
+    import serin.d1_3_state_core.d2_5_thinking_filter as tf
     tf.get_thinking_filter = MagicMock(return_value=MagicMock())
 
-    import serin.d1_5_ops_tooling.control_panel.server as cps
+    import serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server as cps
     cps.broadcast_event = MagicMock()
     cps.bot_state = {}
 
-    import serin.d1_5_ops_tooling.control_panel.panel_lifecycle as cpl
+    import serin.d1_5_ops_tooling.d2_1_control_panel.d3_3_panel_lifecycle as cpl
     cpl.start_server = AsyncMock()
     cpl.init_bot_state = MagicMock()
 
@@ -130,12 +130,12 @@ def _patch_deps() -> None:
 
 class TestOnReady:
     async def test_ready_completes_successfully(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_ready
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_ready
 
         await on_ready()
 
     async def test_ready_logs_separator_lines(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_ready
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_ready
 
         logger = _patch_deps.mock_logger  # type: ignore[attr-defined]
         await on_ready()
@@ -144,7 +144,7 @@ class TestOnReady:
         logger.success.assert_any_call(sep)
 
     async def test_ready_logs_final_message(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_ready
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_ready
 
         logger = _patch_deps.mock_logger  # type: ignore[attr-defined]
         await on_ready()
@@ -153,9 +153,9 @@ class TestOnReady:
         logger.success.assert_any_call(actual_msg)
 
     async def test_ready_initializes_memory_system(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_ready
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_ready
 
         await on_ready()
 
-        import serin._di as root_di
+        import serin.d1_1_serin_di as root_di
         root_di.set_qdrant.assert_called_once()

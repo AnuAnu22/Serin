@@ -13,7 +13,7 @@ class TestMain:
 
     @pytest.fixture(autouse=True)
     def _patch_main(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init.main_entry as me
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
 
         # Mock discord client
         self.mock_client: Any = MagicMock()
@@ -40,7 +40,7 @@ class TestMain:
 
         # Mock response_generator.discord_client setter
         monkeypatch.setattr(
-            "serin.d1_1_pipeline_flow.think.response_generator.discord_client",
+            "serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator.discord_client",
             None,
         )
 
@@ -55,7 +55,7 @@ class TestMain:
     # Success paths
     # ----------------------------------------------------------------
     async def test_main_success_first_attempt(self) -> None:
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init.main_entry as me
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
 
         await me.main()
 
@@ -64,7 +64,7 @@ class TestMain:
         self.mock_run_maintenance.assert_called_once()
 
     async def test_main_logs_banner_and_config_on_success(self) -> None:
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init.main_entry as me
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
 
         await me.main()
 
@@ -90,7 +90,7 @@ class TestMain:
     # Debug mode
     # ----------------------------------------------------------------
     async def test_main_debug_mode_logs(self) -> None:
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init.main_entry as me
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
 
         self.mock_config.DEBUG_MODE = True
         await me.main()
@@ -100,7 +100,7 @@ class TestMain:
         )
 
     async def test_main_debug_mode_off_does_not_log(self) -> None:
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init.main_entry as me
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
 
         self.mock_config.DEBUG_MODE = False
         await me.main()
@@ -116,7 +116,7 @@ class TestMain:
     # Retry logic — succeeds after failures
     # ----------------------------------------------------------------
     async def test_main_retries_on_client_error(self) -> None:
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init.main_entry as me
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
 
         self.mock_client.start = AsyncMock(
             side_effect=[
@@ -133,7 +133,7 @@ class TestMain:
         assert self.mock_run_maintenance.call_count == 3  # once per attempt
 
     async def test_main_retries_on_connection_closed(self) -> None:
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init.main_entry as me
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
 
         self.mock_client.start = AsyncMock(
             side_effect=[
@@ -147,7 +147,7 @@ class TestMain:
         assert self.mock_client.start.await_count == 2
 
     async def test_main_retries_on_gateway_not_found(self) -> None:
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init.main_entry as me
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
 
         self.mock_client.start = AsyncMock(
             side_effect=[
@@ -161,7 +161,7 @@ class TestMain:
         assert self.mock_client.start.await_count == 2
 
     async def test_main_retry_logs_wait_time(self) -> None:
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init.main_entry as me
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
 
         self.mock_client.start = AsyncMock(
             side_effect=[
@@ -179,7 +179,7 @@ class TestMain:
         self.mock_logger.info.assert_any_call("Retrying in 4 seconds...")
 
     async def test_main_retry_logs_with_max_retries_in_message(self) -> None:
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init.main_entry as me
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
 
         self.mock_client.start = AsyncMock(
             side_effect=[
@@ -198,7 +198,7 @@ class TestMain:
     # Retry exhaustion
     # ----------------------------------------------------------------
     async def test_main_raises_after_max_retries(self) -> None:
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init.main_entry as me
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
 
         self.mock_client.start = AsyncMock(
             side_effect=aiohttp.ClientError("persistent failure")
@@ -214,7 +214,7 @@ class TestMain:
         )
 
     async def test_main_exactly_five_attempts_logged(self) -> None:
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init.main_entry as me
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
 
         self.mock_client.start = AsyncMock(
             side_effect=aiohttp.ClientError("no")
@@ -233,7 +233,7 @@ class TestMain:
     # Outer exception handlers
     # ----------------------------------------------------------------
     async def test_main_handles_keyboard_interrupt(self) -> None:
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init.main_entry as me
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
 
         self.mock_client.start = AsyncMock(
             side_effect=KeyboardInterrupt()
@@ -246,9 +246,9 @@ class TestMain:
         )
 
     async def test_main_handles_database_validation_error(self) -> None:
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init.main_entry as me
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
 
-        from serin.d1_3_state_core.db_protect import DatabaseValidationError
+        from serin.d1_3_state_core.d2_1_db_protect import DatabaseValidationError
 
         self.mock_client.start = AsyncMock(
             side_effect=DatabaseValidationError("schema mismatch")
@@ -262,9 +262,9 @@ class TestMain:
         self.mock_logger.error.assert_any_call("Manual intervention required")
 
     async def test_main_handles_database_recovery_error(self) -> None:
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init.main_entry as me
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
 
-        from serin.d1_3_state_core.db_protect import DatabaseRecoveryError
+        from serin.d1_3_state_core.d2_1_db_protect import DatabaseRecoveryError
 
         self.mock_client.start = AsyncMock(
             side_effect=DatabaseRecoveryError("corrupt backup")
@@ -280,7 +280,7 @@ class TestMain:
         )
 
     async def test_main_handles_generic_exception(self) -> None:
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init.main_entry as me
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
 
         self.mock_client.start = AsyncMock(
             side_effect=ValueError("something unexpected")
@@ -296,7 +296,7 @@ class TestMain:
     # Finally block — client cleanup
     # ----------------------------------------------------------------
     async def test_main_closes_client_when_not_closed(self) -> None:
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init.main_entry as me
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
 
         self.mock_client.is_closed = MagicMock(return_value=False)
         self.mock_client.start = AsyncMock()
@@ -307,7 +307,7 @@ class TestMain:
         self.mock_client.close.assert_awaited_once()
 
     async def test_main_skips_close_when_already_closed(self) -> None:
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init.main_entry as me
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
 
         self.mock_client.is_closed = MagicMock(return_value=True)
 
@@ -316,7 +316,7 @@ class TestMain:
         self.mock_client.close.assert_not_awaited()
 
     async def test_main_logs_shutdown_in_finally(self) -> None:
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init.main_entry as me
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
 
         await me.main()
 

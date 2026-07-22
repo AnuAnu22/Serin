@@ -316,12 +316,18 @@
                         <canvas id="moodChart"></canvas>
                     </div>
                     <div class="mt-4 flex gap-2">
-                        <button onclick="serinBridge.forceMood('high_energy')"
-                            class="text-xs border border-serin-accent text-serin-accent px-3 py-1 rounded hover:bg-serin-accent hover:text-black">Force Hype</button>
-                        <button onclick="serinBridge.forceMood('neutral')"
-                            class="text-xs border border-gray-500 text-gray-400 px-3 py-1 rounded hover:bg-gray-700">Reset Neutral</button>
-                        <button onclick="serinBridge.forceMood('sass')"
-                            class="text-xs border border-purple-500 text-purple-400 px-3 py-1 rounded hover:bg-purple-900">Force Sass</button>
+                        <button type="button" onclick="serinBridge.forceMood('high_energy')"
+                            class="text-xs border border-serin-accent text-serin-accent px-3 py-1 rounded hover:bg-serin-accent hover:text-black focus-visible:ring-2 focus-visible:ring-serin-accent outline-none">Force Hype</button>
+                        <button type="button" onclick="serinBridge.forceMood('neutral')"
+                            class="text-xs border border-gray-500 text-gray-400 px-3 py-1 rounded hover:bg-gray-700 focus-visible:ring-2 focus-visible:ring-gray-400 outline-none">Reset Neutral</button>
+                        <button type="button" onclick="serinBridge.forceMood('sass')"
+                            class="text-xs border border-purple-500 text-purple-400 px-3 py-1 rounded hover:bg-purple-900 focus-visible:ring-2 focus-visible:ring-purple-400 outline-none">Force Sass</button>
+                    </div>
+                    <div class="w-full mt-6 pt-4 border-t border-serin-border">
+                        <h4 class="text-xs uppercase text-gray-500 font-bold mb-2">Mood Over Time</h4>
+                        <div class="h-32 w-full">
+                            <canvas id="moodHistoryChart"></canvas>
+                        </div>
                     </div>
                 </div>
 
@@ -729,12 +735,17 @@ const ui = {
         if (container.children.length > 50) container.lastChild.remove();
     },
 
-    addSystemLog: (msg) => {
+    addSystemLog: (msg, level = 'info') => {
         const container = document.getElementById('full-log-container');
         const div = document.createElement('div');
+        const colorClass = { error: 'text-serin-danger', warn: 'text-serin-warn', info: '' }[level] || '';
+        if (colorClass) div.className = colorClass;
         div.innerText = `> ${msg}`;
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
+        // aria-live region so screen-reader users get async log updates
+        // announced without needing to poll the log panel manually.
+        container.setAttribute('aria-live', 'polite');
     },
 
     updateMetrics: (latency, gpu) => {
@@ -793,16 +804,53 @@ const ui = {
             tbody.innerHTML = '<tr><td colspan="4" class="py-3 text-center italic">No memories found.</td></tr>';
             return;
         }
-        tbody.innerHTML = memories.map(mem => `
+        tbody.innerHTML = memories.map((mem, i) => {
+            const breakdown = mem.score_breakdown || null;
+            const relevance = (mem.relevance ?? 0).toFixed(3);
+            const rowId = `mem-detail-${i}`;
+            const contentEscaped = (mem.content || '').replace(/"/g, '&quot;');
+            const detailRow = breakdown ? `
+                <tr id="${rowId}" class="hidden bg-black/40">
+                    <td colspan="4" class="py-3 px-4">
+                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-3 text-xs" style="font-variant-numeric: tabular-nums;">
+                            <div><div class="text-gray-500">BM25</div><div class="text-serin-accent">${breakdown.bm25_score.toFixed(3)}</div></div>
+                            <div><div class="text-gray-500">Vector</div><div class="text-serin-accent">${breakdown.vector_score.toFixed(3)}</div></div>
+                            <div><div class="text-gray-500">Combined</div><div class="text-serin-accent">${breakdown.combined_score.toFixed(3)}</div></div>
+                            <div><div class="text-gray-500">Reranked</div><div class="text-serin-success">${breakdown.rerank_score.toFixed(3)}</div></div>
+                            <div><div class="text-gray-500">Importance</div><div class="text-serin-warn">${breakdown.importance_weight.toFixed(2)}</div></div>
+                            <div><div class="text-gray-500">Recency Boost</div><div class="text-serin-warn">${breakdown.recency_boost.toFixed(2)}</div></div>
+                        </div>
+                        <div class="text-gray-600 text-xs mt-2 italic">${breakdown.formula}</div>
+                        <div class="text-gray-500 text-xs mt-1">Age: ${mem.age_days ?? '?'} days &middot; Type: ${mem.memory_type || 'utterance'} &middot; Channel: ${mem.channel_id || '—'}</div>
+                    </td>
+                </tr>` : '';
+            return `
             <tr class="hover:bg-white/5">
-                <td class="py-3 text-serin-success">${(mem.score || 0).toFixed(2)}</td>
-                <td class="py-3 text-white truncate max-w-md" title="${(mem.content || '').replace(/"/g, '&quot;')}">${mem.content || ''}</td>
+                <td class="py-3 text-serin-success" style="font-variant-numeric: tabular-nums;">
+                    ${breakdown ? `
+                    <button type="button" aria-expanded="false" aria-controls="${rowId}"
+                        class="focus-visible:ring-2 focus-visible:ring-serin-accent outline-none rounded px-1 hover:text-serin-accent"
+                        onclick="ui.toggleMemoryDetail(this, '${rowId}')">
+                        <i class="fa-solid fa-caret-right mr-1" aria-hidden="true"></i>${relevance}
+                    </button>` : relevance}
+                </td>
+                <td class="py-3 text-white truncate max-w-md min-w-0" title="${contentEscaped}">${mem.content || ''}</td>
                 <td class="py-3 text-xs text-gray-500">
                     ${mem.timestamp ? new Date(mem.timestamp).toLocaleString() : ''}
                 </td>
-                <td class="py-3"><button class="text-red-400 hover:text-red-300"><i class="fa-solid fa-trash"></i></button></td>
-            </tr>
-        `).join('');
+                <td class="py-3"><button type="button" aria-label="Delete memory" class="text-red-400 hover:text-red-300 focus-visible:ring-2 focus-visible:ring-red-400 outline-none rounded"><i class="fa-solid fa-trash" aria-hidden="true"></i></button></td>
+            </tr>${detailRow}`;
+        }).join('');
+    },
+
+    toggleMemoryDetail: (btn, rowId) => {
+        const row = document.getElementById(rowId);
+        const expanded = btn.getAttribute('aria-expanded') === 'true';
+        btn.setAttribute('aria-expanded', String(!expanded));
+        row.classList.toggle('hidden');
+        const caret = btn.querySelector('i');
+        if (caret) caret.classList.toggle('fa-caret-down', !expanded);
+        if (caret) caret.classList.toggle('fa-caret-right', expanded);
     }
 };
 
@@ -943,9 +991,23 @@ class SerinBridge {
 
     async searchMemories() {
         const query = document.getElementById('memory-search-input').value;
+        if (!query.trim()) {
+            ui.addSystemLog('Enter a search query first', 'warn');
+            return;
+        }
         ui.addSystemLog(`Searching memories for: ${query}`);
-        const res = await this.post('/api/memory/search', { query: query, limit: 10 });
-        ui.renderMemories(res.memories);
+        try {
+            const res = await this.post('/api/enhanced/search', { query: query, n_results: 15 });
+            if (res.error) {
+                ui.addSystemLog(`Search failed: ${res.error}`, 'error');
+                ui.renderMemories([]);
+                return;
+            }
+            ui.renderMemories(res.results || []);
+        } catch (e) {
+            ui.addSystemLog(`Search failed: ${e.message}`, 'error');
+            ui.renderMemories([]);
+        }
     }
 
     async clearAudioQueue() {
@@ -1084,7 +1146,18 @@ class SerinBridge {
         });
 
         ui.addSystemLog('Saving configuration...');
-        const res = await this.post('/api/config', updated);
+        let res = await this.post('/api/config', updated);
+
+        if (!res.success && res.blocked_keys && res.blocked_keys.length) {
+            const proceed = confirm(
+                `This change includes sensitive settings (${res.blocked_keys.join(', ')}) ` +
+                `that control where the bot sends data. Confirm you want to apply them?`
+            );
+            if (proceed) {
+                res = await this.post('/api/config', { ...updated, confirm: true });
+            }
+        }
+
         if (res.success) {
             ui.addSystemLog('Configuration saved');
         } else {
@@ -1320,10 +1393,15 @@ const ctxMood = document.getElementById('moodChart').getContext('2d');
 const moodChart = new Chart(ctxMood, {
     type: 'radar',
     data: {
-        labels: ['Energy', 'Sass', 'Kindness', 'Chaos', 'Logic'],
+        // Exactly the three axes PersonalityState actually tracks
+        // (energy_level, sass_level, engagement). The previous version
+        // included "Kindness" (mislabeled engagement) plus "Chaos" and
+        // "Logic" axes filled with Math.random() — cosmetic noise with no
+        // backing data. Three real axes beat five, two of them fake.
+        labels: ['Energy', 'Sass', 'Engagement'],
         datasets: [{
             label: 'Current Mood',
-            data: [50, 50, 50, 50, 50],
+            data: [50, 50, 50],
             backgroundColor: 'rgba(0, 255, 157, 0.2)',
             borderColor: '#00ff9d',
             borderWidth: 2,
@@ -1342,9 +1420,41 @@ const moodChart = new Chart(ctxMood, {
                 suggestedMax: 100
             }
         },
-        plugins: { legend: { display: false } }
+        plugins: { legend: { display: false } },
+        // Respect prefers-reduced-motion: skip the chart's entrance
+        // animation for people who've asked for reduced motion.
+        animation: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : undefined
     }
 });
+
+// Sparkline for mood-over-time, fed by /api/mood/history. Separate small
+// chart rather than overloading the radar (which only shows "right now").
+let moodHistoryChart = null;
+function initMoodHistoryChart() {
+    const el = document.getElementById('moodHistoryChart');
+    if (!el) return;
+    moodHistoryChart = new Chart(el.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                { label: 'Energy', data: [], borderColor: '#00f2ff', pointRadius: 0, tension: 0.3, borderWidth: 1.5 },
+                { label: 'Sass', data: [], borderColor: '#a855f7', pointRadius: 0, tension: 0.3, borderWidth: 1.5 },
+                { label: 'Engagement', data: [], borderColor: '#00ff9d', pointRadius: 0, tension: 0.3, borderWidth: 1.5 }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { display: false },
+                y: { min: 0, max: 1, grid: { color: '#222' }, ticks: { color: '#666', font: { size: 9 } } }
+            },
+            plugins: { legend: { display: true, labels: { color: '#888', boxWidth: 10, font: { size: 10 } } } },
+            animation: false
+        }
+    });
+}
 
 function addData(chart, label, data) {
     chart.data.labels.push(label);
@@ -1365,24 +1475,35 @@ function addData(chart, label, data) {
 // ============================================================
 async function updateMoodChart() {
     try {
-        const res = await fetch(`${API_BASE}/api/brain/state`);
+        const res = await fetch(`${API_BASE}/api/mood/current`);
         const data = await res.json();
         if (data && !data.error) {
             const energy = data.energy_level !== undefined ? Math.round(data.energy_level * 100) : 50;
             const sass = data.sass_level !== undefined ? Math.round(data.sass_level * 100) : 50;
-            const kindness = data.engagement !== undefined ? Math.round(data.engagement * 100) : 50;
-            const chaos = Math.round(20 + Math.random() * 20);
-            const logic = Math.round(30 + Math.random() * 50);
-            moodChart.data.datasets[0].data = [energy, sass, kindness, chaos, logic];
+            const engagement = data.engagement !== undefined ? Math.round(data.engagement * 100) : 50;
+            moodChart.data.datasets[0].data = [energy, sass, engagement];
             moodChart.update();
             return;
         }
     } catch (e) {
-        console.log('Mood chart: API unavailable, using fallback', e);
+        console.log('Mood chart: API unavailable', e);
     }
-    // Fallback
-    moodChart.data.datasets[0].data = [80, 45, 60, 20, 90];
-    moodChart.update();
+}
+
+async function updateMoodHistoryChart() {
+    if (!moodHistoryChart) return;
+    try {
+        const res = await fetch(`${API_BASE}/api/mood/history?limit=60`);
+        const data = await res.json();
+        const history = data.history || [];
+        moodHistoryChart.data.labels = history.map(h => new Date(h.timestamp).toLocaleTimeString());
+        moodHistoryChart.data.datasets[0].data = history.map(h => h.energy_level);
+        moodHistoryChart.data.datasets[1].data = history.map(h => h.sass_level);
+        moodHistoryChart.data.datasets[2].data = history.map(h => h.engagement);
+        moodHistoryChart.update();
+    } catch (e) {
+        console.log('Mood history chart: API unavailable', e);
+    }
 }
 
 // ============================================================
@@ -1657,6 +1778,7 @@ function initSliders() {
 // ============================================================
 window.onload = () => {
     serinBridge.connect();
+    initMoodHistoryChart();
     setInterval(() => serinBridge.checkHealth(), 5000);
     setInterval(() => updateBrainState(), 10000);
     setInterval(() => {
@@ -1666,12 +1788,17 @@ window.onload = () => {
             if (id === 'voice') { loadAudioStats(); }
             if (id === 'background') { serinBridge.loadBackgroundQueue(); loadAudioStats(); }
             if (id === 'voice-behavior') { serinBridge.loadVoiceBehavior(); }
+            // Only poll mood data while the personality tab is actually
+            // visible — no point spending a request every 30s to update a
+            // chart nobody's looking at.
+            if (id === 'tab-personality') { updateMoodChart(); updateMoodHistoryChart(); }
         }
     }, 30000);
 
     initSliders();
     updateBrainState();
     updateMoodChart();
+    updateMoodHistoryChart();
 };
 
 async function restartBot() {
@@ -1680,7 +1807,11 @@ async function restartBot() {
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     try {
-        const res = await fetch('/api/bot/restart', { method: 'POST' });
+        const res = await fetch('/api/bot/restart', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ confirm: true })
+        });
         const data = await res.json();
         if (data.success) {
             btn.innerHTML = '<i class="fa-solid fa-check" style="color:#00ff9d"></i>';

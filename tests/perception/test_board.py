@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from serin.d1_1_pipeline_flow.ingest.core.perception.board import derive_from_board, parse_board
+from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_1_core_perception.d5_1_perception_board import derive_from_board, parse_board
 
 
 # Shared board constants for exact-content assertions

@@ -4,13 +4,13 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from serin.d1_2_gateway_io._di import init_gateway
-from serin.d1_3_state_core.logger import logger as _default_logger
+from serin.d1_2_gateway_io.d2_4_io_di import init_gateway
+from serin.d1_3_state_core.d2_5_core_logger import logger as _default_logger
 
 # Initialize gateway DI so AudioStreamProcessor can call get_logger()
 init_gateway(_default_logger)
 
-from serin.d1_2_gateway_io.voice_system.audio.process.audio_processor import (
+from serin.d1_2_gateway_io.d2_2_voice_system.d3_1_system_audio.d4_1_audio_process.d5_1_audio_processor import (
     MIN_BUFFER_BYTES,
     PROCESSING_LOCK_SECONDS,
     SILENCE_FRAMES_BEFORE_FLUSH,
@@ -48,7 +48,7 @@ def test_audio_stream_processor_constants_wired():
 
 
 def test_silent_audio_does_not_queue():
-    with patch("serin.d1_2_gateway_io.voice_system.audio.audio_vad._queue_for_transcription") as mock_q:
+    with patch("serin.d1_2_gateway_io.d2_2_voice_system.d3_1_system_audio.d4_4_audio_vad._queue_for_transcription") as mock_q:
         processor = AudioStreamProcessor(
             transcriber=MagicMock(),
             voice_pipeline=MagicMock(),

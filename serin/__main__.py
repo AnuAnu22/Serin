@@ -4,7 +4,7 @@ Usage: python -m serin
 """
 import asyncio
 
-from serin.d1_2_gateway_io.discord.bot_pipeline_init import main
+from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import main
 
 if __name__ == "__main__":
     asyncio.run(main())

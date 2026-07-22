@@ -23,7 +23,7 @@ class TestOnMessage:
     @pytest.fixture(autouse=True)
     def _patch_bpi(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Patch module-level dependencies *after* import so on_message runs in isolation."""
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init as bpi
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init as bpi
 
         # Patch client
         self.mock_client: Any = MagicMock(spec=["user", "event", "guilds"])
@@ -78,7 +78,7 @@ class TestOnMessage:
     # Filter 1: Ignore bot's own messages
     # ----------------------------------------------------------------
     async def test_ignores_bot_own_message(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         msg = self._msg()
         msg.author = self.mock_client.user
@@ -91,7 +91,7 @@ class TestOnMessage:
     # Filter 2: Only text channels
     # ----------------------------------------------------------------
     async def test_ignores_non_text_channel(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         msg = self._msg()
         msg.channel = MagicMock(spec=discord.VoiceChannel)
@@ -102,7 +102,7 @@ class TestOnMessage:
         assert self.mock_stats["messages_processed"] == 0
 
     async def test_ignores_dm_channel(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         msg = self._msg()
         msg.channel = MagicMock(spec=discord.DMChannel)
@@ -115,7 +115,7 @@ class TestOnMessage:
     # Filter 3: Empty message without attachments
     # ----------------------------------------------------------------
     async def test_ignores_empty_message_no_attachments(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         msg = self._msg(content="  ", attachments=[])
 
@@ -125,7 +125,7 @@ class TestOnMessage:
         assert self.mock_stats["messages_processed"] == 0
 
     async def test_empty_with_attachments_is_processed(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         msg = self._msg(content="", attachments=[MagicMock()])
 
@@ -135,7 +135,7 @@ class TestOnMessage:
         assert self.mock_stats["messages_processed"] == 1
 
     async def test_non_empty_message_without_attachments_is_processed(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         msg = self._msg(content="hello", attachments=[])
 
@@ -148,7 +148,7 @@ class TestOnMessage:
     # Channel filtering — allowed vs non-allowed
     # ----------------------------------------------------------------
     async def test_passes_non_allowed_channel_to_passive_only(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         self.mock_bpi_config.ALLOWED_CHANNEL_IDS = {99999}
 
@@ -161,7 +161,7 @@ class TestOnMessage:
         self.mock_pm.process_message.assert_awaited_once()
 
     async def test_passive_monitor_called_for_allowed_channel(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         msg = self._msg()
         await on_message(msg)
@@ -169,7 +169,7 @@ class TestOnMessage:
         self.mock_pm.process_message.assert_awaited_once_with(msg, True)
 
     async def test_passive_monitor_called_for_non_allowed_channel(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         self.mock_bpi_config.ALLOWED_CHANNEL_IDS = {99999}
         msg = self._msg()
@@ -179,8 +179,8 @@ class TestOnMessage:
         self.mock_pm.process_message.assert_awaited_once_with(msg, False)
 
     async def test_skips_passive_when_monitor_is_none(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init as bpi
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init as bpi
 
         bpi.passive_monitor = None
         msg = self._msg()
@@ -193,7 +193,7 @@ class TestOnMessage:
     # Command handler dispatch
     # ----------------------------------------------------------------
     async def test_calls_profile_command_handler(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         msg = self._msg()
         await on_message(msg)
@@ -201,7 +201,7 @@ class TestOnMessage:
         self.mock_profile_cmd.assert_awaited_once()
 
     async def test_calls_stats_command_handler(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         msg = self._msg()
         await on_message(msg)
@@ -209,7 +209,7 @@ class TestOnMessage:
         self.mock_stats_cmd.assert_awaited_once()
 
     async def test_calls_help_command_handler(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         msg = self._msg()
         await on_message(msg)
@@ -217,8 +217,8 @@ class TestOnMessage:
         self.mock_help_cmd.assert_awaited_once()
 
     async def test_stops_on_profile_command(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init as bpi
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init as bpi
 
         bpi.handle_profile_command = AsyncMock(return_value=True)
         msg = self._msg()
@@ -229,8 +229,8 @@ class TestOnMessage:
         self.mock_mm.process_message.assert_not_awaited()
 
     async def test_stops_on_stats_command(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init as bpi
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init as bpi
 
         bpi.handle_stats_command = AsyncMock(return_value=True)
         msg = self._msg()
@@ -241,8 +241,8 @@ class TestOnMessage:
         self.mock_mm.process_message.assert_not_awaited()
 
     async def test_stops_on_help_command(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init as bpi
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init as bpi
 
         bpi.handle_help_command = AsyncMock(return_value=True)
         msg = self._msg()
@@ -255,7 +255,7 @@ class TestOnMessage:
     # Message manager dispatch
     # ----------------------------------------------------------------
     async def test_dispatches_to_manager(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         msg = self._msg()
         await on_message(msg)
@@ -263,8 +263,8 @@ class TestOnMessage:
         self.mock_mm.process_message.assert_awaited_once_with(msg)
 
     async def test_manager_none_errors(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
-        import serin.d1_2_gateway_io.discord.bot_pipeline_init as bpi
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
+        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init as bpi
 
         bpi.message_manager = None
         msg = self._msg()
@@ -277,7 +277,7 @@ class TestOnMessage:
     # Error handling
     # ----------------------------------------------------------------
     async def test_exception_increments_error_stat(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         self.mock_mm.process_message = AsyncMock(side_effect=RuntimeError("boom"))
         msg = self._msg()
@@ -287,7 +287,7 @@ class TestOnMessage:
         assert self.mock_stats["errors"] == 1
 
     async def test_exception_in_passive_monitor_does_not_crash(self) -> None:
-        from serin.d1_2_gateway_io.discord.bot_pipeline_init import on_message
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         self.mock_pm.process_message = AsyncMock(side_effect=RuntimeError("boom"))
         msg = self._msg()
