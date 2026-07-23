@@ -118,19 +118,24 @@ RESPONSE:
                 return cast(dict[str, str], json.loads(json_match.group(0)))
 
             # LLM output likely starts without opening brace (prompt provides {)
-            # Order matters: close unclosed string BEFORE wrapping in braces
+            # Fix: LLM often omits commas between key-value pairs on separate lines.
+            # Join lines with commas, close unclosed strings, wrap in braces.
 
             # 1. Close any unclosed string value (odd number of quotes means one is open)
             if raw.count('"') % 2 != 0:
                 raw += '"'
 
-            # 2. Wrap in braces
-            if not raw.startswith("{"):
-                raw = "{" + raw
-            if not raw.endswith("}"):
-                raw += "}"
+            # 2. Join lines with commas to handle missing-comma output
+            lines = [ln.strip() for ln in raw.split("\n") if ln.strip()]
+            joined = ", ".join(lines)
 
-            return cast(dict[str, str], json.loads(raw))
+            # 3. Wrap in braces
+            if not joined.startswith("{"):
+                joined = "{" + joined
+            if not joined.endswith("}"):
+                joined += "}"
+
+            return cast(dict[str, str], json.loads(joined))
         except (json.JSONDecodeError, AttributeError):
             logger.warning(f" Failed to parse voice decision: {response[:120]}...")
             return {"action": "none", "reason": "parsing_fallback"}
