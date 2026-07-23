@@ -33,7 +33,7 @@ def search_hybrid(store: 'QdrantMemorySystem', query: str, user_id: str | None =
                         limit=20
                     )
                 except Exception as e:
-                    logger.error("memory.bm25_search_failed", extra={
+                    logger.warning("memory.bm25_search_failed", extra={
                         "error": str(e),
                         "query_preview": query[:50],
                     })
