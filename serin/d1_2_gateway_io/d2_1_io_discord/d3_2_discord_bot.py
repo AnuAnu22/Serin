@@ -173,6 +173,26 @@ def init_database_protection() -> None:
 
     database_protector.setup_graceful_shutdown()
 
+    # Override shutdown handler: disconnect voice BEFORE database backup
+    import signal as _signal
+    _orig_handler = _signal.getsignal(_signal.SIGINT)
+
+    def _voice_first_shutdown(signum: int, frame: object | None) -> None:
+        global voice_listener
+        if voice_listener is not None:
+            try:
+                import asyncio as _asyncio
+                if voice_listener._protocol is not None:
+                    _asyncio.run(voice_listener._protocol.disconnect())
+                voice_listener = None
+            except Exception:
+                pass
+        if callable(_orig_handler):
+            _orig_handler(signum, frame)
+
+    _signal.signal(_signal.SIGINT, _voice_first_shutdown)
+    _signal.signal(_signal.SIGTERM, _voice_first_shutdown)
+
 
 # Bot statistics
 stats: dict[str, int | float] = {
