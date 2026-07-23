@@ -318,23 +318,38 @@ async def on_ready() -> None:
 
     # ── Voice Action Callback ──────────────────────────────────────────────
     if voice_listener and message_manager and hasattr(message_manager, 'voice_action_callback'):
+        async def _find_active_channel(guild_id: int) -> int | None:
+            guild = client.get_guild(guild_id)
+            if not guild:
+                return None
+            for ch in guild.voice_channels:
+                human_members = [m for m in ch.members if not m.bot]
+                if human_members:
+                    return ch.id
+            return None
+
         async def _handle_voice_action(decision: dict[str, Any], user_id: str, guild_id: int) -> dict[str, Any]:
             action = decision.get('action')
-            result = {'executed': False, 'message': ''}
+            result: dict[str, Any] = {'executed': False, 'message': ''}
             if action == 'join' and voice_listener:
+                channel_id: int | None = None
                 tracker = getattr(message_manager, 'voice_tracker', None)
                 if tracker and tracker.is_in_voice(user_id):
                     info = tracker.get_voice_info(user_id)
                     if info:
-                        success = await voice_listener.join_channel(guild_id, int(info['channel_id']))
-                        if success and voice_behavior_manager:
-                            voice_behavior_manager._vc_join_time[guild_id] = datetime.now()
-                            voice_behavior_manager._voice_session_guilds.add(guild_id)
-                            voice_behavior_manager.stats['auto_joins'] += 1
-                            voice_behavior_manager._pending_joins.pop(guild_id, None)
-                        result = {'executed': True, 'message': 'joined'}
+                        channel_id = int(info['channel_id'])
+                if channel_id is None:
+                    channel_id = await _find_active_channel(guild_id)
+                if channel_id is not None:
+                    success = await voice_listener.join_channel(guild_id, channel_id)
+                    if success and voice_behavior_manager:
+                        voice_behavior_manager._vc_join_time[guild_id] = datetime.now()
+                        voice_behavior_manager._voice_session_guilds.add(guild_id)
+                        voice_behavior_manager.stats['auto_joins'] += 1
+                        voice_behavior_manager._pending_joins.pop(guild_id, None)
+                    result = {'executed': True, 'message': 'joined'}
                 if not result['executed']:
-                    result = {'executed': False, 'message': 'user_not_in_vc'}
+                    result = {'executed': False, 'message': 'no_active_channel'}
             elif action == 'leave' and voice_listener:
                 await voice_listener.leave_channel(guild_id)
                 if voice_behavior_manager:
