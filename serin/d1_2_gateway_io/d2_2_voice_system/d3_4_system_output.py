@@ -100,9 +100,12 @@ class VoiceOutputManager:
         self.interrupt_event.set()
 
         # Stop Rust bridge TTS if active
+        from serin.d1_2_gateway_io.d2_2_voice_system.d3_2_bridge_io.d4_2_bridge_commands import (
+            interrupt as _interrupt_rust,
+        )
         bridge = self.voice_listener.rust_bridge
         if bridge and bridge._running:
-            await bridge.interrupt()
+            await _interrupt_rust(bridge)
 
         self.is_speaking = False
         get_logger().info(f"Stopped speaking in guild {guild_id}")
@@ -194,8 +197,11 @@ class VoiceOutputManager:
             get_logger().warning(f" Cannot play — bridge not running for guild {guild_id}")
             return
 
+        from serin.d1_2_gateway_io.d2_2_voice_system.d3_2_bridge_io.d4_2_bridge_commands import (
+            send_tts_audio as _send_tts_audio_rust,
+        )
         get_logger().info(f" Sending {len(audio_data)} bytes to Rust bridge for playback")
-        await bridge.send_tts_audio(audio_data)
+        await _send_tts_audio_rust(bridge, audio_data)
 
     def _split_sentences(self, text: str) -> list[str]:
         """
