@@ -141,7 +141,7 @@ class VoiceListener:
                 await self._protocol.disconnect()
                 self._protocol = None
 
-            if self.rust_bridge and self.rust_bridge.is_running():
+            if self.rust_bridge and self.rust_bridge._running:
                 await self.rust_bridge.stop()
                 self.rust_bridge = None
 
@@ -172,7 +172,7 @@ class VoiceListener:
                 voice_listener=self,
             )
 
-            success = await self.rust_bridge.start_with_info(
+            success = await self.rust_bridge.start(
                 guild_id=guild_id,
                 channel_id=channel_id,
                 connection_info=info,
@@ -199,7 +199,7 @@ class VoiceListener:
 
     async def leave_channel(self, guild_id: int) -> bool:
         try:
-            if self.rust_bridge and self.rust_bridge.is_running():
+            if self.rust_bridge and self.rust_bridge._running:
                 await self.rust_bridge.stop()
                 self.rust_bridge = None
 
@@ -224,12 +224,12 @@ class VoiceListener:
     def is_in_voice(self, guild_id: int) -> bool:
         return (
             self.rust_bridge is not None
-            and self.rust_bridge.is_running()
+            and self.rust_bridge._running
             and self._active_guild_id == guild_id
         )
 
     def is_connected(self) -> bool:
-        return self.rust_bridge is not None and self.rust_bridge.is_running()
+        return self.rust_bridge is not None and self.rust_bridge._running
 
     def get_status(self) -> dict[str, Any]:
         connections: list[dict[str, Any]] = []
@@ -257,7 +257,7 @@ class VoiceListener:
                     'members': len(member_names),
                     'member_names': member_names,
                     'receiver_mode': 'rust',
-                    'rust_bridge_active': self.rust_bridge.is_running() if self.rust_bridge else False,
+                    'rust_bridge_active': self.rust_bridge._running if self.rust_bridge else False,
                 })
 
         return {

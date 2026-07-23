@@ -96,12 +96,18 @@ class RustVoiceBridge:
 
         get_logger().info(f" Rust voice bridge initialized (binary: {self.binary_path})")
 
-    async def start(self, guild_id: int, channel_id: int, voice_client: Any) -> bool:
+    async def start(
+        self,
+        guild_id: int,
+        channel_id: int,
+        voice_client: Any = None,
+        connection_info: dict[str, Any] | None = None,
+    ) -> bool:
         """
         Start the Rust voice receiver, connecting to the given voice channel.
 
-        Extracts voice server info from the discord.py VoiceClient and passes
-        it to the Rust binary as JSON on stdin.
+        Extracts voice server info either from a discord.py VoiceClient or
+        from a pre-built ConnectionInfo dict (from InfoCaptureProtocol).
 
         The Rust binary then:
           1. Parses the JSON ConnectionInfo
@@ -114,6 +120,7 @@ class RustVoiceBridge:
             guild_id: Discord guild ID
             channel_id: Discord voice channel ID
             voice_client: discord.VoiceClient instance (already connected)
+            connection_info: Pre-built ConnectionInfo dict (alternative)
 
         Returns:
             True if successfully started
@@ -123,10 +130,15 @@ class RustVoiceBridge:
             get_logger().error("   Build with: cd voice/rust_receiver && cargo build --release")
             return False
 
-        # Extract voice server info from discord.py VoiceClient
-        info = self._extract_voice_info(voice_client, guild_id, channel_id)
+        if connection_info is None:
+            if voice_client is None:
+                get_logger().error(" Either voice_client or connection_info must be provided")
+                return False
+            info = self._extract_voice_info(voice_client, guild_id, channel_id)
+        else:
+            info = connection_info
         if info is None:
-            get_logger().error(" Failed to extract voice server info from VoiceClient")
+            get_logger().error(" Failed to get voice server info")
             return False
 
         get_logger().info(f" Starting Rust voice receiver for guild {guild_id}, channel {channel_id}")
