@@ -121,20 +121,19 @@ class VoiceMemoryPipeline:
             self.stats['total_voice_messages'] += 1
 
             # Generate voice response
-            if self.message_manager:
-                from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_5_message_process import (
-                    process_voice_input as _process_voice_input,
-                )
-                get_logger().info(f" Triggering voice response for {username}")
-                await _process_voice_input(
-                    self.message_manager,
-                    user_id=user_id,
-                    username=username,
-                    channel_id=channel_id,
-                    transcription=transcription,
-                    wav_b64=wav_b64,
-                )
-                self.stats['responses_triggered'] += 1
+            get_logger().info(f" Triggering voice response for {username}")
+            from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_5_message_process import (
+                process_voice_input as _process_voice_input,
+            )
+            await _process_voice_input(
+                self.message_manager,
+                user_id=user_id,
+                username=username,
+                channel_id=channel_id,
+                transcription=transcription,
+                wav_b64=wav_b64,
+            )
+            self.stats['responses_triggered'] += 1
 
             get_logger().debug(" Voice message processed and stored")
 
