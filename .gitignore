@@ -179,3 +179,4 @@ test/test_memory_dedup.py
 test/test_vllm.py
 test/test_fixes.py
 scripts/law_migrate/migration_plan.json
+.opencode/
