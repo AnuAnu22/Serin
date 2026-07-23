@@ -54,7 +54,7 @@ class RustVoiceBridge:
         self.voice_listener = voice_listener
 
         if binary_path is None:
-            base = os.path.abspath(os.path.join(os.path.dirname(__file__), *([os.pardir] * 5)))
+            base = os.path.abspath(os.path.join(os.path.dirname(__file__), *([os.pardir] * 4)))
             binary_path = os.path.join(base, "voice", "rust_receiver", "target", "release", "voice_receiver")
         self.binary_path = binary_path
 
