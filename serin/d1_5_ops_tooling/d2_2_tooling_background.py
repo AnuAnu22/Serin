@@ -258,8 +258,8 @@ class BackgroundProcessor:
         def get_datetime(timestamp: str | datetime) -> datetime:
             """Convert timestamp to datetime object, handling both string and datetime inputs"""
             if isinstance(timestamp, str):
-                return datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-            return timestamp
+                return datetime.fromisoformat(timestamp.replace('Z', '+00:00')).replace(tzinfo=None)
+            return timestamp.replace(tzinfo=None)
 
         # Sort by timestamp
         sorted_batch = sorted(batch, key=lambda x: get_datetime(x['timestamp']))
