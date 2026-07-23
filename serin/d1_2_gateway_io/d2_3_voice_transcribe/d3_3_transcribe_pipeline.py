@@ -125,8 +125,10 @@ class VoiceMemoryPipeline:
             from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_5_message_process import (
                 process_voice_input as _process_voice_input,
             )
+            from serin.d1_1_serin_di import get_message_manager
+            _manager = get_message_manager()
             await _process_voice_input(
-                self.message_manager,
+                _manager,
                 user_id=user_id,
                 username=username,
                 channel_id=channel_id,
