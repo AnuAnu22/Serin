@@ -268,6 +268,7 @@ async def on_ready() -> None:
     set_message_manager(message_manager)
     if 'voice_pipeline' in dir() and voice_pipeline is not None:
         voice_pipeline.message_manager = message_manager
+        message_manager.voice_pipeline = voice_pipeline
     get_logger().success("Message manager ready!")
 
     # ── Startup backup ────────────────────────────────────────────────────
