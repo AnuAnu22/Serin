@@ -111,6 +111,8 @@ async def _transcribe_and_store(self: Any, item: dict[str, Any]) -> None:
                     ],
                 })
 
+                get_logger().info(f"DIRECT_AUDIO_PROMPT: {messages}")
+
                 try:
                     response = await self.llm_connector.chat_completion(
                         messages,

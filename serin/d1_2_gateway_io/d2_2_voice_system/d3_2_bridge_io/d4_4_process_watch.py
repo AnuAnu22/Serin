@@ -382,7 +382,7 @@ class RustVoiceBridge:
 
                 elif event_type == 'join':
                     user_id = event[1]
-                    self._handle_join(user_id)
+                    await self._handle_join(user_id)
 
                 elif event_type == 'leave':
                     user_id = event[1]
@@ -438,9 +438,21 @@ class RustVoiceBridge:
         except Exception as e:
             get_logger().error(f" Error feeding audio to processor: {e}")
 
-    def _handle_join(self, user_id: str) -> None:
-        """A user started speaking in voice (SpeakingStateUpdate from Discord)."""
+    async def _handle_join(self, user_id: str) -> None:
+        """A user started speaking in voice — resolve their Discord display name."""
         self.stats['joins'] += 1
+
+        # Resolve and cache the display name on first encounter
+        if user_id not in self._usernames:
+            try:
+                guild = self.voice_listener.client.get_guild(self._guild_id)
+                if guild:
+                    member = guild.get_member(int(user_id))
+                    if member:
+                        self._usernames[user_id] = member.display_name
+            except Exception:
+                pass
+
         username = self._usernames.get(user_id, f"user_{user_id}")
         get_logger().info(f" User speaking: {username} (ID: {user_id})")
 
