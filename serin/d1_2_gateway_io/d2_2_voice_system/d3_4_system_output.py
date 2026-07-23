@@ -101,7 +101,7 @@ class VoiceOutputManager:
 
         # Stop Rust bridge TTS if active
         bridge = self.voice_listener.rust_bridge
-        if bridge and bridge.is_running():
+        if bridge and bridge._running:
             await bridge.interrupt()
 
         self.is_speaking = False
@@ -190,7 +190,7 @@ class VoiceOutputManager:
             audio_data: WAV audio bytes from TTS engine (16kHz mono 16-bit)
         """
         bridge = self.voice_listener.rust_bridge
-        if not bridge or not bridge.is_running():
+        if not bridge or not bridge._running:
             get_logger().warning(f" Cannot play — bridge not running for guild {guild_id}")
             return
 
