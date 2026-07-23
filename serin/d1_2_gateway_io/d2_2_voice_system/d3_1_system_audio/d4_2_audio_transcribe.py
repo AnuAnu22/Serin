@@ -106,7 +106,7 @@ async def _transcribe_and_store(self: Any, item: dict[str, Any]) -> None:
                 messages.append({
                     'role': 'user',
                     'content': [
-                        {'type': 'text', 'text': f'{username} is speaking. Respond directly in first person (I, me, my). Never describe yourself or the speaker in third person. Be conversational.'},
+                        {'type': 'text', 'text': f'{username} is speaking to you.'},
                         {'type': 'input_audio', 'input_audio': {'data': wav_b64, 'format': 'wav'}},
                     ],
                 })
