@@ -27,6 +27,9 @@ from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_3_correction_
     CorrectionDetector,
     MemoryCorrector,
 )
+from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_5_message_process import (
+    process_voice_input,
+)
 from serin.d1_1_pipeline_flow.d2_3_flow_perceive.d3_1_active_search import ActiveSearch
 from serin.d1_1_pipeline_flow.d2_3_flow_perceive.d3_2_bot_personality import (
     BotPersonality,
@@ -184,7 +187,7 @@ class EnhancedMessageManagerV3:
             VoiceActionDecider,
         )
         try:
-            va_connector = get_model_connector()
+            va_connector = get_model_connector(model_name=config.LLM_MODEL)
             va_connector.load_model()
             self.voice_action_decider = VoiceActionDecider(va_connector)
             logger.info("Voice Action Decider enabled")
@@ -367,3 +370,7 @@ class EnhancedMessageManagerV3:
         r'```[\s\S]*?```',     # Code blocks
         r'"[^"]{20,}"',        # Long quotes (20+ chars)
     ]
+
+
+# Bind standalone functions as methods
+EnhancedMessageManagerV3.process_voice_input = process_voice_input  # type: ignore[attr-defined]
