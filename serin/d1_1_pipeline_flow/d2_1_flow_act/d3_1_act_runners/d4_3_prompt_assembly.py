@@ -264,7 +264,7 @@ class PromptAssemblyStage(PipelineStage):
         # Add recent conversation
         for msg in ctx.recent_messages:
             role = "user"
-            content = f"{msg.get('user_name', 'unknown')}: {msg.get('content', '')}"
+            content = f"{msg.get('username', msg.get('user_name', 'unknown'))}: {msg.get('content', '')}"
             messages.append({"role": role, "content": content})
 
         # Add current message
