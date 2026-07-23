@@ -41,11 +41,12 @@ class VoiceActionDecider:
             return {"action": "none", "reason": "heuristic_skip"}
 
         try:
-            prompt = self._build_prompt(user_message, context, personality_state or {})
-            response = await self.llm.send_input(
-                prompt=prompt,
+            messages = self._build_messages(user_message, context, personality_state or {})
+            response = await self.llm.chat_completion(
+                messages=messages,
                 temperature=0.1,
                 max_tokens=200,
+                response_format={"type": "json_object"},
             )
             decision = self._parse_decision(response)
 
@@ -72,40 +73,32 @@ class VoiceActionDecider:
         msg_lower = message.lower()
         return any(kw in msg_lower for kw in keywords)
 
-    def _build_prompt(
+    def _build_messages(
         self,
         message: str,
         context: str,
         personality: dict[str, float],
-    ) -> str:
+    ) -> list[dict[str, str]]:
 
         energy = personality.get("energy", 0.5)
         sass = personality.get("sass", 0.5)
 
-        return f"""You are Serin's internal voice action system. Decide if Serin should join or leave a voice channel.
+        system_prompt = (
+            "You are Serin's internal voice action system. Decide if Serin should join or leave a voice channel.\n\n"
+            f"CONTEXT:\n{context}\n\n"
+            f"CURRENT STATE:\n- Energy level: {energy:.1f}/1.0\n- Sass level: {sass:.1f}/1.0\n\n"
+            "RULES:\n"
+            '- "join": The user explicitly or implicitly wants Serin in voice chat\n'
+            '- "leave": Socially appropriate to leave\n'
+            '- "none": No voice action needed\n\n'
+            "OUTPUT FORMAT (JSON ONLY):\n"
+            '{\n    "action": "join" | "leave" | "none",\n    "reason": "short explanation"\n}'
+        )
 
-CONTEXT:
-{context}
-
-USER MESSAGE: "{message}"
-
-CURRENT STATE:
-- Energy level: {energy:.1f}/1.0
-- Sass level: {sass:.1f}/1.0
-
-RULES:
-- "join": The user explicitly or implicitly wants Serin in voice chat
-- "leave": It's socially appropriate to leave (conversation winding down, been in VC long)
-- "none": No voice action needed
-
-OUTPUT FORMAT (JSON ONLY):
-{{
-    "action": "join" | "leave" | "none",
-    "reason": "short explanation"
-}}
-
-RESPONSE:
-{{"""
+        return [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": message},
+        ]
 
     def _parse_decision(self, response: str) -> dict[str, str]:
         """Parse JSON decision from LLM response."""
