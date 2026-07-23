@@ -24,9 +24,10 @@ async def process_voice_input(self: Any, user_id: str, username: str, channel_id
     try:
         logger.info("Processing voice input from %s: '%s'", username, transcription)
 
-        recent_voice = []
-        if self.voice_pipeline:
-            recent_voice = self.voice_pipeline.get_recent_context(channel_id, limit=5)
+        recent_voice: list[dict[str, Any]] = []
+        vp = getattr(self, 'voice_pipeline', None)
+        if vp is not None:
+            recent_voice = vp.get_recent_context(channel_id, limit=5)
 
         user_messages = []
         for msg in recent_voice:
