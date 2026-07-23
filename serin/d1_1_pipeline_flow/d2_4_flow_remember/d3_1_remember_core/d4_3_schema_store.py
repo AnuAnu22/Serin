@@ -179,17 +179,17 @@ def init_sqlite_schema(conn: sqlite3.Connection, cursor: sqlite3.Cursor) -> None
     """)
 
     # Migration: add state column if table exists without it
-    try:
-        cursor.execute("ALTER TABLE beliefs ADD COLUMN state TEXT NOT NULL DEFAULT 'PENDING'")
-    except Exception:
-        logger.exception("Migration: ALTER TABLE beliefs.state failed (column may already exist)")
-    try:
-        cursor.execute("ALTER TABLE beliefs ADD COLUMN last_contradicted_at TEXT DEFAULT ''")
-    except Exception:
-        logger.exception("Migration: ALTER TABLE beliefs.last_contradicted_at failed (column may already exist)")
-    try:
-        cursor.execute("ALTER TABLE beliefs ADD COLUMN contradiction_resolved_at TEXT DEFAULT ''")
-    except Exception:
-        logger.exception("Migration: ALTER TABLE beliefs.contradiction_resolved_at failed (column may already exist)")
+    import sqlite3
+    for col, dtype in [
+        ("state", "TEXT NOT NULL DEFAULT 'PENDING'"),
+        ("last_contradicted_at", "TEXT DEFAULT ''"),
+        ("contradiction_resolved_at", "TEXT DEFAULT ''"),
+    ]:
+        try:
+            cursor.execute(f"ALTER TABLE beliefs ADD COLUMN {col} {dtype}")
+        except sqlite3.OperationalError:
+            logger.info("Migration: column %s already exists, skipping", col)
+        except Exception:
+            logger.exception("Migration: ALTER TABLE beliefs.%s failed", col)
 
     logger.debug(" SQLite schema initialized")
