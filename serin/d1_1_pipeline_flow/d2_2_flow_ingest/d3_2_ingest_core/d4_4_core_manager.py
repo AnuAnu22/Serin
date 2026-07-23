@@ -246,6 +246,24 @@ class EnhancedMessageManagerV3:
             self.last_bot_response_channel = str(message.channel.id)
             self.stats["responses_generated"] += 1
 
+        await self._check_voice_action(ctx)
+
+    async def _check_voice_action(self, ctx: Any) -> None:
+        if not self.voice_action_decider or not self.voice_action_callback:
+            return
+        decision = await self.voice_action_decider.decide(
+            user_message=ctx.raw_content,
+            context=ctx.final_response or "",
+            personality_state={
+                "energy": getattr(self.personality, "energy_level", 0.5),
+                "sass": getattr(self.personality, "sass_level", 0.5),
+            },
+        )
+        action = decision.get("action")
+        if action in ("join", "leave"):
+            guild_id = int(ctx.guild_id) if ctx.guild_id else 0
+            await self.voice_action_callback(decision, ctx.user_id, guild_id)
+
     def get_user_profile(self, user_id: str) -> dict[str, Any] | None:
         """Get user profile from memory"""
         return self.memory.get_user_profile(user_id)
@@ -330,6 +348,8 @@ class EnhancedMessageManagerV3:
                 self.last_bot_response = ctx.final_response
                 self.last_bot_response_channel = str(channel.id)
                 self.stats["responses_generated"] += 1
+
+            await self._check_voice_action(ctx)
 
             self.update_state(status="IDLE")
 
