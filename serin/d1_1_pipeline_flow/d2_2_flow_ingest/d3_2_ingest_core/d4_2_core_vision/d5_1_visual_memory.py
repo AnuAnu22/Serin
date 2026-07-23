@@ -174,10 +174,10 @@ class VisualMemorySystem:
                 payload = hit.payload or {}
                 matches.append({
                     "score": hit.score,
-                    "username": payload.get("username"),
-                    "context": payload.get("context"),
-                    "timestamp": payload.get("timestamp"),
-                    "url": payload.get("url")
+                    "username": payload.get("username") or "unknown",
+                    "context": payload.get("context") or "",
+                    "timestamp": payload.get("timestamp") or "",
+                    "url": payload.get("url") or "",
                 })
 
             return matches

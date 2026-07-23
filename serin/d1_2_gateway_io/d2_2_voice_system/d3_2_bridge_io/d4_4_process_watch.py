@@ -467,5 +467,8 @@ class RustVoiceBridge:
         If there's no lock for this guild (already expired), this is a no-op.
         """
         get_logger().info("voice.tts_playback_done", extra={"guild_id": str(self._guild_id)})
+        guild_id = str(self._guild_id)
         if hasattr(self.audio_processor, '_release_lock'):
-            self.audio_processor._release_lock(str(self._guild_id))
+            self.audio_processor._release_lock(guild_id)
+        if hasattr(self.audio_processor, '_flush_buffered_audio'):
+            self.audio_processor._flush_buffered_audio(guild_id)

@@ -263,10 +263,10 @@ async def on_ready() -> None:
         client,
         mention_translator,
         memory_system,
-        voice_output_manager=voice_output_manager if 'voice_output_manager' in dir() else None,
+        voice_output_manager=voice_output_manager,
     )
     set_message_manager(message_manager)
-    if 'voice_pipeline' in dir() and voice_pipeline is not None:
+    if voice_pipeline is not None:
         voice_pipeline.message_manager = message_manager
         message_manager.voice_pipeline = voice_pipeline
     get_logger().success("Message manager ready!")
@@ -363,7 +363,7 @@ async def on_ready() -> None:
         get_logger().success("Voice action callback wired")
 
     # ── Wire pipeline references ──────────────────────────────────────────
-    if 'voice_pipeline' in dir() and voice_pipeline:
+    if voice_pipeline is not None:
         voice_pipeline.message_manager = message_manager
         voice_pipeline.bg_processor = background_processor
 

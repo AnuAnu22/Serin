@@ -179,11 +179,18 @@ def process_audio_chunk(
         # TTS playing), buffer the audio silently and skip all VAD logic.
         # The lock is released by the TTS_DONE signal from the Rust binary
         # when TTS playback actually finishes. See _set_lock() and _release_lock().
+        #
+        # CRITICAL: We also cancel the silence timer here. Otherwise the
+        # timer from a previous user burst could fire during the lock and
+        # call _queue_for_transcription, bypassing the lock entirely.
         if self._is_locked(guild_id):
+            self._cancel_silence_timer(user_id)
             if user_id not in self.user_buffers:
                 self.user_buffers[user_id] = bytearray()
                 self.user_silence_frames[user_id] = 0
                 self.user_voice_burst[user_id] = 0
+            self._last_username[user_id] = username
+            self._last_channel[user_id] = channel_id
             self.user_buffers[user_id].extend(audio_data)
             return
 

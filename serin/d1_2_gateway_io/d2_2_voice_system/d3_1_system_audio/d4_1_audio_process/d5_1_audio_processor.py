@@ -86,6 +86,10 @@ class AudioStreamProcessor:
         # Brief pops/clicks are buffered but don't extend the silence window.
         self.user_voice_burst: dict[str, int] = {}
 
+        # Per-user tracking for flush-buffered-audio after lock release.
+        self._last_username: dict[str, str] = {}
+        self._last_channel: dict[str, str] = {}
+
         # Per-guild processing lock — prevents cascading response cycles.
         # Set when audio is queued for transcription; released by TTS_DONE signal from Rust.
         # During the lock window, new audio is silently buffered but not processed.
@@ -172,6 +176,12 @@ class AudioStreamProcessor:
             _release_lock,
         )
         return _release_lock(self, guild_id)
+
+    def _flush_buffered_audio(self, guild_id: str) -> None:
+        from serin.d1_2_gateway_io.d2_2_voice_system.d3_1_system_audio.d4_4_audio_vad import (
+            _flush_buffered_audio,
+        )
+        return _flush_buffered_audio(self, guild_id)
 
     def _set_lock(self, guild_id: str, duration: float = 20.0) -> None:
         from serin.d1_2_gateway_io.d2_2_voice_system.d3_1_system_audio.d4_4_audio_vad import (

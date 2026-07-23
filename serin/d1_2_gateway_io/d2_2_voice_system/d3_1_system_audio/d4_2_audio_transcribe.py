@@ -1,7 +1,8 @@
-"""Audio transcription — Gemma direct input and storage."""
+"""Audio transcription — Gemma direct input and Whisper fallback."""
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from serin.d1_2_gateway_io.d2_4_io_di import get_logger
@@ -9,19 +10,17 @@ from serin.d1_2_gateway_io.d2_4_io_di import get_logger
 
 async def _transcribe_and_store(self: Any, item: dict[str, Any]) -> None:
     """
-    Transcribe audio and store in memory / trigger response.
+    Process a voice audio chunk end-to-end.
 
-    This is the processing step for each queued transcription item. It:
-      1. Checks if the model supports direct audio (Gemma unified format)
-      2. If yes: truncates audio to 30s max, converts to WAV base64,
-         sends to voice pipeline with wav_b64 for direct model input
-      3. If no: runs Whisper STT, sends transcription text to voice pipeline
+    When the model supports direct audio (Gemma with input_audio):
+      - Converts PCM → 16kHz mono WAV base64
+      - Builds context from recent voice messages, memories, and personality
+      - Sends audio + contextual prompt directly to the LLM
+      - Queues TTS for the response
+      - Skips Whisper STT, memory storage, and the full pipeline context builder
 
-    The voice pipeline (VoiceMemoryPipeline) then:
-      - Stores the message in memory
-      - Builds conversation context
-      - Calls the LLM for a response
-      - Queues TTS playback
+    When the model does NOT support direct audio:
+      - Falls back to Whisper STT → VoiceMemoryPipeline → LLM response → TTS
 
     Args:
         item: Dict with keys:
@@ -35,84 +34,130 @@ async def _transcribe_and_store(self: Any, item: dict[str, Any]) -> None:
         audio_data = item['audio_data']
         timestamp = item['timestamp']
 
-        get_logger().info(f" Transcribing audio from {username} ({len(audio_data)} bytes)...")
+        get_logger().info(f" Processing audio from {username} ({len(audio_data)} bytes)...")
 
         if self.llm_connector and self.supports_audio:
-            # Check if the model actually supports direct audio.
-            # supports_audio=True is set via env var, but we double-check
-            # the actual model type from the connector.
-            _use_direct_audio = False
             try:
                 model_info = self.llm_connector.get_model_info()
-                _use_direct_audio = 'gemma' in model_info.get('model_type', '').lower()
+                use_direct = 'gemma' in model_info.get('model_type', '').lower()
             except Exception:
                 get_logger().exception("Failed to check model info for direct audio support")
+                use_direct = False
 
-            if _use_direct_audio:
-                # Direct Audio Path (Gemma Unified)
-                # Skip Whisper STT entirely. Feed the raw audio + conversation
-                # context directly to Gemma in one shot. The model handles
-                # both understanding the audio and generating a response.
+            if use_direct:
+                # ── Direct Audio Path (Gemma) ──
+                # Gemma understands audio natively via input_audio.  We build
+                # context from recent voice history and memories (same as the
+                # text pipeline) and inject it alongside the audio so Gemma
+                # has conversational awareness.
 
-                # Truncate to 30 seconds max (Gemma's model limit).
-                max_audio_bytes = 5_760_000  # 48kHz stereo 16-bit × 30s
-                truncated = False
+                max_audio_bytes = 5_760_000
                 if len(audio_data) > max_audio_bytes:
                     get_logger().info(f" Audio truncated from {len(audio_data)} to {max_audio_bytes} bytes (30s limit)")
                     audio_data = audio_data[:max_audio_bytes]
-                    truncated = True
 
-                # Convert 48kHz stereo PCM to 16kHz mono WAV base64
                 wav_b64 = self._pcm_to_wav_base64(audio_data)
 
-                # If truncated, inform the model that audio was cut off.
-                transcription = "[voice input]"
-                if truncated:
-                    transcription = "[voice input - user was talking for long, only last 30s of audio included]"
+                # ── Build context from recent voice history + memories ──
+                formatted_context = ""
+                vp = getattr(self, 'voice_pipeline', None)
+                if vp is not None:
+                    recent_voice: list[dict[str, Any]] = vp.get_recent_context(channel_id, limit=5)
+                    user_messages: list[dict[str, Any]] = []
+                    for msg in recent_voice:
+                        user_messages.append({
+                            "user_id": msg["user_id"],
+                            "user_name": msg["username"],
+                            "content": msg["content"],
+                            "timestamp": msg["timestamp"],
+                        })
+                    if not any(m["content"] == "" for m in user_messages):
+                        user_messages.append({
+                            "user_id": user_id,
+                            "user_name": username,
+                            "content": "",
+                            "timestamp": datetime.now().isoformat(),
+                        })
 
-                await self.voice_pipeline.process_voice_message(
-                    user_id=user_id,
-                    username=username,
-                    guild_id=guild_id,
-                    channel_id=channel_id,
-                    transcription=transcription,
-                    wav_b64=wav_b64,  # Direct audio blob for the model
-                    timestamp=timestamp
-                )
-                self.stats['transcriptions_completed'] += 1
-            else:
-                # Whisper STT Path (Non-Gemma with supports_audio flag)
-                transcription = await self.transcriber.transcribe(audio_data, language="en")
-                if transcription and len(transcription.strip()) > 0:
-                    get_logger().info(f" Transcribed: '{transcription}'")
-                    await self.voice_pipeline.process_voice_message(
-                        user_id=user_id,
-                        username=username,
-                        guild_id=guild_id,
-                        channel_id=channel_id,
-                        transcription=transcription,
-                        timestamp=timestamp
+                    mm = getattr(vp, 'message_manager', None)
+                    if mm is not None:
+                        cb = getattr(mm, 'context_builder', None)
+                        if cb is not None:
+                            context = cb.build_context(
+                                user_messages=user_messages,
+                                channel_id=channel_id,
+                            )
+                            formatted_context = cb.format_context_for_llm(context)
+
+                        bp = getattr(mm, 'bot_personality', None)
+                        if bp is not None:
+                            pc = bp.get_personality_context()
+                            if pc:
+                                formatted_context += f"\n\n{pc}"
+
+                formatted_context += "\n\n[SYSTEM: You are speaking in a voice channel. Keep responses concise and natural. Avoid lists or code blocks.]"
+
+                messages: list[Any] = []
+                if formatted_context.strip():
+                    messages.append({
+                        'role': 'system',
+                        'content': formatted_context,
+                    })
+                messages.append({
+                    'role': 'user',
+                    'content': [
+                        {'type': 'text', 'text': f'{username} is speaking. Respond directly in first person (I, me, my). Never describe yourself or the speaker in third person. Be conversational.'},
+                        {'type': 'input_audio', 'input_audio': {'data': wav_b64, 'format': 'wav'}},
+                    ],
+                })
+
+                try:
+                    response = await self.llm_connector.chat_completion(
+                        messages,
+                        max_tokens=300,
+                        temperature=1.0,
+                        top_p=0.95,
+                        extra_body={'chat_template_kwargs': {'enable_thinking': False}},
                     )
-                    self.stats['transcriptions_completed'] += 1
-        else:
-            # Whisper STT Path (No LLM connector or audio not supported)
-            transcription = await self.transcriber.transcribe(audio_data, language="en")
-            if transcription and len(transcription.strip()) > 0:
-                get_logger().info(f" Transcribed: '{transcription}'")
-                await self.voice_pipeline.process_voice_message(
-                    user_id=user_id,
-                    username=username,
-                    guild_id=guild_id,
-                    channel_id=channel_id,
-                    transcription=transcription,
-                    timestamp=timestamp
-                )
+                except Exception as e:
+                    get_logger().error(f" Direct audio LLM call failed: {e}")
+                    self.stats['errors'] += 1
+                    return
+
+                if response and response.strip():
+                    get_logger().info(f" Voice Response: '{response[:200]}'")
+                    if self.voice_output_manager:
+                        try:
+                            await self.voice_output_manager.speak(response, int(guild_id))
+                            get_logger().info(f" TTS queued for guild {guild_id} ({len(response)} chars)")
+                        except Exception as e:
+                            get_logger().error(f" TTS failed for guild {guild_id}: {e}")
+                    else:
+                        get_logger().warning("voice_output_manager not available — response not spoken")
+                else:
+                    get_logger().warning("Empty response from LLM — nothing to speak")
+
                 self.stats['transcriptions_completed'] += 1
-            else:
-                get_logger().debug(f" Empty transcription from {username}")
+                return
+
+        # ── Whisper STT Path (no direct audio or non-Gemma model) ──
+        transcription = await self.transcriber.transcribe(audio_data, language='en')
+        if transcription and len(transcription.strip()) > 0:
+            get_logger().info(f" Transcribed: '{transcription}'")
+            await self.voice_pipeline.process_voice_message(
+                user_id=user_id,
+                username=username,
+                guild_id=guild_id,
+                channel_id=channel_id,
+                transcription=transcription,
+                timestamp=timestamp,
+            )
+            self.stats['transcriptions_completed'] += 1
+        else:
+            get_logger().debug(f" Empty transcription from {username}")
 
     except Exception as e:
-        get_logger().exception(f" Error transcribing audio: {e}")
+        get_logger().exception(f" Error processing audio: {e}")
         self.stats['errors'] += 1
 
 

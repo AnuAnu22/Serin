@@ -54,19 +54,22 @@ class VoiceMemoryPipeline:
         guild_id: str,
         channel_id: str,
         transcription: str,
-        wav_b64: str | None = None,
         timestamp: datetime | None = None
     ) -> None:
         """
         Process a voice message transcription.
+
+        Called by the Whisper STT path (AudioStreamProcessor delegates here
+        for non-direct-audio scenarios).  For direct audio input the
+        _transcribe_and_store function handles everything end-to-end and
+        bypasses this method entirely.
 
         Args:
             user_id: User ID
             username: Username
             guild_id: Guild ID
             channel_id: Voice channel ID
-            transcription: Transcribed text (or placeholder)
-            wav_b64: Optional WAV base64 for direct audio input to the model
+            transcription: Transcribed text
             timestamp: Message timestamp
         """
         try:
@@ -133,7 +136,7 @@ class VoiceMemoryPipeline:
                 username=username,
                 channel_id=channel_id,
                 transcription=transcription,
-                wav_b64=wav_b64,
+                guild_id=guild_id,
             )
             self.stats['responses_triggered'] += 1
 

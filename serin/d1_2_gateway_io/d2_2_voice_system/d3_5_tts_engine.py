@@ -196,7 +196,7 @@ class TTSEngine:
         try:
             proc = await asyncio.create_subprocess_exec(
                 'ffmpeg', '-i', 'pipe:0',
-                '-', 'wav', '-acodec', 'pcm_s16le',
+                '-f', 'wav', '-acodec', 'pcm_s16le',
                 '-ar', '16000', '-ac', '1',
                 'pipe:1',
                 stdin=asyncio.subprocess.PIPE,

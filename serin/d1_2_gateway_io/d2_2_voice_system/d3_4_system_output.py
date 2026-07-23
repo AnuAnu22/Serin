@@ -87,7 +87,7 @@ class VoiceOutputManager:
 
         if text.strip():
             await self.sentence_queue.put((text, guild_id))
-            get_logger().debug(f" Queued: '{text[:50]}...'")
+            get_logger().info(f"TTS queued for guild {guild_id}: '{text[:80]}...'")
 
     async def stop_speaking(self, guild_id: int) -> None:
         """
@@ -130,6 +130,7 @@ class VoiceOutputManager:
             try:
                 # Get next text item
                 text, guild_id = await self.sentence_queue.get()
+                get_logger().info(f"TTS dequeue: guild {guild_id}, text '{text[:60]}...'")
 
                 self.current_guild_id = guild_id
                 self.is_speaking = True

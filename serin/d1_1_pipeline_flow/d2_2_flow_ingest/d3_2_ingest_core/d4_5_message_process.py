@@ -19,15 +19,23 @@ from serin.d1_4_config_base.d2_1_base_config import config
 from serin.d1_4_config_base.d2_2_debug_logger import log_correction, log_message
 
 
-async def process_voice_input(self: Any, user_id: str, username: str, channel_id: str, transcription: str, wav_b64: str | None = None) -> None:
-    """Process voice input and generate voice response."""
+async def process_voice_input(self: Any, user_id: str, username: str, channel_id: str, transcription: str, guild_id: str | None = None) -> None:
+    """Process voice transcription text and generate response.
+
+    Called by VoiceMemoryPipeline for the Whisper STT path.
+    For direct audio input (Gemma), _transcribe_and_store handles
+    everything end-to-end and this function is bypassed.
+    """
     try:
         logger.info("Processing voice input from %s: '%s'", username, transcription)
 
         recent_voice: list[dict[str, Any]] = []
         vp = getattr(self, 'voice_pipeline', None)
-        if vp is not None:
+        if vp is None:
+            logger.warning("voice_pipeline not available — no recent voice context")
+        else:
             recent_voice = vp.get_recent_context(channel_id, limit=5)
+            logger.debug("Got %d recent voice messages for channel %s", len(recent_voice), channel_id)
 
         user_messages = []
         for msg in recent_voice:
@@ -42,78 +50,62 @@ async def process_voice_input(self: Any, user_id: str, username: str, channel_id
             user_messages.append({
                 "user_id": user_id,
                 "user_name": username,
-                "content": transcription if not wav_b64 else "[voice input]",
+                "content": transcription,
                 "timestamp": datetime.now().isoformat(),
             })
+            logger.debug("Appended user message to voice context (%d total)", len(user_messages))
 
         context = self.context_builder.build_context(
             user_messages=user_messages,
             channel_id=channel_id,
         )
+        logger.debug("Built context with %d messages", len(user_messages))
         formatted_context = self.context_builder.format_context_for_llm(context)
 
         personality_context = self.bot_personality.get_personality_context()
         if personality_context:
             formatted_context += f"\n\n{personality_context}"
+        else:
+            logger.debug("No personality context available")
 
         formatted_context += "\n\n[SYSTEM: You are speaking in a voice channel. Keep responses concise, conversational, and natural. Avoid long lists or code blocks. Use fillers like 'Hmm' or 'Let's see' if you need to think.]"
 
-        if wav_b64:
-            voice_messages: list[Any] = [{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": formatted_context},
-                    {"type": "input_audio", "input_audio": {"data": wav_b64, "format": "wav"}},
-                ],
-            }]
-            from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator import (
-                llama as _llm_connector,
-            )
-            if _llm_connector is None:
-                from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator import (
-                    initialize_llama,
-                )
-                await initialize_llama()
-                from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator import (
-                    llama as _llm_connector,
-                )
-            if _llm_connector is None:
-                logger.error("LLM connector not available for voice input")
-                return
-            response = await _llm_connector.chat_completion(
-                voice_messages,
-                max_tokens=300,
-                temperature=1.0,
-                top_p=0.95,
-                extra_body={"chat_template_kwargs": {"enable_thinking": False}},
-            )
-        else:
-            response = await get_response_natural(
-                current_messages=user_messages,
-                context=formatted_context,
-                resolved_last_message=transcription,
-                tone_modifier=self.personality.get_tone_modifier(),
-                personality_state=self.personality.__dict__,
-                message_complexity="simple",
-                is_instruction=False,
-            )
+        response = await get_response_natural(
+            current_messages=user_messages,
+            context=formatted_context,
+            resolved_last_message=transcription,
+            tone_modifier=self.personality.get_tone_modifier(),
+            personality_state=self.personality.__dict__,
+            message_complexity="simple",
+            is_instruction=False,
+        )
+        logger.debug("get_response_natural returned (%d chars)", len(response) if response else 0)
 
-        if response and response.strip():
-            logger.info("Voice Response: '%s'", response)
-            if self.voice_output_manager:
-                try:
-                    guild_id = int(context.get("guild_id", 0))
-                    if guild_id == 0:
-                        channel = self.client.get_channel(int(channel_id))
-                        if channel:
-                            guild_id = channel.guild.id
-                    if guild_id:
-                        await self.voice_output_manager.speak(response, guild_id)
-                        self.stats["voice_responses"] += 1
-                    else:
-                        logger.error("Could not determine guild ID for voice response")
-                except Exception as e:
-                    logger.error("Error sending to voice output: %s", e)
+        if not response or not response.strip():
+            logger.warning("Empty response from LLM — nothing to speak")
+            return
+
+        logger.info("Voice Response: '%s'", response[:200])
+        if self.voice_output_manager is None:
+            logger.warning("voice_output_manager not available — response not spoken")
+            return
+
+        if guild_id is None:
+            logger.debug("No guild_id provided — resolving from channel %s", channel_id)
+            channel = self.client.get_channel(int(channel_id))
+            if channel:
+                guild_id = str(channel.guild.id)
+                logger.info("Resolved guild_id %s from channel %s", guild_id, channel_id)
+            else:
+                logger.error("Could not resolve guild — channel %s not cached", channel_id)
+                return
+
+        try:
+            await self.voice_output_manager.speak(response, int(guild_id))
+            self.stats["voice_responses"] += 1
+            logger.info("TTS queued for guild %s (%d chars)", guild_id, len(response))
+        except Exception as e:
+            logger.exception("Failed to queue TTS for guild %s: %s", guild_id, e)
 
     except Exception as e:
         logger.exception("Error processing voice input: %s", e)

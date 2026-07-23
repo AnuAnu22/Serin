@@ -136,6 +136,7 @@ class ConversationContextBuilder:
 
         return {
             'recent_conversation': recent_messages,
+            'relevant_memories': evidence_memories + episode_memories + utterance_memories,
             'facts': facts,
             'beliefs': beliefs,
             'evidence_memories': evidence_memories,
@@ -192,10 +193,11 @@ class ConversationContextBuilder:
         narrative_parts = []
 
         # 1. Immediate Situation (Recent Conversation)
-        if context['recent_conversation']:
+        recent_conv = context.get('recent_conversation', [])
+        if recent_conv:
             narrative_parts.append("--- CURRENT SITUATION ---")
             conv_lines = []
-            for msg in context['recent_conversation'][-10:]:
+            for msg in recent_conv[-10:]:
                 username = msg.get('username', msg.get('user_name', 'Unknown'))
                 conv_lines.append(f"{username}: {msg['content']}")
             narrative_parts.append("\n".join(conv_lines))
@@ -203,7 +205,6 @@ class ConversationContextBuilder:
         # 2. Internal Memory Stream (The "Brain")
         memory_stream = []
 
-        # Relevant memories
         if context['relevant_memories']:
             memory_stream.append("I recall the following relevant details:")
             for mem in context['relevant_memories'][:4]:
@@ -222,7 +223,7 @@ class ConversationContextBuilder:
                 memory_stream.append(f"- {time_ref}, {mem.get('username', mem.get('user_name', 'Unknown'))} mentioned: {mem['content']}")
 
         # User profiles (Narrative)
-        profiles = context['profiles']
+        profiles = context.get('profiles', {})
         if profiles:
             memory_stream.append("\nMy impressions of people here:")
             for user_id, profile in profiles.items():
@@ -237,7 +238,7 @@ class ConversationContextBuilder:
                 memory_stream.append(desc)
 
         # Relationships
-        relationships = context['relationships']
+        relationships = context.get('relationships', [])
         if relationships:
             close_friends = [r['other_username'] for r in relationships if r['relationship_strength'] > 0.6]
             if close_friends:

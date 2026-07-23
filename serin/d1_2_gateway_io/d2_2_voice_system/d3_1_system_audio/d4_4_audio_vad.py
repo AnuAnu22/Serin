@@ -57,7 +57,7 @@ def _queue_for_transcription(
       4. Puts the audio data on the async processing queue
 
     The processing lock is the key to preventing cascading:
-      - Set here (30s safety net) when audio is queued
+      - Set here (300s safety net) when audio is queued
       - Released early by TTS_DONE signal from Rust when playback finishes
       - During the lock: audio is silently buffered but not processed
 
@@ -68,6 +68,16 @@ def _queue_for_transcription(
         channel_id: Voice channel ID string
     """
     try:
+        # ── Lock Guard ─────────────────────────────────────────────────
+        # If this guild is already in a response cycle, drop the audio.
+        # The lock was set by a previous _queue_for_transcription call and
+        # hasn't been released yet (TTS is still playing or being synthesized).
+        # The audio from this user burst is already being buffered in
+        # process_audio_chunk and will be flushed when TTS_DONE arrives.
+        if self._is_locked(guild_id):
+            get_logger().debug(f" Dropping queued audio — lock active for guild {guild_id}")
+            return
+
         buffer = self.user_buffers.get(user_id)
 
         # Minimum buffer check: 192KB ≈ 1 second of audio.
@@ -91,11 +101,13 @@ def _queue_for_transcription(
         #   - The interrupt path is not triggered
         #   - The lock is released when TTS_DONE is received from Rust
         #
-        # The 30-second duration is a safety net only. In normal operation,
-        # TTS_DONE releases the lock within 3-15 seconds (LLM + TTS time).
-        # If TTS_DONE never arrives (Rust crash), the lock auto-expires
-        # after 30 seconds to prevent permanent lockout.
-        self._set_lock(guild_id, 30.0)
+        # The 300-second duration is a safety net only. TTS_DONE from Rust
+        # releases the lock when playback finishes. Long TTS synthesis
+        # (edge-tts cloud) can take 60+ seconds for verbose responses, so
+        # the safety net must cover the full LLM + TTS + playback cycle.
+        # If TTS_DONE never arrives (Rust crash or network issue), the
+        # lock auto-expires after 300 seconds to prevent permanent lockout.
+        self._set_lock(guild_id, 300.0)
 
         # Queue for async processing (one at a time).
         try:
@@ -196,6 +208,33 @@ def _release_lock(self: Any, guild_id: str) -> None:
     """
     self._processing_lock_until.pop(guild_id, None)
     get_logger().debug(f" Processing lock released for guild {guild_id}")
+
+def _flush_buffered_audio(self: Any, guild_id: str) -> None:
+    """
+    After releasing the lock, flush any audio buffered during the lock.
+
+    During TTS playback, incoming audio was buffered in process_audio_chunk
+    (see the lock guard there).  Once playback finishes (TTS_DONE), this
+    function processes the first buffered user's audio by simulating a
+    silence-timer fire, which triggers _queue_for_transcription.
+
+    We only flush one user per call — the one with the most buffered audio.
+    Subsequent users will be handled on the next TTS release cycle.
+    """
+    best_user: str | None = None
+    best_size = 0
+    for uid, buf in self.user_buffers.items():
+        if len(buf) >= 192000 and len(buf) > best_size:
+            best_user = uid
+            best_size = len(buf)
+
+    if best_user is None:
+        return
+
+    username = self._last_username.get(best_user, f"user_{best_user}")
+    channel_id = self._last_channel.get(best_user, guild_id)
+    get_logger().info(f" Flushing buffered audio for {best_user} ({best_size} bytes)")
+    _queue_for_transcription(self, best_user, username, guild_id, channel_id)
 
 def _set_lock(self: Any, guild_id: str, duration: float = 20.0) -> None:
     """
