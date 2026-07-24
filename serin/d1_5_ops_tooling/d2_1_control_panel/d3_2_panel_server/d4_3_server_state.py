@@ -1,162 +1,157 @@
-"""Shared control-panel state: FastAPI app, globals, models, and helpers.
-
-Extracted from the former ``server.py`` so the route submodules
-(``websocket``, ``status``, ``controls``) can import these without creating a
-circular import with the package ``__init__``. Nothing in this module imports
-from the rest of the ``server`` package.
-"""
-
 from __future__ import annotations
 
-import asyncio
-import hmac
 from typing import Any
 
-from fastapi import FastAPI, Request, WebSocket
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from fastapi.responses import FileResponse, HTMLResponse
 
-from serin.d1_4_config_base.d2_1_base_config import config
-
-
-def make_json_safe(obj: Any) -> Any:
-    """
-    Recursively convert non-JSON-serializable objects to safe types.
-    Handles: set, datetime, custom objects
-    """
-    if isinstance(obj, dict):
-        return {k: make_json_safe(v) for k, v in obj.items()}
-    elif isinstance(obj, (list, tuple)):
-        return [make_json_safe(item) for item in obj]
-    elif isinstance(obj, set):
-        return list(obj)  # Convert set to list
-    elif hasattr(obj, 'isoformat'):  # datetime
-        return obj.isoformat()
-    elif hasattr(obj, '__dict__'):  # Custom objects
-        return make_json_safe(obj.__dict__)
-    else:
-        return obj
-
-
-# ============================================================================
-# GLOBAL STATE (will be injected by main bot)
-# ============================================================================
-bot_state: dict[str, Any] = {}
-
-# WebSocket connections for live updates. Mutated from three different
-# coroutines that can interleave arbitrarily on the event loop: a new
-# connection's accept handler (append), a disconnecting client's cleanup
-# (remove), and every broadcast_log/broadcast_event call (iterate + remove
-# dead entries). A plain list under concurrent mutation-while-iterating can
-# skip entries, double-remove, or raise — `active_websockets_lock` serializes
-# all access. It's an asyncio.Lock, not threading.Lock, because everything
-# here runs on the same event loop; there is no cross-thread contention to
-# guard against, just interleaved coroutines.
-active_websockets: list[WebSocket] = []
-active_websockets_lock = asyncio.Lock()
-
-
-# ============================================================================
-# PYDANTIC MODELS
-# ============================================================================
-
-class ModelConfig(BaseModel):
-    model_name: str
-    temperature: float = 0.75
-    top_p: float = 0.9
-    make_active: bool = True  # Whether to make this the active model after loading
-
-
-class ChannelControl(BaseModel):
-    channel_id: str
-    action: str  # 'add' or 'remove'
-
-
-class VoiceChannelControl(BaseModel):
-    guild_id: str
-    channel_id: str
-    action: str  # 'join' or 'leave'
-
-
-class VoiceLoad(BaseModel):
-    filename: str
-
-
-class SettingsUpdate(BaseModel):
-    setting_key: str
-    setting_value: Any
-
-
-class MemoryQuery(BaseModel):
-    query: str
-    user_id: str | None = None
-    limit: int = 10
-
-
-# ============================================================================
-# FASTAPI APP
-# ============================================================================
-
-app = FastAPI(title="Serin Control Panel", version="1.0.0")
-
-# CORS: origins come from CONTROL_PANEL_ALLOWED_ORIGINS (comma-separated),
-# defaulting to same-origin only. "*" + allow_credentials=True is a real
-# vulnerability — it lets any website the operator's browser visits make
-# authenticated requests to the panel on their behalf (CSRF-by-CORS). Never
-# widen this back to "*" while allow_credentials stays True.
-_cors_origins = [o.strip() for o in config.CONTROL_PANEL_ALLOWED_ORIGINS.split(",") if o.strip()]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_cors_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE"],
-    allow_headers=["X-API-Key", "Content-Type"],
+from serin.d1_3_state_core.d2_5_core_logger import logger
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_1_state_access import (
+    app,
+    bot_state,
+    get_request_metrics,
+    make_json_safe,
 )
 
 
-def _key_is_valid(provided: str) -> bool:
-    """Constant-time comparison — plain ``!=`` leaks timing info that lets an
-    attacker recover the key byte-by-byte over enough requests."""
-    return hmac.compare_digest(provided, config.CONTROL_PANEL_KEY)
+@app.get("/", response_class=HTMLResponse)
+async def homepage() -> Any:
+    return FileResponse("control_panel/static/index.html")
 
 
-# Auth middleware. Applies to every route including WebSocket upgrade
-# requests and the static file mount below — there is no "public" surface
-# on this app once a key is configured.
-@app.middleware("http")
-async def check_auth(request: Request, call_next: Any) -> Any:
-    if config.CONTROL_PANEL_KEY:
-        api_key = request.headers.get("X-API-Key", "")
-        if not _key_is_valid(api_key):
-            return JSONResponse({"error": "unauthorized"}, status_code=401)
-    return await call_next(request)
+@app.get("/api/status")
+async def get_status() -> Any:
+    client = bot_state.get("discord_client")
+    if not client:
+        return {"online": False, "user": None, "guilds": [], "latency": 0}
+    guilds = []
+    if client.guilds:
+        for guild in client.guilds:
+            guilds.append({
+                "id": str(guild.id),
+                "name": guild.name,
+                "member_count": guild.member_count,
+                "text_channels": len(guild.text_channels),
+                "voice_channels": len(guild.voice_channels),
+            })
+    return {
+        "online": client.is_ready(),
+        "user": {
+            "id": str(client.user.id),
+            "name": client.user.name,
+            "discriminator": client.user.discriminator,
+        } if client.user else None,
+        "guilds": guilds,
+        "latency": round(client.latency * 1000, 2),
+    }
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="control_panel/static"), name="static")
+
+@app.get("/api/stats")
+async def get_stats() -> Any:
+    return _get_current_stats()
 
 
-async def get_gpu_vram_usage() -> float:
-    """Get GPU VRAM usage in GB via nvidia-smi"""
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            'nvidia-smi', '--query-gpu=memory.used', '--format=csv,noheader,nounits',
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
+@app.get("/api/health")
+async def get_system_health() -> Any:
+    health: dict[str, Any] = {"status": "healthy", "components": {}}
+
+    client = bot_state.get("discord_client")
+    health["components"]["discord"] = {
+        "status": "ok" if client and client.is_ready() else "error",
+        "latency": round(client.latency * 1000, 2) if client else 0,
+    }
+
+    mem = bot_state.get("memory_system")
+    health["components"]["memory"] = {
+        "status": "ok" if mem else "error",
+        "type": "Qdrant" if mem and hasattr(mem, "qdrant_client") else "Unknown",
+        "qdrant_connected": bool(mem and getattr(mem, "qdrant_client", None)),
+        "bm25_available": bool(mem and getattr(mem, "bm25_index", None)),
+        "embedding_available": bool(mem and getattr(mem, "embedding_model", None)),
+    }
+
+    listener = bot_state.get("voice_listener")
+    health["components"]["voice_input"] = {
+        "status": "ok" if listener else "disabled",
+        "connected": listener.is_connected() if listener and hasattr(listener, "is_connected") else False,
+    }
+
+    tts = bot_state.get("tts_engine")
+    health["components"]["tts"] = {
+        "status": "ok" if tts else "disabled",
+        "model": getattr(tts, "model_name", None) if tts else None,
+    }
+
+    bg = bot_state.get("background_processor")
+    health["components"]["background"] = {
+        "status": "ok" if bg and getattr(bg, "is_running", False) else "stopped",
+        "queue_size": len(getattr(bg, "processing_queue", []) or []) if bg else 0,
+    }
+
+    crawler = bot_state.get("message_crawler")
+    health["components"]["crawler"] = {"status": "ok" if crawler else "disabled"}
+
+    statuses = [c["status"] for c in health["components"].values()]
+    if "error" in statuses:
+        health["status"] = "degraded"
+    if all(s == "error" for s in statuses):
+        health["status"] = "critical"
+
+    return health
+
+
+@app.get("/api/performance")
+async def get_performance_metrics() -> Any:
+    return {"endpoints": get_request_metrics()}
+
+
+@app.get("/api/pipeline/status")
+async def get_pipeline_status() -> Any:
+    manager = bot_state.get("message_manager")
+    if not manager:
+        return {"status": "offline", "stages": []}
+    return make_json_safe({
+        "status": "online",
+        "stages": [
+            {"id": 1, "name": "ResponseDecision", "description": "Should bot respond?"},
+            {"id": 2, "name": "MemoryRetrieval", "description": "Qdrant + BM25 hybrid search"},
+            {"id": 3, "name": "ResponsePlanner", "description": "Belief/claim analysis"},
+            {"id": 4, "name": "Temporal", "description": "Date/time resolution"},
+            {"id": 5, "name": "Personality", "description": "Tone/mood modifier"},
+            {"id": 6, "name": "PromptAssembly", "description": "System prompt + context"},
+            {"id": 7, "name": "LLMCall", "description": "Model inference"},
+            {"id": 8, "name": "ResponseCleaning", "description": "Filter + truncate"},
+            {"id": 9, "name": "Send", "description": "Discord delivery"},
+            {"id": 10, "name": "MemoryWrite", "description": "Store response"},
+        ],
+        "last_run": getattr(manager, "_last_pipeline_time", None),
+        "total_processed": getattr(manager, "stats", {}).get("messages_processed", 0),
+    })
+
+
+def _get_current_stats() -> Any:
+    stats: dict[str, Any] = {}
+    components = [
+        ("message_manager", "manager", "stats"),
+        ("background_processor", "background", "get_stats"),
+        ("passive_monitor", "passive", "get_stats"),
+        ("message_crawler", "crawler", "get_stats"),
+        ("memory_system", "memory", "get_stats"),
+        ("voice_listener", "voice", "get_stats"),
+    ]
+    for state_key, stat_key, method in components:
         try:
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=2)
-        except TimeoutError:
-            proc.kill()
-            await proc.wait()
-            return 0.0
-        if proc.returncode == 0:
-            output = stdout.decode()
-            raw_lines = [line.strip() for line in output.strip().split('\n') if line.strip()]
-            if raw_lines:
-                total_mb = sum(int(line) for line in raw_lines if line.isdigit())
-                return round(total_mb / 1024, 1)
-        return 0.0
-    except Exception:
-        return 0.0
+            obj = bot_state.get(state_key)
+            if obj:
+                if method == "stats":
+                    stats[stat_key] = obj.stats.copy() if hasattr(obj, "stats") else {}
+                elif callable(getattr(obj, method, None)):
+                    stats[stat_key] = getattr(obj, method)()
+                else:
+                    stats[stat_key] = {}
+            else:
+                stats[stat_key] = {}
+        except Exception as e:
+            logger.error("Error getting %s stats: %s", stat_key, e)
+            stats[stat_key] = {"error": str(e)}
+    stats["bot"] = bot_state.get("bot_stats", {})
+    return make_json_safe(stats)
