@@ -1,4 +1,7 @@
-"""Process supervision for Rust voice bridge."""
+"""
+Process supervision for Rust voice bridge.
+"""
+# --- Imports ---
 from __future__ import annotations
 
 import asyncio
@@ -12,10 +15,21 @@ from typing import Any
 from serin.d1_2_gateway_io.d2_2_voice_system.d3_2_bridge_io.d4_1_io_bridge import (
     RustStdoutReader,
 )
+from serin.d1_2_gateway_io.d2_2_voice_system.d3_2_bridge_io.d4_4_process_watch.d5_2_process_watch_io import (
+    RustVoiceBridgeIOMixin,
+)
 from serin.d1_2_gateway_io.d2_4_io_di import get_logger
 
+# --- Types ---
+# (none)
 
-class RustVoiceBridge:
+# --- Constants ---
+# (none)
+
+# --- Entry ---
+
+
+class RustVoiceBridge(RustVoiceBridgeIOMixin):
     """
     Production bridge between the Rust voice receiver and Serin's audio pipeline.
 
@@ -98,6 +112,7 @@ class RustVoiceBridge:
 
         get_logger().info(f" Rust voice bridge initialized (binary: {self.binary_path})")
 
+# --- Core ---
     async def start(
         self,
         guild_id: int,
@@ -198,47 +213,25 @@ class RustVoiceBridge:
         """Stop the Rust voice receiver and clean up."""
         self._running = False
         self._shutdown_requested = True
-        self._death_event.set()  # unblock supervisor so it can exit
 
-        # Cancel supervisor first (prevents races with re-spawn)
-        if self._supervisor_task and not self._supervisor_task.done():
-            self._supervisor_task.cancel()
-            try:
-                await self._supervisor_task
-            except asyncio.CancelledError:
-                pass
+        # Cancel tasks
+        for task in [self._reader_task, self._reader_consumer_task, self._supervisor_task]:
+            if task and not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
 
-        # Cancel the reader producer task
-        if self._reader_task and not self._reader_task.done():
-            self._reader_task.cancel()
+        # Terminate Rust process
+        if self.proc and self.proc.returncode is None:
             try:
-                await self._reader_task
-            except asyncio.CancelledError:
-                pass
-
-        # Cancel the async reader consumer loop
-        if self._reader_consumer_task and not self._reader_consumer_task.done():
-            self._reader_consumer_task.cancel()
-            try:
-                await self._reader_consumer_task
-            except asyncio.CancelledError:
-                pass
-
-        # Send SHUTDOWN command to Rust, then wait for graceful exit
-        if self.proc and self.proc.returncode is None and self.proc.stdin is not None:
-            get_logger().info(" Stopping Rust voice receiver...")
-            try:
-                self.proc.stdin.write(b"SHUTDOWN\n")
-                await self.proc.stdin.drain()
-            except Exception:
-                get_logger().exception("Failed to send SHUTDOWN to Rust bridge")
-
-            # Give it a moment to exit gracefully (3 second timeout)
-            try:
-                await asyncio.wait_for(self.proc.wait(), timeout=3.0)
-            except TimeoutError:
+                self.proc.terminate()
+                await asyncio.wait_for(self.proc.wait(), timeout=5.0)
+            except (ProcessLookupError, TimeoutError):
                 self.proc.kill()
-                await self.proc.wait()
+            except Exception as e:
+                get_logger().debug(f" Error stopping Rust process: {e}")
 
         self.proc = None
         self.reader = None
@@ -251,163 +244,7 @@ class RustVoiceBridge:
         except asyncio.CancelledError:
             pass
 
-    def _start_stderr_reader(self) -> None:
-        """Read stderr from the Rust process via an asyncio task."""
-
-        async def _read_stderr() -> None:
-            if self.proc is None or self.proc.stderr is None:
-                return
-            while self._running:
-                try:
-                    line: bytes = await self.proc.stderr.readline()
-                    if not line:
-                        break
-                    decoded: str = line.decode('utf-8', errors='replace').rstrip()
-                    self._stderr_buf.append(decoded)
-                    get_logger().debug(f" [rust:err] {decoded}")
-                except Exception:
-                    break
-
-        asyncio.create_task(_read_stderr())
-
-    # -----------------------------------------------------------------------
-    # Internal: extract voice server info from discord.py VoiceClient
-    # -----------------------------------------------------------------------
-    # Discord voice connections require three pieces of info:
-    #   endpoint — the voice server hostname
-    #   token — voice authentication token
-    #   session_id — Discord voice session identifier
-    #
-    # In discord.py/pycord, these are available from the VoiceClient after
-    # the voice state update and voice server update events fire.
-    # Pycord stores them as direct attributes; older discord.py may need
-    # _connection introspection.
-
-    def _extract_voice_info(
-        self, voice_client: Any, guild_id: int, channel_id: int
-    ) -> dict[str, Any] | None:
-        """
-        Extract voice server connection info from a discord.py VoiceClient.
-
-        Pycord's VoiceClient exposes:
-          - voice_client.endpoint  → "hostname:port" (wss:// stripped)
-          - voice_client.token     → voice server auth token
-          - voice_client.session_id → voice session ID
-          - voice_client.guild.me.id → bot's user ID
-
-        Falls back to VoiceConnectionState introspection if direct attributes
-        are not available (compatibility with different discord.py versions).
-
-        Returns:
-            Dict with ConnectionInfo fields, or None if not connected
-        """
-        try:
-            endpoint = getattr(voice_client, 'endpoint', None)
-            token = getattr(voice_client, 'token', None)
-            session_id = getattr(voice_client, 'session_id', None)
-
-            if not all([endpoint, token, session_id]):
-                # Try _connection (VoiceConnectionState) directly
-                conn = getattr(voice_client, '_connection', None)
-                if conn:
-                    endpoint = endpoint or getattr(conn, 'endpoint', None)
-                    token = token or getattr(conn, 'token', None)
-                    session_id = session_id or getattr(conn, 'session_id', None)
-
-            if not all([endpoint, token, session_id]):
-                get_logger().error(
-                    f" Missing voice server info: endpoint={endpoint is not None}, "
-                    f"token={token is not None}, session_id={session_id is not None}"
-                )
-                return None
-
-            # Bot's user ID — needed for the Driver to identify itself
-            bot_user_id = voice_client.guild.me.id
-
-            return {
-                "endpoint": endpoint,
-                "token": token,
-                "session_id": session_id,
-                "guild_id": guild_id,
-                "channel_id": channel_id,
-                "user_id": bot_user_id,
-            }
-
-        except Exception as e:
-            get_logger().exception(f" Error extracting voice info: {e}")
-            return None
-
-    # -----------------------------------------------------------------------
-    # Internal: async loop to read events from Rust stdout
-    # -----------------------------------------------------------------------
-
-    async def _read_loop(self) -> None:
-        """
-        Asynchronous loop: reads events from RustStdoutReader and dispatches them.
-
-        This runs as an asyncio task. It awaits events from the async
-        RustStdoutReader queue without blocking the event loop.
-
-        Event types:
-          audio     → _handle_audio(user_id, pcm_data)
-          join      → _handle_join(user_id)
-          leave     → _handle_leave(user_id)
-          tts_done  → _handle_tts_done()
-          log       → forwarded to Python logger
-
-        Critical: TTS_DONE handling
-          When the Rust songbird driver finishes playing TTS audio, it sends
-          TTS_DONE. This handler calls _release_lock() on the audio processor,
-          which allows the next user utterance to be transcribed immediately.
-          Without this, the processing lock would remain for the full 30s timeout.
-        """
-        get_logger().info(" Rust stdout reader loop started")
-
-        try:
-            while self._running and self.reader:
-                try:
-                    event = await self.reader.get(1.0)
-                except EOFError:
-                    if self._running:
-                        get_logger().warning(" Rust stdout EOF — process may have crashed")
-                        self._handle_process_death()
-                    break
-
-                if event is None:
-                    continue
-
-                event_type = event[0]
-
-                if event_type == 'audio':
-                    _, user_id, pcm_data = event
-                    await self._handle_audio(user_id, pcm_data)
-
-                elif event_type == 'join':
-                    user_id = event[1]
-                    await self._handle_join(user_id)
-
-                elif event_type == 'leave':
-                    user_id = event[1]
-                    self._handle_leave(user_id)
-
-                elif event_type == 'log':
-                    msg = event[1]
-                    if any(kw in msg for kw in ['CONNECTED', 'READY', 'JOIN_FAILED', 'GOT_INFO']):
-                        get_logger().info(f"   [rust] {msg}")
-                    else:
-                        get_logger().debug(f"   [rust] {msg}")
-
-                elif event_type == 'tts_done':
-                    self._handle_tts_done()
-
-        except asyncio.CancelledError:
-            pass
-        except Exception as e:
-            get_logger().error(f" Error in Rust reader loop: {e}")
-            self.stats['errors'] += 1
-
-        get_logger().info(" Rust stdout reader loop ended")
-
+# --- Helpers ---
     async def _handle_audio(self, user_id: str, pcm_data: bytes) -> None:
         """
         Route decoded PCM audio from Rust to AudioStreamProcessor.
@@ -453,16 +290,7 @@ class RustVoiceBridge:
         get_logger().info(f" User speaking: {username} (ID: {user_id})")
 
     async def _resolve_username_from_vc(self, user_id: str) -> str:
-        """Resolve a Rust SSRC/user_id to a Discord display name via voice channel members.
-
-        The Rust bridge sends SSRC numbers as user_ids because Discord voice v4
-        doesn't always include user_id in SpeakingState events. We fall back to
-        looking up voice channel members directly.
-
-        Multiple speakers: each new SSRC is assigned to the first channel member
-        not already mapped to an active SSRC. When a user leaves (_handle_leave),
-        their member slot is freed for reuse.
-        """
+        """Resolve a Rust SSRC/user_id to a Discord display name via voice channel members."""
         # 1. Is this SSRC already mapped?
         if user_id in self._usernames:
             return self._usernames[user_id]
@@ -551,3 +379,6 @@ class RustVoiceBridge:
             self.audio_processor._release_lock(guild_id)
         if hasattr(self.audio_processor, '_flush_buffered_audio'):
             self.audio_processor._flush_buffered_audio(guild_id)
+
+# --- Errors ---
+# (none)

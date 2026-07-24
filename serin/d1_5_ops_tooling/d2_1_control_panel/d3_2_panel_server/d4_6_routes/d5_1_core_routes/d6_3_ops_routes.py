@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import FastAPI
 
 from serin.d1_4_config_base.d2_3_logger import logger
-from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_1_state_access import (
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_1_state_access import (
     make_json_safe,
 )
 
@@ -121,7 +121,7 @@ def register_ops_routes(app: FastAPI, bot_state: dict[str, Any]) -> None:
 
 async def _run_manual_sync(crawler: Any) -> None:
     try:
-        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_1_state_access import (
+        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_1_state_access import (
             bot_state as _bs,
         )
         client = _bs.get("discord_client")

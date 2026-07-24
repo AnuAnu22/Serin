@@ -18,7 +18,9 @@ from serin.d1_3_state_core.d2_3_model_system.d3_3_system_factory import (
     get_model_connector,
 )
 from serin.d1_3_state_core.d2_3_model_system.d3_4_system_interface import ModelInterface
-from serin.d1_3_state_core.d2_3_model_system.d3_5_thinking_filter import filter_thinking
+from serin.d1_3_state_core.d2_3_model_system.d3_5_model_helpers.d6_1_thinking_filter import (
+    filter_thinking,
+)
 from serin.d1_4_config_base.d2_1_base_config import config
 from serin.d1_4_config_base.d2_3_logger import logger
 

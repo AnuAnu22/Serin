@@ -31,7 +31,7 @@ class LLMCallStage(PipelineStage):
         )
 
         try:
-            from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_11_debug_routes import (
+            from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_6_routes.d5_3_debug_routes.d6_2_debug_routes import (
                 update_last_prompt_debug,
             )
             update_last_prompt_debug(

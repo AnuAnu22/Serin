@@ -1,6 +1,24 @@
 import logging
 
-from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_1_state_access import (
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_6_routes.d5_1_core_routes.d6_1_memory_routes import (
+    register_memory_routes,
+)
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_6_routes.d5_1_core_routes.d6_2_personality_routes import (
+    register_personality_routes,
+)
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_6_routes.d5_1_core_routes.d6_3_ops_routes import (
+    register_ops_routes,
+)
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_6_routes.d5_2_voice_routes.d6_1_missing_routes import (
+    register_missing_routes,
+)
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_6_routes.d5_3_debug_routes.d6_1_test_routes import (
+    register_test_routes,
+)
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_6_routes.d5_3_debug_routes.d6_2_debug_routes import (
+    register_debug_routes,
+)
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_1_state_access import (
     ChannelControl,
     MemoryQuery,
     MemorySearchAdvanced,
@@ -16,7 +34,15 @@ from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_1_state_acce
     get_request_metrics,
     make_json_safe,
 )
-from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_2_server_controls import (
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_2_server_state import (
+    get_performance_metrics,
+    get_pipeline_status,
+    get_stats,
+    get_status,
+    get_system_health,
+    homepage,
+)
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_8_server.d5_1_server_controls import (
     get_allowed_channels,
     get_full_config,
     get_model_info,
@@ -26,36 +52,10 @@ from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_2_server_con
     update_allowed_channels,
     update_full_config,
 )
-from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state import (
-    get_performance_metrics,
-    get_pipeline_status,
-    get_stats,
-    get_status,
-    get_system_health,
-    homepage,
-)
-from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_5_server_websocket import (
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_8_server.d5_2_server_websocket import (
     broadcast_event,
     broadcast_log,
     websocket_endpoint,
-)
-from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_6_memory_routes import (
-    register_memory_routes,
-)
-from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_personality_routes import (
-    register_personality_routes,
-)
-from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_8_ops_routes import (
-    register_ops_routes,
-)
-from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_9_missing_routes import (
-    register_missing_routes,
-)
-from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_10_test_routes import (
-    register_test_routes,
-)
-from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_11_debug_routes import (
-    register_debug_routes,
 )
 
 _logger = logging.getLogger("control_panel")
@@ -96,14 +96,14 @@ try:
 except Exception as e:
     _logger.error("FAILED to register debug routes: %s", e)
 
-# d4_4_server_status.py is imported for its module-level side effects
+# d5_3_server_status is imported for its module-level side effects
 try:
-    from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server import (
-        d4_4_server_status,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state import (
+        d5_3_server_status,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     )
-    _logger.info("d4_4_server_status imported OK")
+    _logger.info("d5_3_server_status imported OK")
 except Exception as e:
-    _logger.debug("d4_4_server_status not importable: %s", e)
+    _logger.debug("d5_3_server_status not importable: %s", e)
 
 __all__ = [
     "make_json_safe",

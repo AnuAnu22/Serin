@@ -20,7 +20,7 @@ from serin.d1_3_state_core.d2_5_state_conversation.d3_2_message_context import (
     MessageContext,
 )
 from serin.d1_4_config_base.d2_3_logger import logger
-from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_5_server_websocket import (
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_8_server.d5_2_server_websocket import (
     broadcast_event,
 )
 

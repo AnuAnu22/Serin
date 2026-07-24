@@ -14,7 +14,9 @@ if TYPE_CHECKING:
     from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_1_ingest_context.d4_3_mention_translator import (
         MentionTranslator,
     )
-    from serin.d1_5_ops_tooling.d2_2_tooling_background import BackgroundProcessor
+    from serin.d1_5_ops_tooling.d2_2_tooling_background.d5_1_tooling_background import (
+        BackgroundProcessor,
+    )
 
 
 class PassiveMonitor:

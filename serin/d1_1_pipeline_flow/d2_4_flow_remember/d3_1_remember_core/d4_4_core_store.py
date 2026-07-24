@@ -80,7 +80,9 @@ from serin.d1_3_state_core.d2_2_core_memory.d3_2_evidence_store import FactStore
 from serin.d1_3_state_core.d2_2_core_memory.d3_3_belief_dynamics import (
     BayesianBeliefEngine,
 )
-from serin.d1_3_state_core.d2_2_core_memory.d3_5_bm25_index import SQLiteBM25Index
+from serin.d1_3_state_core.d2_2_core_memory.d3_5_memory_helpers.d6_1_bm25_index import (
+    SQLiteBM25Index,
+)
 from serin.d1_4_config_base.d2_3_logger import logger
 
 # Qdrant imports

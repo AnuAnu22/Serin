@@ -217,7 +217,7 @@ class EnhancedMessageManagerV3:
             from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator import (
                 get_response_natural,
             )
-            from serin.d1_3_state_core.d2_3_model_system.d3_5_thinking_filter import (
+            from serin.d1_3_state_core.d2_3_model_system.d3_5_model_helpers.d6_1_thinking_filter import (
                 get_thinking_filter,
             )
             self.pipeline = MessagePipeline.build(
@@ -409,7 +409,7 @@ class EnhancedMessageManagerV3:
                 from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator import (
                     get_response_natural,
                 )
-                from serin.d1_3_state_core.d2_3_model_system.d3_5_thinking_filter import (
+                from serin.d1_3_state_core.d2_3_model_system.d3_5_model_helpers.d6_1_thinking_filter import (
                     get_thinking_filter,
                 )
 

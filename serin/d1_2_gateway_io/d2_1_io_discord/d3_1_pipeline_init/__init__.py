@@ -1,33 +1,26 @@
-"""MessagePipeline and behavior manager initialization.
+"""
+MessagePipeline and behavior manager initialization.
 
 This package is the folder form of the former ``bot_pipeline_init.py`` (Rule 2:
 a file over 500 lines becomes a folder). ``on_ready``, ``on_message`` and the
 module-level subsystem globals stay here so their ``global`` bindings resolve in
 the package namespace; ``main`` lives in ``main_entry.py`` and is re-exported.
 """
+# --- Imports ---
+from __future__ import annotations
 
-import asyncio
-from datetime import datetime
 from typing import Any
 
 import discord
 
-import serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator
-import serin.d1_2_gateway_io.d2_1_io_discord.d3_2_discord_bot as bot_module
-from serin.d1_1_serin_di import (
-    init_root,
-    set_crawler,
-    set_mention_translator,
-    set_message_manager,
-    set_qdrant,
+from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_pipeline_initializer import (
+    PipelineInitializer,
 )
 from serin.d1_2_gateway_io.d2_1_io_discord.d3_2_discord_bot import (
     background_processor,
     client,
     db_protector,
-    init_database_protection,
     message_crawler,
-    message_manager,
     passive_monitor,
     stats,
 )
@@ -39,15 +32,14 @@ from serin.d1_2_gateway_io.d2_1_io_discord.d3_3_command_handlers import (
 from serin.d1_2_gateway_io.d2_4_io_di import get_logger
 from serin.d1_4_config_base.d2_1_base_config import config
 from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server import bot_state
-from serin.d1_5_ops_tooling.d2_1_control_panel.d3_3_panel_lifecycle import (
-    init_bot_state,
-    start_server,
-)
 
 from .d4_1_main_entry import main
 
+# --- Types ---
+# (none)
+
+# --- Constants ---
 __all__ = [
-    "audio_processor",
     "background_processor",
     "db_protector",
     "main",
@@ -56,457 +48,27 @@ __all__ = [
     "on_message",
     "on_ready",
     "passive_monitor",
-    "tts_engine",
-    "voice_behavior_manager",
-    "voice_listener",
-    "voice_manager",
-    "voice_output_manager",
-    "voice_pipeline",
 ]
 
-audio_processor: Any | None = None
-tts_engine: Any | None = None
+# --- Entry ---
+_initializer: PipelineInitializer | None = None
+
+# Module-level attributes for backward compatibility with event_handlers
+message_manager: Any | None = None
 voice_behavior_manager: Any | None = None
 voice_listener: Any | None = None
-voice_manager: Any | None = None
-voice_output_manager: Any | None = None
-voice_pipeline: Any | None = None
 
 
-async def _init_mention_translator() -> tuple[Any, bool]:
-    from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_1_ingest_context.d4_3_mention_translator import (
-        MentionTranslator,
-    )
-    from serin.d1_2_gateway_io.d2_1_io_discord.d3_2_discord_bot import voice_available
-    from serin.d1_2_gateway_io.d2_4_io_di import get_logger
-
-    mention_translator_obj = MentionTranslator(client)
-    set_mention_translator(mention_translator_obj)
-    bot_module.mention_translator = mention_translator_obj
-    init_root(get_logger())
-    init_database_protection()
-    stats['start_time'] = asyncio.get_running_loop().time()
-    _log_server_info(mention_translator_obj)
-    return mention_translator_obj, voice_available
-
-
-def _log_server_info(mention_translator_obj: Any) -> None:
-    from serin.d1_2_gateway_io.d2_4_io_di import get_logger
-    get_logger().success("=" * 60)
-    user_str = f"{client.user}" if client.user else "Unknown"
-    user_id_str = f"{client.user.id}" if client.user else "N/A"
-    get_logger().success(f"Logged in as {user_str} (ID: {user_id_str})")
-    get_logger().success(f"Connected to {len(client.guilds)} guild(s)")
-    get_logger().success("=" * 60)
-    total_channels = 0
-    total_voice_channels = 0
-    for guild in client.guilds:
-        get_logger().info(f"  Server: {guild.name} (ID: {guild.id})")
-        cached = mention_translator_obj.cache_guild_members(guild)
-        get_logger().info(f"    Cached {cached} members")
-        allowed = [ch for ch in guild.text_channels if ch.id in config.ALLOWED_CHANNEL_IDS]
-        total_channels += len(guild.text_channels)
-        total_voice_channels += len(guild.voice_channels)
-        get_logger().info(f"    Response channels: {len(allowed)}")
-        get_logger().info(f"    Monitoring: {len(guild.text_channels)} text channels")
-        get_logger().info(f"    Voice channels: {len(guild.voice_channels)}")
-    get_logger().info(f"  Total: {total_channels} text, {total_voice_channels} voice channels")
-    get_logger().info("-" * 60)
-
-
-async def _init_memory_system() -> Any:
-    from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_3_remember_qdrant import (
-        QdrantMemorySystem,
-    )
-    from serin.d1_2_gateway_io.d2_4_io_di import get_logger
-    get_logger().info("Initializing memory system (Qdrant)...")
-    try:
-        memory_system = QdrantMemorySystem(
-            data_dir="./bot_data",
-            qdrant_host=config.QDRANT_HOST,
-            qdrant_port=config.QDRANT_PORT,
-        )
-        set_qdrant(memory_system)
-        get_logger().success("Memory system ready!")
-        return memory_system
-    except Exception as e:
-        get_logger().exception(f"Memory system failed: {e}")
-        raise
-
-
-async def _init_database_and_memory() -> Any:
-    from serin.d1_2_gateway_io.d2_4_io_di import get_logger
-
-    get_logger().info("Initializing LLM model...")
-    await serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator.initialize_llama()
-    if serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator.llama is not None and serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator.llama.is_connected:
-        get_logger().success("LLM model ready!")
-    else:
-        get_logger().info("LLM will retry in background every 15s")
-
-    memory_system = await _init_memory_system()
-    return memory_system
-
-
-async def _init_voice_system(memory_system: Any, mention_translator_obj: Any, voice_available: bool) -> tuple[Any, Any, Any, Any, Any, Any]:
-    from serin.d1_2_gateway_io.d2_4_io_di import get_logger
-    voice_listener = None
-    audio_processor = None
-    voice_pipeline = None
-    tts_engine = None
-    voice_output_manager = None
-    voice_manager = None
-
-    if config.ENABLE_VOICE and voice_available:
-        get_logger().info("Initializing voice input...")
-        try:
-            from serin.d1_2_gateway_io.d2_2_voice_system.d3_1_system_audio.d4_1_audio_process.d5_1_audio_processor import (
-                AudioStreamProcessor,
-            )
-            from serin.d1_2_gateway_io.d2_2_voice_system.d3_3_system_listener import (
-                VoiceListener,
-            )
-            from serin.d1_2_gateway_io.d2_3_voice_transcribe.d3_3_transcribe_pipeline import (
-                VoiceMemoryPipeline,
-            )
-            from serin.d1_2_gateway_io.d2_3_voice_transcribe.d3_4_transcribe_transcriber import (
-                WhisperTranscriber,
-            )
-
-            transcriber = WhisperTranscriber()
-            voice_pipeline = VoiceMemoryPipeline(memory_system=memory_system, background_processor=background_processor, message_manager=message_manager)
-            audio_processor = AudioStreamProcessor(transcriber=transcriber, voice_pipeline=voice_pipeline, silence_threshold=1.5, llm_connector=serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator.llama)
-            voice_listener = VoiceListener(client, audio_processor)
-            await audio_processor.start()
-            get_logger().success(f"Voice input ready! (mode: {config.VOICE_RECEIVER_MODE})")
-        except Exception as e:
-            get_logger().error(f"Voice init failed: {e}")
-
-        if config.ENABLE_TTS:
-            get_logger().info("Initializing TTS output...")
-            try:
-                from serin.d1_2_gateway_io.d2_2_voice_system.d3_4_system_output import (
-                    VoiceOutputManager,
-                )
-                from serin.d1_2_gateway_io.d2_2_voice_system.d3_5_tts_engine import (
-                    TTSEngine,
-                )
-                from serin.d1_5_ops_tooling.d2_5_voice_manager import TTSVoiceManager
-                tts_engine = TTSEngine()
-                voice_manager = TTSVoiceManager()
-                if voice_listener:
-                    voice_output_manager = VoiceOutputManager(tts_engine, voice_listener)
-                    await voice_output_manager.start()
-                    if audio_processor:
-                        audio_processor.voice_output_manager = voice_output_manager
-                    get_logger().success("TTS output ready!")
-                else:
-                    get_logger().warning("TTS requires VoiceListener — skipping")
-            except Exception as e:
-                get_logger().error(f"TTS init failed: {e}")
-                config.ENABLE_TTS = False
-
-    return voice_listener, audio_processor, voice_pipeline, tts_engine, voice_output_manager, voice_manager
-
-
-async def _init_background_processors(memory_system: Any, mention_translator_obj: Any) -> tuple[Any, Any, Any]:
-    from serin.d1_2_gateway_io.d2_4_io_di import get_logger
-
-    get_logger().info("Initializing background processor...")
-    background_processor = None
-    try:
-        from serin.d1_5_ops_tooling.d2_2_tooling_background import BackgroundProcessor
-        background_processor = BackgroundProcessor(memory_system)
-        await background_processor.start()
-        get_logger().success("Background processor started!")
-    except Exception as e:
-        get_logger().error(f"Background processor failed: {e}")
-
-    passive_monitor = None
-    if background_processor is not None:
-        get_logger().info("Initializing passive monitor...")
-        from serin.d1_5_ops_tooling.d2_4_passive_monitor import PassiveMonitor
-        passive_monitor = PassiveMonitor(memory_system, background_processor, config.ALLOWED_CHANNEL_IDS, mention_translator_obj)
-        get_logger().success("Passive monitor ready!")
-    else:
-        get_logger().warning("Background processor unavailable — skipping passive monitor")
-
-    get_logger().info("Initializing message crawler...")
-    from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_3_ingest_sync.d4_2_sync_crawler import (
-        MessageCrawler,
-    )
-    message_crawler = MessageCrawler(client, memory_system, background_processor, mention_translator_obj)
-    set_crawler(message_crawler)
-    await message_crawler.start()
-    get_logger().success("Message crawler started!")
-
-    get_logger().info("Initializing memory sync monitor...")
-    try:
-        from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_4_sync_monitor import (
-            MemorySyncMonitor,
-        )
-        sync_monitor = MemorySyncMonitor(memory_system, background_processor, message_crawler)
-        await sync_monitor.start_monitoring()
-        get_logger().success("Memory sync monitor started!")
-    except Exception as e:
-        get_logger().error(f"Sync monitor failed: {e}")
-
-    return background_processor, passive_monitor, message_crawler
-
-
-async def _init_message_manager(mention_translator_obj: Any, memory_system: Any, voice_pipeline: Any, voice_output_manager: Any) -> Any:
-    from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_4_core_manager import (
-        EnhancedMessageManagerV3,
-    )
-    from serin.d1_2_gateway_io.d2_4_io_di import get_logger
-
-    get_logger().info("Initializing message manager...")
-    message_manager = EnhancedMessageManagerV3(client, mention_translator_obj, memory_system, voice_output_manager=voice_output_manager)
-    set_message_manager(message_manager)
-    if voice_pipeline is not None:
-        voice_pipeline.message_manager = message_manager
-        message_manager.voice_pipeline = voice_pipeline
-    get_logger().success("Message manager ready!")
-    return message_manager
-
-
-async def _backfill_recent_images() -> None:
-    assert message_manager is not None
-    from serin.d1_2_gateway_io.d2_4_io_di import get_logger
-    await asyncio.sleep(2)
-    vision_semaphore = asyncio.Semaphore(2)
-    _message_manager: Any = message_manager
-
-    async def _describe_with_semaphore(msg: Any, image_data_url: str, filename: str) -> None:
-        async with vision_semaphore:
-            await _message_manager._describe_image_background(msg, image_data_url, filename)
-            await asyncio.sleep(0.5)
-
-    try:
-        for guild in client.guilds:
-            for channel in guild.text_channels:
-                if not channel.permissions_for(guild.me).read_message_history:
-                    continue
-                msg = None
-                try:
-                    async for msg in channel.history(limit=15):
-                        if msg.author.bot:
-                            continue
-                        has_image = any(a.content_type and a.content_type.startswith("image/") for a in msg.attachments)
-                        if has_image:
-                            placeholder = f"{msg.content} [Image: an image]" if msg.content else "[Image: an image]"
-                            message_manager.memory.store_recent_message(user_id=str(msg.author.id), username=msg.author.display_name, channel_id=str(channel.id), content=placeholder, message_id=str(msg.id), timestamp=msg.created_at)
-                            for att in msg.attachments:
-                                if att.content_type and att.content_type.startswith("image/"):
-                                    try:
-                                        import base64
-                                        image_bytes = await att.read()
-                                        if image_bytes:
-                                            mime = att.content_type or "image/jpeg"
-                                            b64 = base64.b64encode(image_bytes).decode("utf-8")
-                                            asyncio.create_task(_describe_with_semaphore(msg, f"data:{mime};base64,{b64}", att.filename))
-                                    except Exception as e:
-                                        get_logger().debug("Image describe failed for %s: %s", att.filename, e)
-                        else:
-                            message_manager.memory.store_recent_message(user_id=str(msg.author.id), username=msg.author.display_name, channel_id=str(channel.id), content=msg.content, message_id=str(msg.id), timestamp=msg.created_at)
-                except Exception as e:
-                    if msg is not None:
-                        get_logger().debug("Failed to store recent message %s: %s", msg.id, e)
-        get_logger().info("Recent messages backfilled with image descriptions")
-    except Exception as e:
-        get_logger().debug("Backfill failed (non-critical): %s", e)
-
-
-async def _build_pipeline(message_manager: Any, memory_system: Any, mention_translator_obj: Any, background_processor: Any) -> None:
-    from serin.d1_1_pipeline_flow.d2_1_flow_act.d3_1_act_runners.d4_2_runners_pipeline import (
-        MessagePipeline,
-    )
-    from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator import (
-        get_response_natural,
-    )
-    from serin.d1_2_gateway_io.d2_4_io_di import get_logger
-    from serin.d1_3_state_core.d2_3_model_system.d3_5_thinking_filter import (
-        get_thinking_filter,
-    )
-
-    get_logger().info("Building MessagePipeline...")
-    try:
-        pipeline = MessagePipeline.build(
-            response_controller=message_manager.response_controller,
-            memory_system=memory_system,
-            retrieval=message_manager.context_builder,
-            personality=message_manager.bot_personality,
-            temporal_context=message_manager.enhanced_context,
-            response_generator=get_response_natural,
-            thinking_filter=get_thinking_filter(),
-            mention_translator=mention_translator_obj,
-            mood_state=message_manager.personality,
-            client=client,
-            small_llm=message_manager.llm,
-            dynamics_engine=message_manager.dynamics_engine,
-        )
-        message_manager.pipeline = pipeline
-        if background_processor is not None:
-            background_processor.dynamics_engine = message_manager.dynamics_engine
-        get_logger().success("MessagePipeline built and attached!")
-    except Exception as e:
-        get_logger().error(f"Pipeline build failed: {e}")
-
-
-async def _init_voice_behavior(message_manager: Any, voice_listener: Any) -> Any:
-    from serin.d1_2_gateway_io.d2_4_io_di import get_logger
-    if not voice_listener or not message_manager or not hasattr(message_manager, 'personality'):
-        return None
-    try:
-        from serin.d1_2_gateway_io.d2_2_voice_system.d3_1_system_audio.d4_1_audio_process.d5_2_voice_behavior import (
-            VoiceBehaviorManager,
-        )
-        vbm = VoiceBehaviorManager(
-            personality=message_manager.personality,
-            voice_listener=voice_listener,
-            voice_tracker=getattr(message_manager, 'voice_tracker', None),
-        )
-        await vbm.start()
-        get_logger().success("Voice behavior manager started!")
-        return vbm
-    except Exception as e:
-        get_logger().warning(f"Voice behavior manager failed: {e}")
-        return None
-
-
-def _wire_voice_action_callback(message_manager: Any, voice_listener: Any) -> None:
-    from serin.d1_2_gateway_io.d2_4_io_di import get_logger
-    if not voice_listener or not message_manager or not hasattr(message_manager, 'voice_action_callback'):
-        return
-
-    async def _find_active_channel(guild_id: int) -> int | None:
-        guild = client.get_guild(guild_id)
-        if not guild:
-            return None
-        for ch in guild.voice_channels:
-            if any(not m.bot for m in ch.members):
-                return ch.id
-        return None
-
-    async def _handle_voice_action(decision: dict[str, Any], user_id: str, guild_id: int) -> dict[str, Any]:
-        action = decision.get('action')
-        result: dict[str, Any] = {'executed': False, 'message': ''}
-        if action == 'join' and voice_listener:
-            channel_id: int | None = None
-            tracker = getattr(message_manager, 'voice_tracker', None)
-            if tracker and tracker.is_in_voice(user_id):
-                info = tracker.get_voice_info(user_id)
-                if info:
-                    channel_id = int(info['channel_id'])
-            if channel_id is None:
-                channel_id = await _find_active_channel(guild_id)
-            if channel_id is not None:
-                success = await voice_listener.join_channel(guild_id, channel_id)
-                if success:
-                    vbm = bot_state.get('voice_behavior_manager')
-                    if vbm:
-                        vbm._vc_join_time[guild_id] = datetime.now()
-                        vbm._voice_session_guilds.add(guild_id)
-                        vbm.stats['auto_joins'] += 1
-                        vbm._pending_joins.pop(guild_id, None)
-                result = {'executed': True, 'message': 'joined'}
-            if not result['executed']:
-                result = {'executed': False, 'message': 'no_active_channel'}
-        elif action == 'leave' and voice_listener:
-            await voice_listener.leave_channel(guild_id)
-            vbm = bot_state.get('voice_behavior_manager')
-            if vbm:
-                vbm.stats['auto_leaves'] += 1
-            result = {'executed': True, 'message': 'left'}
-        return result
-    message_manager.voice_action_callback = _handle_voice_action
-    get_logger().success("Voice action callback wired")
-
-
-def _wire_pipeline_refs(voice_pipeline: Any, message_manager: Any, background_processor: Any) -> None:
-    if voice_pipeline is not None:
-        voice_pipeline.message_manager = message_manager
-        voice_pipeline.bg_processor = background_processor
-
-
-async def _init_control_panel(message_manager: Any, memory_system: Any, voice_listener: Any, tts_engine: Any, voice_manager: Any, voice_behavior_manager: Any) -> None:
-    from serin.d1_2_gateway_io.d2_4_io_di import get_logger
-    from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server import (
-        broadcast_event,
-    )
-
-    init_bot_state(
-        discord_client=client,
-        message_manager=message_manager,
-        background_processor=background_processor,
-        passive_monitor=passive_monitor,
-        message_crawler=message_crawler,
-        memory_system=memory_system,
-        voice_listener=voice_listener,
-        tts_engine=tts_engine,
-        voice_manager=voice_manager if config.ENABLE_TTS else None,
-    )
-    bot_state['voice_behavior_manager'] = voice_behavior_manager
-
-    if message_manager and hasattr(message_manager, 'response_controller'):
-        message_manager.response_controller.set_broadcaster(broadcast_event)
-        get_logger().success("Decision broadcaster connected")
-
-    try:
-        asyncio.create_task(start_server(port=config.CONTROL_PANEL_PORT))
-        get_logger().success(f"Control panel: http://127.0.0.1:{config.CONTROL_PANEL_PORT}")
-    except Exception as e:
-        get_logger().error(f"Control panel failed: {e}")
-
-
-def _update_bot_state(memory_system: Any, background_processor: Any, passive_monitor: Any, message_crawler: Any, voice_listener: Any, tts_engine: Any, voice_manager: Any, voice_behavior_manager: Any) -> None:
-    import time as _time
-    bot_state.update({
-        "discord_client": client,
-        "message_manager": message_manager,
-        "memory_system": memory_system,
-        "background_processor": background_processor,
-        "passive_monitor": passive_monitor,
-        "message_crawler": message_crawler,
-        "voice_listener": voice_listener if config.ENABLE_VOICE else None,
-        "tts_engine": tts_engine if config.ENABLE_TTS else None,
-        "voice_manager": voice_manager if config.ENABLE_TTS else None,
-        "voice_behavior_manager": voice_behavior_manager if config.ENABLE_VOICE else None,
-        "start_time": _time.time(),
-    })
-
-
+# --- Core ---
 @client.event
 async def on_ready() -> None:
     """Bot connected to Discord — initialize all subsystems."""
-    global message_manager, background_processor, passive_monitor, message_crawler
-    global voice_listener, audio_processor, voice_pipeline, tts_engine
-    global voice_behavior_manager, voice_output_manager, voice_manager
-
-    mention_translator_obj, voice_available = await _init_mention_translator()
-    memory_system = await _init_database_and_memory()
-    background_processor, passive_monitor, message_crawler = await _init_background_processors(memory_system, mention_translator_obj)
-    voice_listener, audio_processor, voice_pipeline, tts_engine, voice_output_manager, voice_manager = await _init_voice_system(memory_system, mention_translator_obj, voice_available)
-    message_manager = await _init_message_manager(mention_translator_obj, memory_system, voice_pipeline, voice_output_manager)
-
-    asyncio.create_task(_backfill_recent_images())
-    try:
-        await asyncio.to_thread(db_protector.create_backup, "startup", True)
-    except Exception as e:
-        get_logger().warning(f"Startup backup failed: {e}")
-
-    await _build_pipeline(message_manager, memory_system, mention_translator_obj, background_processor)
-    voice_behavior_manager_local = await _init_voice_behavior(message_manager, voice_listener)
-    _wire_voice_action_callback(message_manager, voice_listener)
-    _wire_pipeline_refs(voice_pipeline, message_manager, background_processor)
-    await _init_control_panel(message_manager, memory_system, voice_listener, tts_engine, voice_manager, voice_behavior_manager_local)
-    voice_behavior_manager = voice_behavior_manager_local
-    _update_bot_state(memory_system, background_processor, passive_monitor, message_crawler, voice_listener, tts_engine, voice_manager, voice_behavior_manager)
-
-    get_logger().success("=" * 60)
-    get_logger().success(f"Serin fully initialized — listening on {len(client.guilds)} guild(s)")
-    get_logger().success("Press Ctrl+C to stop")
-    get_logger().success("=" * 60)
+    global _initializer, message_manager, voice_behavior_manager, voice_listener
+    _initializer = PipelineInitializer(client, bot_state)
+    await _initializer.initialize()
+    message_manager = _initializer.message_manager
+    voice_behavior_manager = _initializer.voice_behavior_manager
+    voice_listener = _initializer.voice_listener
 
 
 @client.event
@@ -542,8 +104,8 @@ async def on_message(message: discord.Message) -> None:
             )
 
         # === PASSIVE MONITORING (ALL CHANNELS) ===
-        if passive_monitor:
-            await passive_monitor.process_message(message, is_allowed_channel)
+        if _initializer and _initializer.passive_monitor:
+            await _initializer.passive_monitor.process_message(message, is_allowed_channel)
 
         if is_allowed_channel:
             stats['messages_processed'] += 1
@@ -552,31 +114,39 @@ async def on_message(message: discord.Message) -> None:
             return
 
         # === HANDLE COMMANDS ===
-        if await handle_profile_command(message, message_manager, stats):
-            return
-        if await handle_stats_command(message, message_manager, background_processor, passive_monitor, message_crawler, stats):
-            return
+        if _initializer and _initializer.message_manager:
+            if await handle_profile_command(message, _initializer.message_manager, stats):
+                return
+            if await handle_stats_command(message, _initializer.message_manager, _initializer.background_processor, _initializer.passive_monitor, _initializer.message_crawler, stats):
+                return
         if await handle_help_command(message, stats):
             return
 
         # === PROCESS REGULAR MESSAGE ===
         get_logger().debug(f"Processing message from {message.author.display_name}")
 
-        if message_manager is None:
+        if _initializer is None or _initializer.message_manager is None:
             get_logger().error("MessageManager not initialized!")
             stats['errors'] += 1
             return
 
         # Pass to message manager for response generation
-        await message_manager.process_message(message)
+        await _initializer.message_manager.process_message(message)
 
     except Exception as e:
         stats['errors'] += 1
         get_logger().exception(f"Error in on_message: {e}")
 
+# --- Helpers ---
+# (none)
+
+# --- Errors ---
+# (none)
+
 
 if __name__ == "__main__":
     try:
+        import asyncio
         asyncio.run(main())
     except KeyboardInterrupt:
         get_logger().info("Received shutdown signal")

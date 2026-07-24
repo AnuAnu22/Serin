@@ -6,11 +6,11 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_1_state_access import (
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_1_state_access import (
     get_gpu_vram_usage,
     make_json_safe,
 )
-from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state import (
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_2_server_state import (
     _get_current_stats,
     get_system_health,
 )

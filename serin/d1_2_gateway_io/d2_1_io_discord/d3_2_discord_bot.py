@@ -55,7 +55,9 @@ from serin.d1_3_state_core.d2_1_db_protect import (
     get_database_protector,
 )
 from serin.d1_4_config_base.d2_1_base_config import config
-from serin.d1_5_ops_tooling.d2_2_tooling_background import BackgroundProcessor
+from serin.d1_5_ops_tooling.d2_2_tooling_background.d5_1_tooling_background import (
+    BackgroundProcessor,
+)
 from serin.d1_5_ops_tooling.d2_4_passive_monitor import PassiveMonitor
 
 # Voice components — may not be available

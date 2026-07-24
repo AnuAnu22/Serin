@@ -12,7 +12,7 @@ from serin.d1_2_gateway_io.d2_2_voice_system.d3_2_bridge_io.d4_1_io_bridge impor
 from serin.d1_2_gateway_io.d2_4_io_di import get_logger
 
 if TYPE_CHECKING:
-    from serin.d1_2_gateway_io.d2_2_voice_system.d3_2_bridge_io.d4_4_process_watch import (
+    from serin.d1_2_gateway_io.d2_2_voice_system.d3_2_bridge_io.d4_4_process_watch.d5_1_process_watch import (
         RustVoiceBridge,
     )
 

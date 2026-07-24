@@ -6,7 +6,7 @@ from fastapi import FastAPI
 
 from serin.d1_4_config_base.d2_1_base_config import config
 from serin.d1_4_config_base.d2_3_logger import logger
-from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_1_state_access import (
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_1_state_access import (
     SettingsUpdate,
     bot_state,
     make_json_safe,
