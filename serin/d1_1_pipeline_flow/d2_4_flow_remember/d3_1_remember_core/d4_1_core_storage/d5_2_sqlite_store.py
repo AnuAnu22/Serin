@@ -177,6 +177,11 @@ Extracted from store.py.
 """
 
 
+def _sanitize_unicode(text: str) -> str:
+    """Remove surrogate pairs that cause garbled display in SQLite/JSON."""
+    return text.encode('utf-16', errors='surrogatepass').decode('utf-16', errors='replace')
+
+
 def store_recent_message(
     store: QdrantMemorySystem,
     user_id: str,
@@ -190,6 +195,8 @@ def store_recent_message(
     cursor: sqlite3.Cursor = store.conn.cursor()
     try:
         ts = timestamp or datetime.now()
+        username = _sanitize_unicode(username)
+        content = _sanitize_unicode(content)
 
         cursor.execute("""
             INSERT INTO recent_messages (message_id, user_id, username, channel_id, content, timestamp)

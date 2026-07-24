@@ -225,7 +225,20 @@ class PromptAssemblyStage(PipelineStage):
         collapsed = self._collapse_duplicates(filtered_messages)
         collapsed = collapsed[-10:]
 
-        messages.extend(collapsed)
+        # Map raw DB dicts to standard chat format
+        for msg in collapsed:
+            author_id = msg.get("author_id", msg.get("user_id", ""))
+            role = "assistant" if str(author_id) == bot_id else "user"
+            content = msg.get("content", "")
+            if not content:
+                continue
+            messages.append({"role": role, "content": content})
+
+        logger.debug(
+            "Built %d messages: %d history (latest: %s)",
+            len(messages), len(collapsed),
+            collapsed[-1].get("content", "")[:50] if collapsed else "NONE",
+        )
         return messages
 
 # --- Helpers ---
