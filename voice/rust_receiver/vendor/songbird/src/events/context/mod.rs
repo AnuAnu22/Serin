@@ -3,7 +3,7 @@ pub(crate) mod internal_data;
 
 use super::*;
 use crate::{
-    model::payload::{ClientDisconnect, Speaking},
+    model::payload::{ClientConnect, ClientDisconnect, Speaking},
     tracks::{TrackHandle, TrackState},
 };
 pub use data as context_data;
@@ -44,6 +44,9 @@ pub enum EventContext<'a> {
     /// Telemetry/statistics packet, received from another stream.
     RtcpPacket(RtcpData),
 
+    /// Fired whenever a client connects (provides SSRC→user_id mapping).
+    ClientConnect(ClientConnect),
+
     /// Fired whenever a client disconnects.
     ClientDisconnect(ClientDisconnect),
 
@@ -66,6 +69,7 @@ pub enum CoreContext {
     RtpPacket(InternalRtpPacket),
     #[cfg(feature = "receive")]
     RtcpPacket(InternalRtcpPacket),
+    ClientConnect(ClientConnect),
     ClientDisconnect(ClientDisconnect),
     DriverConnect(InternalConnect),
     DriverReconnect(InternalConnect),
@@ -82,6 +86,7 @@ impl<'a> CoreContext {
             Self::RtpPacket(evt) => EventContext::RtpPacket(RtpData::from(evt)),
             #[cfg(feature = "receive")]
             Self::RtcpPacket(evt) => EventContext::RtcpPacket(RtcpData::from(evt)),
+            Self::ClientConnect(evt) => EventContext::ClientConnect(*evt),
             Self::ClientDisconnect(evt) => EventContext::ClientDisconnect(*evt),
             Self::DriverConnect(evt) => EventContext::DriverConnect(ConnectData::from(evt)),
             Self::DriverReconnect(evt) => EventContext::DriverReconnect(ConnectData::from(evt)),
@@ -104,6 +109,7 @@ impl EventContext<'_> {
             Self::RtpPacket(_) => Some(CoreEvent::RtpPacket),
             #[cfg(feature = "receive")]
             Self::RtcpPacket(_) => Some(CoreEvent::RtcpPacket),
+            Self::ClientConnect(_) => Some(CoreEvent::ClientConnect),
             Self::ClientDisconnect(_) => Some(CoreEvent::ClientDisconnect),
             Self::DriverConnect(_) => Some(CoreEvent::DriverConnect),
             Self::DriverReconnect(_) => Some(CoreEvent::DriverReconnect),

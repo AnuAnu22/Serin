@@ -268,7 +268,14 @@ impl AuxNetwork {
                 )));
             },
             GatewayEvent::ClientConnect(ev) => {
-                debug!("Received discontinued ClientConnect: {:?}", ev);
+                #[cfg(feature = "receive")]
+                {
+                    self.ssrc_signalling.user_ssrc_map.insert(ev.user_id, ev.audio_ssrc);
+                    self.ssrc_signalling.ssrc_user_map.insert(ev.audio_ssrc, ev.user_id);
+                }
+                drop(interconnect.events.send(EventMessage::FireCoreEvent(
+                    CoreContext::ClientConnect(ev),
+                )));
             },
             GatewayEvent::ClientDisconnect(ev) => {
                 #[cfg(feature = "receive")]

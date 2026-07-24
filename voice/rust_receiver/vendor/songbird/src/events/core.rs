@@ -63,6 +63,9 @@ pub enum CoreEvent {
     /// such as latency reports.
     RtcpPacket,
 
+    /// Fires when a new user connects their audio stream, providing SSRC→user_id mapping.
+    ClientConnect,
+
     /// Fires whenever a user disconnects from the same stream as the bot.
     ClientDisconnect,
 
