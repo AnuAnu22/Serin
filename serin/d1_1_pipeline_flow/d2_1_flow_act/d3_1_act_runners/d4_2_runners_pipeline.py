@@ -141,6 +141,14 @@ class MessagePipeline:
                 })
                 break
 
+        # Always run MemoryWriteStage even if pipeline halted (facts must be extracted)
+        memory_write_stage = self.stages[-1]
+        if memory_write_stage.__class__.__name__ == "MemoryWriteStage" and ctx.halt_reason:
+            try:
+                ctx = await memory_write_stage.run(ctx)
+            except Exception as exc:
+                logger.error("memory_write.error", extra={"error": str(exc)})
+
         logger.info("pipeline.complete", extra={
             "user": ctx.username,
             "responded": bool(ctx.final_response),

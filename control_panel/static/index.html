@@ -1671,6 +1671,10 @@ async function loadPhysicsState() {
       </span>
     </div>`;
   }).join('') || '<div class="sub">No active channels</div>';
+
+  // Update Live State with raw JSON
+  const stateDiv = document.getElementById('physicsState');
+  stateDiv.innerHTML = `<pre style="font-size:12px;color:var(--text);white-space:pre-wrap">${esc(JSON.stringify(res, null, 2))}</pre>`;
 }
 
 async function loadQdrantInfo() {

@@ -79,20 +79,23 @@ class ConversationDynamicsEngine:
         forcing = 1.0 if dt < 5.0 else 0.0
         ch["phase"] = (ch["phase"] + omega * dt + forcing * 0.5) % (2 * math.pi)
 
-        decay_rate = 0.02
-        ch["momentum"] = ch["momentum"] * math.exp(-decay_rate * dt)
+        # ── Highly responsive momentum calculation ──────────────────────
+        # Direct boost on ANY message arrival
+        boost = 0.35
 
-        if dt > 0:
-            recent_times = ch["message_times"][-10:]
-            if len(recent_times) >= 3:
-                intervals = [recent_times[i + 1] - recent_times[i]
-                             for i in range(len(recent_times) - 1)]
-                mean_interval = sum(intervals) / len(intervals)
-                if mean_interval > 0:
-                    variance = sum((x - mean_interval) ** 2 for x in intervals) / len(intervals)
-                    cv = math.sqrt(variance) / mean_interval
-                    sync_boost = max(0, 1.0 - cv) * 0.3
-                    ch["momentum"] = min(1.0, ch["momentum"] + sync_boost)
+        # Extra boost for quick back-and-forth (dt < 10 seconds)
+        if dt > 0 and dt < 10.0:
+            boost = 0.55
+        elif dt == 0:  # First message or very rapid burst
+            boost = 0.50
+
+        ch["momentum"] = min(1.0, ch["momentum"] + boost)
+
+        # Decay ONLY applies after a period of silence (> 20 seconds)
+        # This keeps momentum high during an active conversation
+        if dt > 20.0:
+            decay = (dt - 20.0) * 0.015
+            ch["momentum"] = max(0.0, ch["momentum"] - decay)
 
         words = [w for w in content.lower().split() if len(w) > 2]
         if words and ch["total_words"] > 10:

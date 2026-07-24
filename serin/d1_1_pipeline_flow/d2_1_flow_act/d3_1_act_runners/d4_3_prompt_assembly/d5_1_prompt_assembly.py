@@ -225,6 +225,7 @@ class PromptAssemblyStage(PipelineStage):
         collapsed = self._collapse_duplicates(filtered_messages)
         collapsed = collapsed[-10:]
 
+        messages.extend(collapsed)
         return messages
 
 # --- Helpers ---
@@ -255,6 +256,22 @@ class PromptAssemblyStage(PipelineStage):
             ctx.channel_id, ctx.user_id,
             len(memory_text), len(rel_context), len(belief_context),
         )
+        try:
+            from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_6_routes.d5_3_debug_routes.d6_2_debug_routes import (
+                store_prompt_debug,
+            )
+            store_prompt_debug({
+                "user": str(ctx.user_id) if ctx.user_id else "",
+                "channel": str(ctx.channel_id) if ctx.channel_id else "",
+                "system_prompt": (ctx.system_prompt[:2000] if ctx.system_prompt else ""),
+                "memories": memory_text[:1000] if memory_text else "",
+                "relationship": rel_context[:500] if rel_context else "",
+                "beliefs": belief_context[:500] if belief_context else "",
+                "user_message": (ctx.raw_content[:500] if ctx.raw_content else ""),
+                "full_prompt": (str(ctx.built_messages)[:3000] if ctx.built_messages else ""),
+            })
+        except Exception as e:
+            logger.debug("Failed to store prompt debug: %s", e)
 
 # --- Errors ---
 # (none)

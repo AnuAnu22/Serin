@@ -125,7 +125,6 @@ def init_sqlite_schema(conn: sqlite3.Connection, cursor: sqlite3.Cursor) -> None
     """)
 
     # Fact Store — Bayesian belief dynamics schema
-    cursor.execute("DROP TABLE IF EXISTS facts")
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS facts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
