@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
+
+from serin.d1_3_state_core.d2_5_core_logger import logger
 
 from .d5_1_perception_board import derive_from_board
 from .d5_5_perception_result import (
@@ -36,6 +39,8 @@ def perceive_message(self: Any, content: str, user_id: str, username: str) -> Pe
     information so the memory system stores *what the message contains*
     rather than just *the text itself*.
     """
+    from serin.d1_3_state_core.d2_5_core_logger import logger
+    logger.info("PERCEIVE CALLED: content=%s user=%s", content[:80], username)
     content_lower = content.lower()
     result = PerceptionResult(speech_act='statement', is_objective=False)
 
@@ -226,10 +231,125 @@ def perceive_message(self: Any, content: str, user_id: str, username: str) -> Pe
     elif result.speech_act in ('agreement', 'statement'):
         result.intent = 'social'
 
-    # ── 9. Determine objectivity ──────────────────────────────────────
+    logger.info("FACTS EXTRACTED: %d facts from '%s'", len(result.extracted_facts), content[:60])
+
+    # ── 11. Determine objectivity ──────────────────────────────────────
     if result.evidence_blocks:
         result.is_objective = True
     elif result.claims:
         result.is_objective = False
 
     return result
+
+
+async def extract_facts_from_message(
+    content: str,
+    username: str,
+    user_id: str,
+    llm_connector: Any,
+) -> list[dict[str, Any]]:
+    """Inline LLM-based fact extraction. Uses SMALL/FAST model, not the main model.
+
+    Replaces regex-based conversational pattern matching with LLM extraction.
+    """
+    if not content or len(content.strip()) < 5:
+        return []
+
+    prompt = f"""Extract factual claims from this Discord message.
+Message from {username}: "{content}"
+
+Return a JSON array. Each item:
+{{"subject_username": "who it's about",
+  "claim": "the fact in simple words",
+  "category": "preference|identity|profession|location|event|opinion|relationship",
+  "confidence": 0.0-1.0,
+  "source_type": "self|other|reported|inferred"}}
+
+Rules:
+- "I love pizza" → subject: "{username}", source_type: "self", confidence: 0.75
+- "Rin loves chicken" → subject: "Rin", source_type: "other", confidence: 0.45
+- "Rin said he loves chicken" → subject: "Rin", source_type: "reported", confidence: 0.35
+- "I hate Mondays" → confidence: 0.75
+- Questions/greetings/reactions/small talk → return empty array []
+- Be conservative. If in doubt, don't extract.
+
+Return ONLY a valid JSON array. No markdown. No explanation."""
+
+    try:
+        response = await llm_connector.chat_completion(
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+            max_tokens=500,
+        )
+        text = re.sub(r'^```(?:json)?\s*', '', response.strip())
+        text = re.sub(r'\s*```$', '', text)
+        facts: Any = json.loads(text)
+        return facts if isinstance(facts, list) else []
+    except Exception as e:
+        logger.exception("LLM fact extraction failed: %s", e)
+        return []
+
+
+async def detect_contradictions(
+    content: str,
+    username: str,
+    user_id: str,
+    memory_system: Any,
+    llm_connector: Any,
+) -> list[int]:
+    """Detect if this message contradicts known facts about the user.
+
+    Uses the SMALL/FAST model. Returns list of fact_ids that are contradicted.
+    """
+    from serin.d1_3_state_core.d2_2_core_memory.d3_3_belief_dynamics import (
+        BayesianBeliefEngine,
+    )
+    engine: BayesianBeliefEngine | None = getattr(memory_system, "belief_engine", None)
+    if engine is None:
+        return []
+
+    facts = engine.get_facts_for_user(user_id, limit=10)
+    if not facts:
+        return []
+
+    fact_list = "\n".join(
+        f"{i+1}. {f['claim']} (confidence: {f['belief']:.2f})"
+        for i, f in enumerate(facts)
+    )
+
+    prompt = f"""Does this message from {username} CONTRADICT any of these
+known facts about them?
+
+Message: "{content}"
+
+Known facts:
+{fact_list}
+
+Reply with a JSON array of fact NUMBERS (1-indexed) that are
+directly contradicted. If no contradiction, return empty array [].
+Be strict — only flag genuine contradictions, not updates or
+elaborations. Example:
+- Known: "loves pizza", Message: "I hate pizza" → [1]
+- Known: "lives in Tokyo", Message: "I moved to Osaka" → [1]
+- Known: "loves pizza", Message: "I had sushi today" → []
+
+Reply ONLY with JSON array. No explanation."""
+
+    try:
+        response = await llm_connector.chat_completion(
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0,
+            max_tokens=100,
+        )
+        text = re.sub(r'[^\[\d,\s\-\]]', '', response.strip())
+        nums: Any = json.loads(text)
+        if not isinstance(nums, list):
+            return []
+        result_ids: list[int] = []
+        for n in nums:
+            if isinstance(n, int) and 1 <= n <= len(facts):
+                result_ids.append(facts[n - 1]["_fact_id"])
+        return result_ids
+    except Exception as e:
+        logger.exception("Contradiction detection failed: %s", e)
+        return []

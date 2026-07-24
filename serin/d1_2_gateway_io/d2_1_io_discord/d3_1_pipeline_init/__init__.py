@@ -271,6 +271,79 @@ async def on_ready() -> None:
         message_manager.voice_pipeline = voice_pipeline
     get_logger().success("Message manager ready!")
 
+    # ── Backfill recent messages with image descriptions ────────────────
+    async def _backfill_recent_images() -> None:
+        """On startup, fetch last 15 messages per monitored channel.
+        Store in SQLite with placeholders. Fire background vision for any images.
+        Uses semaphore to limit parallel vision calls and avoid 429 errors."""
+        await asyncio.sleep(2)  # let systems settle
+
+        vision_semaphore = asyncio.Semaphore(2)  # max 2 parallel vision calls
+
+        async def _describe_with_semaphore(msg: Any, image_data_url: str, filename: str) -> None:
+            async with vision_semaphore:
+                await message_manager._describe_image_background(msg, image_data_url, filename)
+                await asyncio.sleep(0.5)  # small delay between calls
+
+        try:
+            for guild in client.guilds:
+                for channel in guild.text_channels:
+                    if not channel.permissions_for(guild.me).read_message_history:
+                        continue
+                    try:
+                        async for msg in channel.history(limit=15):
+                            if msg.author.bot:
+                                continue
+
+                            # Check for images
+                            has_image = any(
+                                a.content_type and a.content_type.startswith("image/")
+                                for a in msg.attachments
+                            )
+                            if has_image:
+                                # Store with placeholder, fire background description
+                                placeholder = f"{msg.content} [Image: an image]" if msg.content else "[Image: an image]"
+                                message_manager.memory.store_recent_message(
+                                    user_id=str(msg.author.id),
+                                    username=msg.author.display_name,
+                                    channel_id=str(channel.id),
+                                    content=placeholder,
+                                    message_id=str(msg.id),
+                                    timestamp=msg.created_at,
+                                )
+                                # Fire background vision for each image (rate-limited)
+                                for att in msg.attachments:
+                                    if att.content_type and att.content_type.startswith("image/"):
+                                        try:
+                                            import base64
+                                            image_bytes = await att.read()
+                                            if image_bytes:
+                                                mime = att.content_type or "image/jpeg"
+                                                b64 = base64.b64encode(image_bytes).decode("utf-8")
+                                                image_data_url = f"data:{mime};base64,{b64}"
+                                                asyncio.create_task(
+                                                    _describe_with_semaphore(msg, image_data_url, att.filename)
+                                                )
+                                        except Exception:
+                                            pass
+                            else:
+                                # No image, store as-is
+                                message_manager.memory.store_recent_message(
+                                    user_id=str(msg.author.id),
+                                    username=msg.author.display_name,
+                                    channel_id=str(channel.id),
+                                    content=msg.content,
+                                    message_id=str(msg.id),
+                                    timestamp=msg.created_at,
+                                )
+                    except Exception:
+                        pass
+            get_logger().info("Recent messages backfilled with image descriptions")
+        except Exception as e:
+            get_logger().debug("Backfill failed (non-critical): %s", e)
+
+    asyncio.create_task(_backfill_recent_images())
+
     # ── Startup backup ────────────────────────────────────────────────────
     try:
         await asyncio.to_thread(db_protector.create_backup, "startup", True)
@@ -297,6 +370,9 @@ async def on_ready() -> None:
             response_generator=get_response_natural,
             thinking_filter=get_thinking_filter(),
             mention_translator=mention_translator,
+            mood_state=message_manager.personality,
+            client=client,
+            small_llm=message_manager.llm,
         )
         message_manager.pipeline = pipeline
         get_logger().success("MessagePipeline built and attached!")
@@ -393,6 +469,22 @@ async def on_ready() -> None:
         get_logger().success(f"Control panel: http://127.0.0.1:{config.CONTROL_PANEL_PORT}")
     except Exception as e:
         get_logger().error(f"Control panel failed: {e}")
+
+    import time as _time
+
+    bot_state.update({
+        "discord_client": client,
+        "message_manager": message_manager,
+        "memory_system": memory_system,
+        "background_processor": background_processor,
+        "passive_monitor": passive_monitor,
+        "message_crawler": message_crawler,
+        "voice_listener": voice_listener if config.ENABLE_VOICE else None,
+        "tts_engine": tts_engine if config.ENABLE_TTS else None,
+        "voice_manager": voice_manager if config.ENABLE_TTS else None,
+        "voice_behavior_manager": voice_behavior_manager if config.ENABLE_VOICE else None,
+        "start_time": _time.time(),
+    })
 
     # ── Done ──────────────────────────────────────────────────────────────
     get_logger().success("=" * 60)

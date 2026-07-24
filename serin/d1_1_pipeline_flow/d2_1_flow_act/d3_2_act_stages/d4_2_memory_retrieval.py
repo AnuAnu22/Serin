@@ -52,6 +52,7 @@ class MemoryRetrievalStage(PipelineStage):
         ctx.user_profile = self.memory.get_user_profile(ctx.user_id) or {}
 
         # Build context from conversation context builder
+        # Uses SQLite recent_messages which now includes image descriptions
         if hasattr(self.retrieval, "build_context"):
             user_messages_for_ctx = [{"user_id": ctx.user_id, "user_name": ctx.username, "content": ctx.raw_content}]
             context_data = self.retrieval.build_context(

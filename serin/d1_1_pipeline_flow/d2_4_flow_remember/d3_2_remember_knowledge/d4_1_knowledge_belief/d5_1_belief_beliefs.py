@@ -207,6 +207,58 @@ class BeliefStore:
                 'claim_count': claim_count,
             })
 
+        # ── General conversation beliefs ───────────────────────────────
+        preference_facts = [
+            f for f in fact_rows
+            if f['category'] in ('preference', 'dispreference', 'identity', 'profession', 'location')
+        ]
+        for pf in preference_facts:
+            supporting_ids = [pf['id']]
+            contradicting_ids = []
+            claim_count = 0
+
+            evidence_conf = pf['confidence']
+            total = len(supporting_ids) + claim_count
+            evidence_ratio = len(supporting_ids) / max(total, 1)
+            belief_conf = 0.3 + 0.7 * evidence_ratio
+
+            state = 'SUPPORTED' if claim_count == 0 else 'CONTESTED'
+            belief_content = pf['content']
+            content_lower = pf['content'].lower()
+            if pf['category'] == 'preference':
+                for prefix in ['i really like ', 'i like ', 'i love ', 'i adore ']:
+                    if content_lower.startswith(prefix):
+                        belief_content = f"{pf['source_username']} likes {content_lower[len(prefix):]}"
+                        break
+            elif pf['category'] == 'dispreference':
+                for prefix in ['i hate ', 'i dislike ', "i can't stand ", 'i cant stand ']:
+                    if content_lower.startswith(prefix):
+                        belief_content = f"{pf['source_username']} dislikes {content_lower[len(prefix):]}"
+                        break
+            elif pf['category'] == 'identity':
+                belief_content = pf['content']
+            elif pf['category'] == 'profession':
+                for prefix in ['i work as a ', 'i work at ', 'i work for ']:
+                    if content_lower.startswith(prefix):
+                        belief_content = f"{pf['source_username']} works as {content_lower[len(prefix):]}"
+                        break
+            elif pf['category'] == 'location':
+                for prefix in ['i live in ']:
+                    if content_lower.startswith(prefix):
+                        belief_content = f"{pf['source_username']} lives in {content_lower[len(prefix):]}"
+                        break
+
+            beliefs.append({
+                'content': belief_content,
+                'state': state,
+                'confidence': belief_conf,
+                'category': f'user_{pf["category"]}',
+                'supporting_fact_ids': supporting_ids,
+                'contradicting_fact_ids': contradicting_ids,
+                'evidence_count': len(supporting_ids),
+                'claim_count': claim_count,
+            })
+
         return beliefs
 
     # ── Retrieval ───────────────────────────────────────────────────────────

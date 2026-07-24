@@ -145,16 +145,12 @@ async def process_message(self: Any, message: discord.Message) -> None:
                 return
 
         # TIER 6: Visual Memory Processing
+        # Always process image attachments for LLM vision, even without visual_memory
         main_llm_has_vision = config.LLM_SUPPORTS_VISION
-        if message.attachments and self.visual_memory:
+        if message.attachments:
             for attachment in message.attachments:
                 if attachment.content_type and attachment.content_type.startswith("image/"):
                     logger.info("Processing image from %s...", user_name)
-                    matches = self.visual_memory.recall_image(attachment.url)
-                    if matches:
-                        top_match = matches[0]
-                        visual_context = f"\n[Visual Memory: I recognize this image! It looks like what {top_match['username']} posted on {top_match['timestamp'][:10]}. Context: '{top_match['context']}']"
-                        logger.info("Visual recognition: %s", visual_context)
 
                     image_data_url = None
                     image_bytes = None
@@ -168,61 +164,73 @@ async def process_message(self: Any, message: discord.Message) -> None:
                     except Exception as e:
                         logger.warning("Failed to download/encode image: %s", e)
 
-                    self.pending_visual_contexts[message.id] = image_data_url or attachment.url
+                    # Store for LLM vision (always, regardless of visual_memory)
+                    if image_data_url:
+                        self.pending_visual_contexts[message.id] = image_data_url
+                    else:
+                        self.pending_visual_contexts[message.id] = attachment.url
                     cleaned_content += " [User posted an image]"
 
-                    storage_description = ""
-                    if image_data_url and main_llm_has_vision:
-                        try:
-                            desc_prompt = [{
-                                "role": "user",
-                                "content": [
-                                    {"type": "text", "text": "Describe this image in detail for archival purposes. Include any text you can read."},
-                                    {"type": "image_url", "image_url": {"url": image_data_url}},
-                                ],
-                            }]
-                            storage_description = await self.llm.chat_completion(desc_prompt, max_tokens=300)
-                            logger.info("Generated archival description: %s...", storage_description[:100])
-                        except Exception as e:
-                            logger.warning("gemma12b vision failed for archival: %s", e)
-                            storage_description = "Image (vision model error)"
-                    elif image_data_url and self.vision_llm:
-                        try:
-                            desc_prompt = [{
-                                "role": "user",
-                                "content": [
-                                    {"type": "text", "text": "Describe this image in detail for archival purposes. Include any text you can read."},
-                                    {"type": "image_url", "image_url": {"url": image_data_url}},
-                                ],
-                            }]
-                            storage_description = await self.vision_llm.chat_completion(desc_prompt, max_tokens=300)
-                            logger.info("Generated archival description (SmolVLM): %s...", storage_description[:100])
-                        except Exception as e:
-                            logger.warning("SmolVLM not available for archival: %s", e)
-                            storage_description = "Image (vision model error)"
-                    elif image_data_url:
-                        storage_description = "Image (vision model not loaded)"
-                    else:
-                        storage_description = "Image (could not download)"
+                    # Visual memory recall + archival (only if visual_memory available)
+                    if self.visual_memory:
+                        matches = self.visual_memory.recall_image(attachment.url)
+                        if matches:
+                            top_match = matches[0]
+                            visual_context = f"\n[Visual Memory: I recognize this image! It looks like what {top_match['username']} posted on {top_match['timestamp'][:10]}. Context: '{top_match['context']}']"
+                            logger.info("Visual recognition: %s", visual_context)
 
-                    storage_context = f"{cleaned_content}\n[Image Content: {storage_description}]"
-                    if image_bytes:
-                        self.visual_memory.store_image_from_bytes(
-                            image_bytes=image_bytes,
-                            image_url=attachment.url,
-                            user_id=user_id,
-                            username=user_name,
-                            channel_id=channel_id,
-                            context_text=storage_context,
-                        )
-                    else:
-                        self.visual_memory.store_image_memory(
-                            image_url=attachment.url,
-                            user_id=user_id,
-                            username=user_name,
-                            channel_id=channel_id,
-                            context_text=storage_context,
-                        )
+                        storage_description = ""
+                        if image_data_url and main_llm_has_vision:
+                            try:
+                                desc_prompt = [{
+                                    "role": "user",
+                                    "content": [
+                                        {"type": "text", "text": "Describe this image in detail for archival purposes. Include any text you can read."},
+                                        {"type": "image_url", "image_url": {"url": image_data_url}},
+                                    ],
+                                }]
+                                storage_description = await self.llm.chat_completion(desc_prompt, max_tokens=300)
+                                logger.info("Generated archival description: %s...", storage_description[:100])
+                            except Exception as e:
+                                logger.warning("gemma12b vision failed for archival: %s", e)
+                                storage_description = "Image (vision model error)"
+                        elif image_data_url and self.vision_llm:
+                            try:
+                                desc_prompt = [{
+                                    "role": "user",
+                                    "content": [
+                                        {"type": "text", "text": "Describe this image in detail for archival purposes. Include any text you can read."},
+                                        {"type": "image_url", "image_url": {"url": image_data_url}},
+                                    ],
+                                }]
+                                storage_description = await self.vision_llm.chat_completion(desc_prompt, max_tokens=300)
+                                logger.info("Generated archival description (SmolVLM): %s...", storage_description[:100])
+                            except Exception as e:
+                                logger.warning("SmolVLM not available for archival: %s", e)
+                                storage_description = "Image (vision model error)"
+                        elif image_data_url:
+                            storage_description = "Image (vision model not loaded)"
+                        else:
+                            storage_description = "Image (could not download)"
+
+                        storage_context = f"{cleaned_content}\n[Image Content: {storage_description}]"
+                        if image_bytes:
+                            self.visual_memory.store_image_from_bytes(
+                                image_bytes=image_bytes,
+                                image_url=attachment.url,
+                                user_id=user_id,
+                                username=user_name,
+                                channel_id=channel_id,
+                                context_text=storage_context,
+                            )
+                        else:
+                            self.visual_memory.store_image_memory(
+                                image_url=attachment.url,
+                                user_id=user_id,
+                                username=user_name,
+                                channel_id=channel_id,
+                                context_text=storage_context,
+                            )
 
         # Update user profile
         self.memory.upsert_user(user_id, user_name, user_name)
@@ -232,8 +240,10 @@ async def process_message(self: Any, message: discord.Message) -> None:
         emotional_tone = self._get_emotional_tone(sentiment["compound"])
         participants = list(set([str(m.author.id) for m in self.current_batch] + [user_id]))
 
+        logger.info("HAS_ADD_MEMORY_ENHANCED: %s", hasattr(self.memory, "add_memory_enhanced"))
         if hasattr(self.memory, "add_memory_enhanced"):
             # ── Perception: analyze before storage ────────────────────
+            logger.info("ABOUT_TO_PERCEIVE: content=%s", cleaned_content[:60])
             perception = self._perceive_message(
                 cleaned_content, user_id, user_name
             )
@@ -256,39 +266,22 @@ async def process_message(self: Any, message: discord.Message) -> None:
                 ],
             )
 
-            # ── Store extracted facts in FactStore ────────────────────
-            for fact in perception.extracted_facts:
-                try:
-                    self.memory.add_fact(
-                        content=fact['content'],
-                        category=fact['category'],
-                        confidence=fact['confidence'],
-                        source_message_id=str(message.id),
-                        source_user_id=user_id,
-                        source_username=user_name,
-                        source_type=fact['source_type'],
-                    )
-                except Exception as e:
-                    logger.debug("Could not store fact: %s", e)
-
-            # ── Infer beliefs from updated facts ───────────────────────
-            if perception.extracted_facts:
-                try:
-                    beliefs = self.memory.infer_beliefs_from_facts(
-                        query=cleaned_content
-                    )
-                    for belief in beliefs:
-                        self.memory.add_or_update_belief(
-                            content=belief['content'],
-                            category=belief['category'],
-                            confidence=belief['confidence'],
-                            supporting_fact_ids=belief.get('supporting_fact_ids'),
-                            contradicting_fact_ids=belief.get('contradicting_fact_ids'),
-                            evidence_count=belief.get('evidence_count', 1),
-                            claim_count=belief.get('claim_count', 0),
+            # ── Store extracted facts via Bayesian engine ────────────
+            engine = getattr(self.memory, "belief_engine", None)
+            if engine is not None:
+                for fact in perception.extracted_facts:
+                    try:
+                        engine.store_fact(
+                            subject_id=user_id,
+                            subject_name=user_name,
+                            claim=fact['content'],
+                            category=fact['category'],
+                            source=user_name,
+                            source_type=fact.get('source_type', 'user_claim'),
+                            initial_confidence=float(fact.get('confidence', 0.4)),
                         )
-                except Exception as e:
-                    logger.debug("Could not infer beliefs: %s", e)
+                    except Exception as e:
+                        logger.debug("Could not store fact via Bayesian engine: %s", e)
         else:
             raise ValueError("Memory system does not support enhanced memory addition")
 

@@ -8,7 +8,8 @@ high-confidence facts and low-confidence claims are flagged.
 """
 from __future__ import annotations
 
-from datetime import datetime
+import secrets
+from datetime import UTC, datetime
 from typing import Any
 
 from serin.d1_1_pipeline_flow.d2_1_flow_act.d3_3_stages_base import PipelineStage
@@ -34,6 +35,7 @@ def _time_label(ts_raw: str) -> str:
             return f"[{delta.days}d ago] "
         return f"[{ts_raw[:10]}] "
     except (ValueError, TypeError):
+        logger.exception("Failed to parse timestamp: %s", ts_raw)
         return f"[{ts_raw[:10]}] "
 
 
@@ -48,24 +50,222 @@ def _confidence_label(conf: float) -> str:
     return "[low confidence]"
 
 
-def _format_memories(memories: list[dict[str, Any]], max_items: int) -> list[str]:
-    """Format a list of memories with time labels, limited to max_items."""
-    sorted_mems = sorted(
-        memories,
-        key=lambda m: m.get("timestamp", ""),
-        reverse=True,
-    )
-    return [
-        f"- {_time_label(m.get('timestamp', ''))}{m['content']}"
-        for m in sorted_mems[:max_items]
-    ]
+def _fuzz_memories(memories: list[dict[str, Any]], limit: int = 8) -> str:
+    """Present memories as fuzzy human impressions, not database records.
+
+    - Recent memories (< 24h): recalled clearly
+    - Medium memories (1-7 days): recalled with slight vagueness
+    - Old memories (> 7 days): recalled as vague impressions
+    - Low confidence facts: recalled with uncertainty language
+    """
+    if not memories:
+        return ""
+
+    # Deduplicate by content hash
+    seen: set[str] = set()
+    unique: list[dict[str, Any]] = []
+    for mem in memories:
+        content = mem.get("content", "")
+        key = content.strip().lower()[:100]
+        if key not in seen and key:
+            seen.add(key)
+            unique.append(mem)
+    memories = unique
+
+    now = datetime.now(UTC)
+    lines: list[str] = []
+
+    for mem in memories[:limit]:
+        content = mem.get("content", "")
+        ts = mem.get("timestamp", "")
+        confidence = mem.get("confidence", 1.0)
+        username = mem.get("username", mem.get("user_id", "someone"))
+
+        try:
+            if isinstance(ts, str):
+                mem_time = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            else:
+                mem_time = ts
+            if mem_time.tzinfo is None:
+                mem_time = mem_time.replace(tzinfo=UTC)
+            age_hours = (now - mem_time).total_seconds() / 3600
+        except Exception:
+            logger.debug("Failed to parse memory timestamp: %s", ts)
+            age_hours = 999
+
+        if len(content) > 150:
+            content = content[:147] + "..."
+
+        if age_hours < 24:
+            lines.append(f"- {username} said: \"{content}\"")
+        elif age_hours < 168:
+            if secrets.randbelow(100) < 30:
+                lines.append(f"- {username} mentioned something about: \"{content}\"")
+            else:
+                lines.append(f"- {username} said (a few days ago): \"{content}\"")
+        else:
+            if secrets.randbelow(100) < 50:
+                words = content.split()
+                gist = " ".join(words[:8]) + "..." if len(words) > 8 else content
+                lines.append(f"- Something about {username} and: \"{gist}\" (vague memory)")
+            else:
+                lines.append(f"- {username} talked about (a while ago): \"{content}\"")
+
+        if confidence < 0.5 and secrets.randbelow(100) < 40:
+            lines[-1] += " (not sure about this)"
+
+    return "\n".join(lines)
+
+
+def _relationship_context(memory_system: Any, ctx: MessageContext) -> str:
+    """Build a natural description of how Serin feels about this user."""
+    if not memory_system or not ctx.user_id:
+        return ""
+    try:
+        bot_user_id = None
+        if ctx.message.guild and ctx.message.guild.me:
+            bot_user_id = str(ctx.message.guild.me.id)
+        else:
+            return ""
+
+        rels = memory_system.get_user_relationships(bot_user_id)
+        if not rels:
+            return ""
+
+        user_rel = None
+        for rel in rels:
+            if rel.get("other_user_id") == ctx.user_id:
+                user_rel = rel
+                break
+
+        if not user_rel:
+            return ""
+
+        strength = user_rel.get("relationship_strength", 0.0)
+        interactions = user_rel.get("interaction_count", 0)
+
+        username_rel = ctx.username
+
+        lines = []
+
+        if strength > 0.7:
+            lines.append(f"You really like {username_rel}. They're one of your favorite people to talk to.")
+        elif strength > 0.5:
+            lines.append(f"You enjoy talking to {username_rel}. You have a good rapport.")
+        elif strength > 0.3:
+            lines.append(f"You're friendly with {username_rel}.")
+        elif strength > 0.1:
+            lines.append(f"You're neutral toward {username_rel}.")
+        else:
+            lines.append(f"You don't really like {username_rel}. You're curt with them.")
+
+        if interactions > 100:
+            lines.append(f"You've talked to {username_rel} a LOT ({interactions} conversations). You know them well.")
+        elif interactions > 20:
+            lines.append(f"You've had {interactions} conversations with {username_rel}.")
+        elif interactions > 0:
+            lines.append(f"You've only talked to {username_rel} a few times ({interactions}).")
+
+        return "\n".join(lines)
+    except Exception as exc:
+        logger.debug("Failed to build relationship context: %s", exc)
+        return ""
+
+
+def _belief_evolution_context(memory_system: Any, query: str) -> str:
+    """Find beliefs that recently changed and surface them naturally."""
+    if not memory_system:
+        return ""
+    try:
+        beliefs = memory_system.get_relevant_beliefs(query=query, limit=5)
+        if not beliefs:
+            return ""
+
+        evolved = []
+        for belief in beliefs:
+            state = belief.get("state", "")
+            content = belief.get("content", "")
+            confidence = belief.get("confidence", 0.5)
+
+            if state == "CONTESTED" and confidence < 0.5:
+                evolved.append(
+                    f"You used to believe \"{content}\" but now you're not so sure. "
+                    f"You might mention this uncertainty naturally."
+                )
+            elif state == "SUPERSEDED":
+                evolved.append(
+                    f"You used to think \"{content}\" but your opinion has changed. "
+                    f"You can reference how your thinking evolved."
+                )
+            elif state == "SUPPORTED" and confidence > 0.8:
+                evolved.append(
+                    f"You strongly believe \"{content}\". "
+                    f"This is a core opinion you hold confidently."
+                )
+
+        if not evolved:
+            return ""
+        return "\n".join(evolved[:3])
+    except Exception as exc:
+        logger.debug("Failed to build belief evolution context: %s", exc)
+        return ""
+
+
+def _facts_context(memory_system: Any, user_id: str) -> str:
+    """Build a natural description of known facts about this user from the Bayesian engine."""
+    if not memory_system or not user_id:
+        return ""
+    try:
+        engine = getattr(memory_system, "belief_engine", None)
+        if engine is None:
+            return ""
+        facts = engine.get_facts_for_user(user_id, limit=5)
+        if not facts:
+            return ""
+        lines: list[str] = []
+        for f in facts:
+            label = engine.get_confidence_label(f["belief"], f["variance"])
+            state = f.get("state", "PENDING")
+            if state == "SUPERSEDED":
+                continue
+            elif state == "CONTESTED":
+                lines.append(f"- {f['claim']} ({label}, but someone disagreed)")
+            else:
+                lines.append(f"- {f['claim']} ({label})")
+        if not lines:
+            return ""
+        return "Things you know about this person:\n" + "\n".join(lines)
+    except Exception:
+        return ""
+
+
+CONTEXT_BUDGET: dict[str, int] = {
+    "facts": 200,
+    "beliefs": 100,
+    "relationship": 80,
+    "belief_evolution": 80,
+    "missed": 80,
+    "memories": 200,
+    "personality": 50,
+    "user_profile": 100,
+    "history": 500,
+}
+_TOTAL_BUDGET_CHARS: int = sum(v * 4 for v in CONTEXT_BUDGET.values())
+
+
+def _truncate_to_budget(text: str, max_tokens: int) -> str:
+    max_chars = max_tokens * 4
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars].rsplit(" ", 1)[0] + "..."
 
 
 class PromptAssemblyStage(PipelineStage):
     """Assembles the final messages array sent to the LLM."""
 
-    def __init__(self, mention_translator: Any) -> None:
+    def __init__(self, mention_translator: Any, memory_system: Any = None) -> None:
         self.mention_translator = mention_translator
+        self.memory_system = memory_system
 
     async def _run(self, ctx: MessageContext) -> MessageContext:
         # Build system prompt
@@ -116,56 +316,12 @@ class PromptAssemblyStage(PipelineStage):
         # Build typed context sections
         context_parts = []
 
-        # 0. Facts — highest priority, from FactStore with confidence surfaced
-        if ctx.facts:
-            fact_lines = []
-            # Detect conflict: high-confidence fact vs low-confidence user claim
-            high_conf_facts = [
-                f for f in ctx.facts
-                if f.get("confidence", 0) >= 0.7
-                and f.get("source_type") == "derived"
-            ]
-            low_conf_claims = [
-                f for f in ctx.facts
-                if f.get("confidence", 0) < 0.4
-                and f.get("source_type") == "user_claim"
-            ]
-
-            # Surface conflict explicitly if evidence contradicts a claim
-            if high_conf_facts and low_conf_claims:
-                for hf in high_conf_facts:
-                    for lc in low_conf_claims:
-                        if any(kw in lc.get("content", "").lower()
-                               for kw in ["win", "won", "lost", "wrong"]):
-                            fact_lines.append(
-                                f"⚠ {hf['content']} "
-                                f"{_confidence_label(hf.get('confidence', 0))} "
-                                f"but {lc.get('source_username', 'someone')} claims "
-                                f"the opposite {_confidence_label(lc.get('confidence', 0))}"
-                            )
-
-            for f in ctx.facts[:5]:
-                label = _time_label(f.get("timestamp", ""))
-                conf = f.get("confidence", 0.5)
-                conf_tag = _confidence_label(conf)
-                source_tag = f.get("source_type", "")
-                if source_tag == "evidence_extracted":
-                    tag = " [evidence]"
-                elif source_tag == "user_claim":
-                    tag = f" [{f.get('source_username', 'someone')} claims]"
-                elif source_tag == "bot_assertion":
-                    tag = " [known]"
-                elif source_tag == "derived":
-                    tag = " [derived]"
-                else:
-                    tag = ""
-                fact_lines.append(
-                    f"- {label}{f['content']} {conf_tag}{tag}"
-                )
-            if fact_lines:
-                context_parts.append(
-                    "Things I know to be true:\n" + "\n".join(fact_lines)
-                )
+        # 0. Facts — from Bayesian engine with confidence labels
+        fact_text = _facts_context(self.memory_system, str(ctx.user_id))
+        if fact_text:
+            context_parts.append(
+                _truncate_to_budget(fact_text, CONTEXT_BUDGET["facts"])
+            )
 
         # 0b. Beliefs — what I think based on weighing facts
         if ctx.beliefs:
@@ -181,53 +337,65 @@ class PromptAssemblyStage(PipelineStage):
                     f"{claim_ct} counter-claims)"
                 )
             context_parts.append(
-                "What I think:\n" + "\n".join(belief_lines)
+                _truncate_to_budget("What I think:\n" + "\n".join(belief_lines), CONTEXT_BUDGET["beliefs"])
             )
 
-        # 1. Evidence — second priority, raw evidence seen
-        if ctx.evidence_memories:
-            lines = _format_memories(ctx.evidence_memories, max_items=3)
-            context_parts.append("Evidence I've seen:\n" + "\n".join(lines))
-
-        # 2. Episodic memories — summaries of past conversations
-        if ctx.episode_memories:
-            sorted_mems = sorted(
-                ctx.episode_memories,
-                key=lambda m: m.get("timestamp", ""),
-                reverse=True,
-            )
-            summary_lines = []
-            for m in sorted_mems[:2]:
-                label = _time_label(m.get("timestamp", ""))
-                is_compressed = m.get("compressed", False)
-                msg_count = m.get("source_message_count", 0)
-                content = m.get("content", "")
-                if is_compressed and msg_count > 0:
-                    summary_lines.append(
-                        f"- {label}{content} "
-                        f"(compressed from {msg_count} messages — "
-                        "raw evidence may be more accurate)"
-                    )
-                else:
-                    summary_lines.append(f"- {label}{content}")
-            if summary_lines:
-                context_parts.append(
-                    "What I remember about this:\n" + "\n".join(summary_lines)
+        # 1. Relationship context — how Serin feels about this user
+        rel_context = _relationship_context(self.memory_system, ctx)
+        if rel_context:
+            context_parts.append(
+                _truncate_to_budget(
+                    f"Your feelings about {ctx.username}:\n{rel_context}",
+                    CONTEXT_BUDGET["relationship"]
                 )
+            )
 
-        # 3. Utterance memories — what people have said (lowest priority)
-        if ctx.utterance_memories:
-            lines = _format_memories(ctx.utterance_memories, max_items=2)
-            if context_parts:
-                context_parts.append("What people have said:\n" + "\n".join(lines))
-            else:
-                context_parts.append("Things people have said:\n" + "\n".join(lines))
+        # 2. Belief evolution — how Serin's opinions have changed
+        belief_context = _belief_evolution_context(self.memory_system, ctx.raw_content)
+        if belief_context:
+            context_parts.append(
+                _truncate_to_budget("Your evolving opinions (reference naturally if relevant):\n" + belief_context, CONTEXT_BUDGET["belief_evolution"])
+            )
 
-        # 4. Personality context
+        # 3. Missed messages — things Serin didn't notice earlier
+        try:
+            from serin.d1_1_pipeline_flow.d2_1_flow_act.d3_2_act_stages.d4_1_decision_temporal import (
+                clear_missed_messages,
+                get_missed_messages,
+            )
+            missed = get_missed_messages(ctx.channel_id)
+            if missed:
+                missed_text = "\n".join(
+                    f"- {m['username']} asked you something earlier: \"{m['content'][:100]}\" (you missed it)"
+                    for m in missed[-3:]
+                )
+                context_parts.append(
+                    _truncate_to_budget(
+                        f"Messages you missed earlier (you can bring them up naturally):\n{missed_text}",
+                        CONTEXT_BUDGET["missed"]
+                    )
+                )
+                clear_missed_messages(ctx.channel_id)
+        except Exception as exc:
+            logger.debug("Failed to add missed messages context: %s", exc)
+
+        # 4. Fuzzy memories — human-like imperfect recall
+        memory_text = _fuzz_memories(ctx.memories, limit=8)
+        if memory_text:
+            context_parts.append(
+                _truncate_to_budget(
+                    f"Things you vaguely remember from past conversations:\n{memory_text}",
+                    CONTEXT_BUDGET["memories"]
+                )
+            )
+
+        # 5. Personality context
         if ctx.personality_context:
-            context_parts.append(ctx.personality_context)
+            context_parts.append(
+                _truncate_to_budget(ctx.personality_context, CONTEXT_BUDGET["personality"])
+            )
 
-        # 5. Relationships
+        # 6. Relationships
         if ctx.relationships:
             rel_lines = []
             for rel in ctx.relationships[:3]:
@@ -238,9 +406,9 @@ class PromptAssemblyStage(PipelineStage):
                 elif strength > 0.4:
                     rel_lines.append(f"You know {other} — you've talked a few times.")
             if rel_lines:
-                context_parts.append("Relationships: " + " ".join(rel_lines))
+                context_parts.append(_truncate_to_budget("Relationships: " + " ".join(rel_lines), CONTEXT_BUDGET["relationship"]))
 
-        # 6. User profile
+        # 7. User profile
         if ctx.user_profile:
             traits = ctx.user_profile.get("personality_traits", [])[:5]
             interests = ctx.user_profile.get("interests", [])[:5]
@@ -250,7 +418,7 @@ class PromptAssemblyStage(PipelineStage):
                     profile_parts.append(f"Traits: {', '.join(traits)}")
                 if interests:
                     profile_parts.append(f"Interests: {', '.join(interests)}")
-                context_parts.append("User profile: " + "; ".join(profile_parts))
+                context_parts.append(_truncate_to_budget("User profile: " + "; ".join(profile_parts), CONTEXT_BUDGET["user_profile"]))
 
         ctx.context_block = "\n\n".join(context_parts)
 
@@ -261,18 +429,88 @@ class PromptAssemblyStage(PipelineStage):
         if ctx.context_block:
             messages.append({"role": "system", "content": ctx.context_block})
 
-        # Add recent conversation
-        for msg in ctx.recent_messages:
-            role = "user"
-            content = f"{msg.get('username', msg.get('user_name', 'unknown'))}: {msg.get('content', '')}"
-            messages.append({"role": role, "content": content})
+        # ── Filter, deduplicate, and fold conversation history ─────────
+        bot_id = ""
+        try:
+            if ctx.message and ctx.message.guild and ctx.message.guild.me:
+                bot_id = str(ctx.message.guild.me.id)
+        except Exception:
+            pass
 
-        # Add current message
-        messages.append(
-            {"role": "user", "content": f"{ctx.username}: {ctx.raw_content}"}
-        )
+        _system_patterns = [
+            "voice channel",
+            "started a call", "ended a call",
+            "pinned a message", "added a reaction",
+        ]
+
+        filtered_messages: list[dict[str, Any]] = []
+        for msg in ctx.recent_messages:
+            content = msg.get("content", "").strip()
+            if not content:
+                continue
+            if any(pat in content.lower() for pat in _system_patterns):
+                continue
+            if len(content) < 2:
+                continue
+            filtered_messages.append(msg)
+
+        # Collapse consecutive duplicates from same user
+        collapsed: list[dict[str, Any]] = []
+        for msg in filtered_messages:
+            if collapsed:
+                prev = collapsed[-1]
+                if (prev.get("user_id") == msg.get("user_id") and
+                        prev.get("content", "").strip().lower() == msg.get("content", "").strip().lower()):
+                    continue
+            collapsed.append(msg)
+
+        collapsed = collapsed[-10:]
+
+        for msg in collapsed:
+            msg_user_id = str(msg.get("user_id", ""))
+            username = msg.get("username", "unknown")
+            content = msg.get("content", "")
+            if bot_id and msg_user_id == bot_id:
+                messages.append({"role": "assistant", "content": content})
+            else:
+                messages.append({"role": "user", "content": f"{username}: {content}"})
+
+        # Add current message (with image if present)
+        current_msg: dict[str, Any] = {"role": "user", "content": f"{ctx.username}: {ctx.raw_content}"}
+
+        # Check if this message has an image attachment
+        visual_contexts = ctx.metadata.get("pending_visual_contexts", {}) if ctx.metadata else {}
+        msg_id = getattr(ctx.message, "id", None) if ctx.message else None
+        if msg_id and msg_id in visual_contexts:
+            current_msg["image_url"] = visual_contexts[msg_id]
+            logger.debug("Added image_url to prompt for message %s", msg_id)
+
+        messages.append(current_msg)
 
         ctx.built_messages = messages
+
+        try:
+            from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_11_debug_routes import (
+                store_prompt_debug,
+            )
+            full_prompt = "\n\n".join(
+                str(message.get("content", "")) for message in ctx.built_messages
+            )
+            channel = getattr(getattr(ctx, "message", None), "channel", None)
+            store_prompt_debug({
+                "user": getattr(ctx, "username", ""),
+                "channel": getattr(channel, "name", ""),
+                "system_prompt": ctx.system_prompt[:2000],
+                "memories": memory_text[:1000] if memory_text else "",
+                "relationship": rel_context[:500] if rel_context else "",
+                "beliefs": belief_context[:500] if belief_context else "",
+                "time": "",
+                "energy": ctx.tone_modifier[:200] if ctx.tone_modifier else "",
+                "user_message": getattr(ctx, "raw_content", "")[:500],
+                "full_prompt": full_prompt[:5000],
+            })
+        except Exception as exc:
+            logger.debug("Failed to store prompt debug entry: %s", exc)
 
         logger.debug("pipeline.prompt_assembled", extra={
             "user": ctx.username,

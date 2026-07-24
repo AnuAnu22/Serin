@@ -91,8 +91,12 @@ class EnhancedMessageManagerV3:
         else:
             self.memory = QdrantMemorySystem()
 
-        # Initialize LLM connector for image analysis
+        # Initialize LLM connector for image analysis + fact extraction
         self.llm = get_model_connector()
+        try:
+            self.llm.load_model()
+        except Exception:
+            logger.debug("LLM connector will load in background")
 
         # Initialize separate vision model (SmolVLM) if enabled
         self.vision_llm: Any = None
@@ -118,6 +122,10 @@ class EnhancedMessageManagerV3:
         # TIER 2: Human-like behavior
         self.response_controller = ResponseController()
         self.personality = PersonalityState()
+        try:
+            self.personality.load_from_db(self.memory.conn)
+        except Exception as exc:
+            logger.debug("Could not load personality from DB: %s", exc)
 
         # TIER 3: Advanced features
         self.conversation_analyzer = ConversationAnalyzer()
@@ -226,7 +234,63 @@ class EnhancedMessageManagerV3:
                 thinking_filter=get_thinking_filter(),
                 mention_translator=self.mention_translator,
                 mood_state=self.personality,
+                client=self.client,
+                small_llm=self.llm,
             )
+
+        # Process image attachments — store for LLM vision, fire description in background
+        image_description = ""
+        if message.attachments:
+            import base64
+            for attachment in message.attachments:
+                if attachment.content_type and attachment.content_type.startswith("image/"):
+                    logger.info("Processing image from %s...", message.author.display_name)
+                    try:
+                        image_bytes = await attachment.read()
+                        if image_bytes:
+                            mime = attachment.content_type or "image/jpeg"
+                            b64 = base64.b64encode(image_bytes).decode("utf-8")
+                            image_data_url = f"data:{mime};base64,{b64}"
+                            self.pending_visual_contexts[message.id] = image_data_url
+                            logger.info("Stored image for LLM vision (%s bytes)", len(image_bytes))
+
+                            # Fire vision description in background — don't block the response
+                            # Use semaphore to limit parallel vision calls (max 2)
+                            if not hasattr(self, '_vision_semaphore'):
+                                self._vision_semaphore = asyncio.Semaphore(2)
+
+                            async def _rate_limited_describe() -> None:
+                                async with self._vision_semaphore:
+                                    await self._describe_image_background(message, image_data_url, attachment.filename)
+                                    await asyncio.sleep(0.3)  # small delay between calls
+
+                            asyncio.create_task(_rate_limited_describe())
+                            image_description = f"an image ({attachment.filename})"  # placeholder until background completes
+                        else:
+                            self.pending_visual_contexts[message.id] = attachment.url
+                            image_description = f"an image ({attachment.filename})"
+                    except Exception as e:
+                        logger.warning("Failed to process image: %s", e)
+                        self.pending_visual_contexts[message.id] = attachment.url
+                        image_description = "an image"
+
+        # Store message in recent_messages for context
+        message_content = message.content
+        if image_description:
+            message_content = f"{message.content} [Image: {image_description}]" if message.content else f"[Image: {image_description}]"
+
+        try:
+            self.memory.store_recent_message(
+                user_id=str(message.author.id),
+                username=message.author.display_name,
+                channel_id=str(message.channel.id),
+                content=message_content,
+                message_id=str(message.id),
+                timestamp=message.created_at,
+            )
+        except Exception as e:
+            logger.debug("Failed to store recent message: %s", e)
+
         from serin.d1_3_state_core.d2_5_message_context import MessageContext
         ctx = MessageContext(
             message=message,
@@ -263,6 +327,33 @@ class EnhancedMessageManagerV3:
         if action in ("join", "leave"):
             guild_id = int(ctx.guild_id) if ctx.guild_id else 0
             await self.voice_action_callback(decision, ctx.user_id, guild_id)
+
+    async def _describe_image_background(self, message: Any, image_data_url: str, filename: str) -> None:
+        """Generate image description in background, then update SQLite record."""
+        try:
+            from typing import cast
+            vision_prompt = cast(list[dict[str, str]], [{"role": "user", "content": [
+                {"type": "text", "text": "Describe this image in 1-2 sentences. What is it? Be specific about what you see."},
+                {"type": "image_url", "image_url": {"url": image_data_url}},
+            ]}])
+            description = await self.llm.chat_completion(vision_prompt, max_tokens=100)
+            logger.info("Image description (background): %s", description[:80])
+
+            # Update the SQLite record with actual description
+            original = message.content or ""
+            updated_content = f"{original} [Image: {description}]" if original else f"[Image: {description}]"
+            try:
+                cursor = self.memory.conn.cursor()
+                cursor.execute(
+                    "UPDATE recent_messages SET content = ? WHERE message_id = ?",
+                    (updated_content, str(message.id)),
+                )
+                self.memory.conn.commit()
+            except Exception as e:
+                logger.debug("Failed to update image description in SQLite: %s", e)
+
+        except Exception as e:
+            logger.exception("Background image description failed: %s", e)
 
     def get_user_profile(self, user_id: str) -> dict[str, Any] | None:
         """Get user profile from memory"""
@@ -325,6 +416,8 @@ class EnhancedMessageManagerV3:
                     thinking_filter=get_thinking_filter(),
                     mention_translator=self.mention_translator,
                     mood_state=self.personality,
+                    client=self.client,
+                    small_llm=self.llm,
                 )
 
             ctx = MessageContext(

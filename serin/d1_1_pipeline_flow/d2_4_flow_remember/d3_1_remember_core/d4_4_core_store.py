@@ -77,6 +77,9 @@ from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_3_schema_
 )
 from serin.d1_3_state_core.d2_2_core_memory.d3_1_belief_store import BeliefStore
 from serin.d1_3_state_core.d2_2_core_memory.d3_2_evidence_store import FactStore
+from serin.d1_3_state_core.d2_2_core_memory.d3_3_belief_dynamics import (
+    BayesianBeliefEngine,
+)
 from serin.d1_3_state_core.d2_5_bm25_index import SQLiteBM25Index
 from serin.d1_3_state_core.d2_5_core_logger import logger
 
@@ -152,6 +155,7 @@ class QdrantMemorySystem:
         # Domain-logic stores (delegated to evidence.py / beliefs.py)
         self.fact_store = FactStore(self.conn)
         self.belief_store = BeliefStore(self.conn)
+        self.belief_engine = BayesianBeliefEngine(self.conn)
 
         # Setup collection if needed
         if self.qdrant_client:
@@ -368,7 +372,7 @@ class QdrantMemorySystem:
     def get_user_profile(self, user_id: str) -> dict[str, Any] | None:
         return _run_get_user_profile(self, user_id)
 
-    def get_user_relationships(self, user_id: str, min_strength: float = 0.1) -> list[dict[str, Any]]:
+    def get_user_relationships(self, user_id: str, min_strength: float = 0.0) -> list[dict[str, Any]]:
         return _run_get_user_relationships(self, user_id, min_strength)
 
     def log_activity(self, user_id: str, channel_id: str, message_length: int, sentiment: float) -> None:

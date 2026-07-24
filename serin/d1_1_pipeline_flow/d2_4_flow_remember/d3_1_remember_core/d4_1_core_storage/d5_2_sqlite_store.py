@@ -150,7 +150,7 @@ def update_relationship(store: QdrantMemorySystem, user_a_id: str, user_b_id: st
         except Exception as e:
             logger.error(f" Error updating relationship: {e}")
 
-def get_user_relationships(store: QdrantMemorySystem, user_id: str, min_strength: float = 0.1) -> list[dict[str, Any]]:
+def get_user_relationships(store: QdrantMemorySystem, user_id: str, min_strength: float = 0.0) -> list[dict[str, Any]]:
         """Get all relationships for a user"""
         cursor: sqlite3.Cursor = store.conn.cursor()
         cursor.execute("""

@@ -124,30 +124,51 @@ def init_sqlite_schema(conn: sqlite3.Connection, cursor: sqlite3.Cursor) -> None
         ON recent_messages(channel_id, timestamp DESC)
     """)
 
-    # Fact Store
+    # Fact Store — Bayesian belief dynamics schema
+    cursor.execute("DROP TABLE IF EXISTS facts")
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS facts (
-            id TEXT PRIMARY KEY,
-            content TEXT NOT NULL,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subject_id TEXT NOT NULL,
+            subject_name TEXT,
+            claim TEXT NOT NULL,
             category TEXT NOT NULL DEFAULT 'observation',
-            confidence REAL DEFAULT 0.5,
-            source_message_id TEXT,
-            source_user_id TEXT,
-            source_username TEXT DEFAULT '',
+            belief REAL DEFAULT 0.5,
+            variance REAL DEFAULT 0.25,
+            log_odds REAL DEFAULT 0.0,
+            first_observed TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_confirmed TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_challenged TIMESTAMP,
+            observation_count INTEGER DEFAULT 1,
+            corroboration_count INTEGER DEFAULT 0,
+            contradiction_count INTEGER DEFAULT 0,
+            primary_source TEXT,
             source_type TEXT DEFAULT 'user_claim',
-            timestamp TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            superseded_by TEXT,
-            is_active INTEGER DEFAULT 1
+            state TEXT DEFAULT 'PENDING',
+            is_active INTEGER DEFAULT 1,
+            claim_hash TEXT UNIQUE
         )
     """)
     cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_facts_category
-        ON facts(category, is_active)
+        CREATE INDEX IF NOT EXISTS idx_facts_subject
+        ON facts(subject_id, is_active)
     """)
     cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_facts_active
-        ON facts(is_active, confidence DESC)
+        CREATE INDEX IF NOT EXISTS idx_facts_state
+        ON facts(state, is_active)
+    """)
+
+    # Fact Observations Log
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS fact_observations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fact_id INTEGER,
+            observer_id TEXT,
+            observation_type TEXT,
+            source_type TEXT,
+            weight REAL,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
     """)
 
     # Belief Store

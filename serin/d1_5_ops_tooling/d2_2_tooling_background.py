@@ -119,7 +119,7 @@ class BackgroundProcessor:
         """
         # VALIDATE CONTENT - Skip empty or meaningless messages
         content = content.strip()
-        if not content or len(content) < 10:
+        if not content or len(content) < 3:
             logger.debug(f" Skipping empty/short message from {username}: '{content[:30]}...'")
             return
 
@@ -197,7 +197,7 @@ class BackgroundProcessor:
                 # OPTION 1: Have 3+ messages - process batch of 3
                 if queue_size >= 3:
                     with self._queue_lock:
-                        batch_size = min(3, queue_size)
+                        batch_size = min(10, queue_size)
                         batch = [self.processing_queue.popleft() for _ in range(batch_size)]
 
                     logger.info(f" Processing batch of {batch_size} RAW messages")
@@ -316,28 +316,22 @@ class BackgroundProcessor:
             is_thinking_model = 'thinking' in model_name or 'think' in model_name
 
             # Build a structured prompt that distinguishes observations from claims
-            prompt = """Write a one-sentence memory based on what occurred.
-
-CRITICAL — distinguish these three types of information:
-  • Observations: objective content shown (board states, links, code, quoted text).
-    These are things actually SEEN, not just claimed.
-  • Claims: subjective assertions someone made ("I won", "you lost", etc.).
-    These are things someone SAID, not things that happened.
-  • Events: actual conversation events (topic changes, agreements, etc.).
-
-When a board state was shown, describe what was OBSERVED, not what someone claimed about it.
-Example: "Serin observed a board showing X has 4 in a row" NOT "NekoNeko claimed victory."
+            prompt = f"""Summarize this conversation in 2-3 sentences. Include:
+- WHO is talking and their relationship (friends, strangers, rivals)
+- WHAT they are discussing or doing
+- WHAT LANGUAGE they use (English, Romanji, Bangla, mixed — note code-switching)
+- The TONE between them (playful, hostile, helpful, casual)
 
 Conversation:
 {conversation_text}
 
-Memory:"""
+Summary:"""
 
             # Query LLM for summary
             if is_thinking_model:
                 max_tokens = 800  # Allow room for thinking
             else:
-                max_tokens = 150  # Normal token limit for instruct models
+                max_tokens = 300  # Richer summaries need more tokens
 
             response = await self.extractor_llm.chat_completion(
                 messages=[
@@ -378,12 +372,17 @@ Memory:"""
             garbage_patterns = [
                 "We are given", "We must write", "CRITICAL", "RULES",
                 "one sentence", "Summary:", "Task:", "INSTRUCTIONS",
-                "### FINAL", "[the ", "template", "example"
+                "### FINAL", "[the ", "template", "example",
+                "Please provide", "conversation_text", "I cannot",
+                "I can't", "there is no content", "no conversation",
+                "I am unable", "did not provide", "has not provided",
+                "I will write", "once you paste", "I am ready",
+                "please include", "so I cannot generate"
             ]
             is_garbage = any(pattern.lower() in summary.lower() for pattern in garbage_patterns)
 
             # Ensure summary is valid
-            if summary and len(summary) > 15 and len(summary) < 300 and not is_garbage:
+            if summary and len(summary) > 15 and len(summary) < 500 and not is_garbage:
                 # Store as natural memory
                 await self._store_summary(summary, messages)
                 self.stats['summaries_created'] += 1
@@ -470,7 +469,7 @@ Memory:"""
         return min(1.0, importance)
 
     async def run_maintenance(self) -> None:
-        """Periodic maintenance — process any remaining queue items."""
+        """Periodic maintenance — process any remaining queue items + decay facts."""
         if not self.is_running:
             return
         queue_size = len(self.processing_queue)
@@ -479,6 +478,15 @@ Memory:"""
             with self._queue_lock:
                 batch = [self.processing_queue.popleft() for _ in range(queue_size)]
             await self._process_batch(batch)
+
+        # Decay pass — apply temporal decay to all active facts
+        try:
+            engine = getattr(self.memory, "belief_engine", None)
+            if engine is not None:
+                engine.apply_decay_batch()
+                logger.debug("Fact decay batch applied")
+        except Exception:
+            pass
 
     def get_stats(self) -> dict[str, Any]:
         """Get processing statistics"""

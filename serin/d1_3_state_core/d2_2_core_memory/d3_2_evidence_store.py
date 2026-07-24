@@ -19,7 +19,7 @@ _SQL_TEMPLATE_FACT_SEARCH = """
            ( {score_clause} ) as relevance
     FROM facts f
     WHERE f.is_active = 1 AND ({like_clauses})
-    ORDER BY relevance DESC, f.confidence DESC, f.timestamp DESC
+    ORDER BY relevance DESC, f.belief DESC, f.last_confirmed DESC
     LIMIT ?
 """
 
@@ -61,26 +61,26 @@ class FactStore:
             old_facts = cursor.execute("""
                 SELECT id FROM facts
                 WHERE is_active = 1 AND category = ? AND id != ?
-                ORDER BY timestamp DESC
+                ORDER BY last_confirmed DESC
             """, (category, '')).fetchall()
             for row in old_facts:
                 cursor.execute("""
-                    UPDATE facts SET is_active = 0, superseded_by = ?,
-                                    updated_at = ?
+                    UPDATE facts SET is_active = 0
                     WHERE id = ?
-                """, (fact_id, now, row[0]))
+                """, (row[0],))
                 logger.debug(
-                    f"Fact superseded: [{category}] {row[0]} \u2192 {fact_id}"
+                    f"Fact superseded: [{category}] {row[0]}"
                 )
 
         cursor.execute("""
-            INSERT INTO facts (id, content, category, confidence,
-                               source_message_id, source_user_id, source_username,
-                               source_type, timestamp, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (fact_id, content, category, confidence,
-              source_message_id, source_user_id, source_username,
-              source_type, now, now))
+            INSERT INTO facts (subject_id, subject_name, claim, category,
+                               belief, variance, log_odds,
+                               first_observed, last_confirmed, primary_source,
+                               source_type, state, claim_hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (source_user_id or 'unknown', source_username or '', content, category,
+              confidence, 0.25, 0.0,
+              now, now, source_username or '', source_type, 'PENDING', content[:16]))
         self.conn.commit()
         logger.debug(f"Fact stored: [{category}] {content[:60]}...")
         return fact_id
@@ -93,14 +93,14 @@ class FactStore:
             cursor.execute("""
                 SELECT * FROM facts
                 WHERE is_active = 1 AND category = ?
-                ORDER BY confidence DESC, timestamp DESC
+                ORDER BY belief DESC, last_confirmed DESC
                 LIMIT ?
             """, (category, limit))
         else:
             cursor.execute("""
                 SELECT * FROM facts
                 WHERE is_active = 1
-                ORDER BY confidence DESC, timestamp DESC
+                ORDER BY belief DESC, last_confirmed DESC
                 LIMIT ?
             """, (limit,))
         return [dict(row) for row in cursor.fetchall()]
@@ -119,10 +119,10 @@ class FactStore:
             return []
 
         # Build FTS-like keyword matching from the facts table
-        like_clauses = ' OR '.join('f.content LIKE ?' for _ in keywords)
+        like_clauses = ' OR '.join('f.claim LIKE ?' for _ in keywords)
         like_params = [f'%{kw}%' for kw in keywords]
         score_clause = ' + '.join(
-            "(CASE WHEN f.content LIKE ? THEN 1 ELSE 0 END)"
+            "(CASE WHEN f.claim LIKE ? THEN 1 ELSE 0 END)"
             for _ in keywords
         )
 

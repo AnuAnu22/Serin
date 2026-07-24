@@ -14,11 +14,15 @@ Usage:
 """
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from serin.d1_1_pipeline_flow.d2_1_flow_act.d3_3_stages_base import PipelineStage
 from serin.d1_3_state_core.d2_5_core_logger import logger
 from serin.d1_3_state_core.d2_5_message_context import MessageContext
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_5_server_websocket import (
+    broadcast_event,
+)
 
 
 class MessagePipeline:
@@ -38,6 +42,8 @@ class MessagePipeline:
         thinking_filter: Any,
         mention_translator: Any,
         mood_state: Any = None,
+        client: Any = None,
+        small_llm: Any = None,
     ) -> MessagePipeline:
         """
         Factory method — wires all dependencies into stages.
@@ -78,11 +84,11 @@ class MessagePipeline:
             ResponsePlannerStage(),
             TemporalStage(temporal_context),
             PersonalityStage(personality, mood_state=mood_state),
-            PromptAssemblyStage(mention_translator),
+            PromptAssemblyStage(mention_translator, memory_system=memory_system),
             LLMCallStage(response_generator),
             ResponseCleaningStage(thinking_filter),
             SendStage(),
-            MemoryWriteStage(memory_system),
+            MemoryWriteStage(memory_system, personality=mood_state, client=client, small_llm=small_llm),
         ])
 
     async def process(self, ctx: MessageContext) -> MessageContext:
@@ -93,18 +99,33 @@ class MessagePipeline:
             "content_preview": ctx.raw_content[:60],
         })
 
-        for stage in self.stages:
+        for stage_index, stage in enumerate(self.stages):
+            stage_start = time.perf_counter()
+            event_base = {
+                "stage_id": stage_index,
+                "stage_name": stage.__class__.__name__,
+                "channel_id": str(getattr(ctx, "channel_id", "")),
+                "user": getattr(ctx, "username", ""),
+            }
+            await broadcast_event("pipeline_stage", {**event_base, "status": "running"})
             try:
                 ctx = await stage.run(ctx)
-            except Exception as e:
+            except Exception as exc:
+                elapsed_ms = round((time.perf_counter() - stage_start) * 1000, 1)
+                await broadcast_event("pipeline_stage", {
+                    **event_base, "status": "error", "elapsed_ms": elapsed_ms,
+                })
                 logger.error("pipeline.stage_error", extra={
-                    "stage": stage.name,
-                    "user": ctx.username,
-                    "error": str(e),
+                    "stage": stage.name, "user": ctx.username, "error": str(exc),
                 }, exc_info=True)
                 ctx.halt_reason = f"stage_error:{stage.name}"
                 break
-
+            elapsed_ms = round((time.perf_counter() - stage_start) * 1000, 1)
+            await broadcast_event("pipeline_stage", {
+                **event_base,
+                "status": "skipped" if ctx.halt_reason else "done",
+                "elapsed_ms": elapsed_ms,
+            })
             if ctx.halt_reason:
                 logger.debug("pipeline.halted", extra={
                     "stage": stage.name,
