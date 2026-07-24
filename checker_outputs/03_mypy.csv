@@ -1,0 +1,93 @@
+file,line,col,severity,message,code
+serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_2_ingest_core/d4_1_core_perception/d5_1_perception_board.py,8,,error,Invalid type comment or annotation,valid-type
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_10_test_routes.py,15,,error,"Untyped decorator makes function ""run_tests"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_10_test_routes.py,40,,error,"Untyped decorator makes function ""list_test_files"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_10_test_routes.py,56,,error,"Untyped decorator makes function ""run_single_test"" untyped",untyped-decorator
+serin/d1_2_gateway_io/d2_2_voice_system/d3_2_bridge_io/d4_4_process_watch.py,489,,error,"Returning Any from function declared to return ""str""",no-any-return
+serin/d1_2_gateway_io/d2_2_voice_system/d3_2_bridge_io/d4_4_process_watch.py,495,,error,"Returning Any from function declared to return ""str""",no-any-return
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_8_ops_routes.py,17,,error,"Untyped decorator makes function ""trigger_manual_sync"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_8_ops_routes.py,30,,error,"Untyped decorator makes function ""get_crawler_status"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_8_ops_routes.py,40,,error,"Untyped decorator makes function ""get_background_queue"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_8_ops_routes.py,47,,error,"Untyped decorator makes function ""clear_background_queue"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_8_ops_routes.py,69,,error,"Untyped decorator makes function ""get_recent_logs"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_8_ops_routes.py,82,,error,"Untyped decorator makes function ""get_db_health"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_8_ops_routes.py,103,,error,"Untyped decorator makes function ""restart_bot"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_8_ops_routes.py,113,,error,"Untyped decorator makes function ""get_uptime"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_personality_routes.py,13,,error,"Untyped decorator makes function ""get_personality_state"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_personality_routes.py,36,,error,"Untyped decorator makes function ""update_mood"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_personality_routes.py,63,,error,"Untyped decorator makes function ""get_conversation_analysis"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_personality_routes.py,78,,error,"Untyped decorator makes function ""get_topic_fatigue"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_personality_routes.py,91,,error,"Untyped decorator makes function ""get_brain_state"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_personality_routes.py,98,,error,"Untyped decorator makes function ""abort_generation"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_personality_routes.py,110,,error,"Untyped decorator makes function ""emergency_stop"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_personality_routes.py,114,,error,"Untyped decorator makes function ""get_system_prompt"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_personality_routes.py,121,,error,"Untyped decorator makes function ""update_system_prompt"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_personality_routes.py,132,,error,"Untyped decorator makes function ""sever_context"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,40,,error,"Untyped decorator makes function ""search_memories_advanced"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,110,,error,"Untyped decorator makes function ""search_memories_simple"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,121,,error,"Untyped decorator makes function ""search_facts"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,141,,error,"Untyped decorator makes function ""get_fact_stats"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,158,,error,"Untyped decorator makes function ""search_beliefs"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,181,,error,"Untyped decorator makes function ""get_belief_stats"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,196,,error,"Untyped decorator makes function ""get_memory_distribution"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,236,,error,"Untyped decorator makes function ""add_memory_manual"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,250,,error,"Untyped decorator makes function ""cleanup_memories"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,263,,error,"Untyped decorator makes function ""get_all_users"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,276,,error,"Untyped decorator makes function ""get_user_profile"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_5_voice_ops.py,17,,error,"Missing type arguments for generic type ""Task""",type-arg
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_4_server_status.py,13,,error,"Module ""serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state"" does not explicitly export attribute ""app""",attr-defined
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_4_server_status.py,13,,error,"Module ""serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state"" does not explicitly export attribute ""bot_state""",attr-defined
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_4_server_status.py,13,,error,"Module ""serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state"" does not explicitly export attribute ""make_json_safe""",attr-defined
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,66,,error,"Untyped decorator makes function ""get_prompt_history"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,76,,error,"Untyped decorator makes function ""get_prompt_detail"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,86,,error,"Untyped decorator makes function ""get_conversation"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,111,,error,"Untyped decorator makes function ""get_personality_history"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,130,,error,"Untyped decorator makes function ""get_all_relationships"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,167,,error,"Untyped decorator makes function ""get_memory_timeline"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,202,,error,"Untyped decorator makes function ""get_alert_rules"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,206,,error,"Untyped decorator makes function ""add_alert_rule"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,223,,error,"Untyped decorator makes function ""delete_alert_rule"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,228,,error,"Untyped decorator makes function ""get_alert_history"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,232,,error,"Untyped decorator makes function ""check_alerts"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,273,,error,"Untyped decorator makes function ""generate_health_report"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,20,,error,"Untyped decorator makes function ""get_current_mood"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,52,,error,"Untyped decorator makes function ""set_mood"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,83,,error,"Untyped decorator makes function ""get_mood_history"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,100,,error,"Untyped decorator makes function ""join_voice"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,101,,error,"Missing type arguments for generic type ""dict""",type-arg
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,118,,error,"Untyped decorator makes function ""leave_voice"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,119,,error,"Missing type arguments for generic type ""dict""",type-arg
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,135,,error,"Untyped decorator makes function ""get_voice_status"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,155,,error,"Untyped decorator makes function ""get_voice_files"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,169,,error,"Untyped decorator makes function ""load_voice_file"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,190,,error,"Untyped decorator makes function ""clear_voice"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,203,,error,"Untyped decorator makes function ""get_voice_channels"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,226,,error,"Untyped decorator makes function ""leave_all_voice_channels"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,240,,error,"Untyped decorator makes function ""test_tts_voice"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,253,,error,"Untyped decorator makes function ""load_tts_voice"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,267,,error,"Untyped decorator makes function ""clear_tts_voice"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,280,,error,"Untyped decorator makes function ""test_tts"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,293,,error,"Untyped decorator makes function ""get_tts_voices"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,313,,error,"Untyped decorator makes function ""get_current_tts"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,332,,error,"Untyped decorator makes function ""update_tts_settings"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,348,,error,"Untyped decorator makes function ""get_tts_status"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,369,,error,"Untyped decorator makes function ""get_audio_settings"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,387,,error,"Untyped decorator makes function ""update_audio_settings"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,404,,error,"Untyped decorator makes function ""get_audio_speakers"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,417,,error,"Untyped decorator makes function ""get_audio_stats"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,431,,error,"Untyped decorator makes function ""get_voice_behavior_settings"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,444,,error,"Untyped decorator makes function ""update_voice_behavior_settings"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,463,,error,"Untyped decorator makes function ""get_voice_behavior_stats"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,477,,error,"Untyped decorator makes function ""list_voice_profiles"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,494,,error,"Untyped decorator makes function ""set_active_voice_profile"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,514,,error,"Untyped decorator makes function ""create_voice_profile"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,539,,error,"Untyped decorator makes function ""delete_voice_profile"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,560,,error,"Untyped decorator makes function ""test_qdrant_connection"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,561,,error,"Missing type arguments for generic type ""dict""",type-arg
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,583,,error,"Untyped decorator makes function ""run_background_maintenance"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,597,,error,"Untyped decorator makes function ""start_crawler"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,610,,error,"Untyped decorator makes function ""stop_crawler"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,623,,error,"Untyped decorator makes function ""force_backfill"" untyped",untyped-decorator
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,624,,error,"Missing type arguments for generic type ""dict""",type-arg
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,649,,error,"Untyped decorator makes function ""rebuild_bm25_index"" untyped",untyped-decorator
+serin/d1_2_gateway_io/d2_1_io_discord/d3_2_discord_bot.py,191,,error,"Argument 2 has incompatible type ""object | None""; expected ""FrameType | None""",arg-type
