@@ -232,6 +232,11 @@ impl VoiceEventHandler for Receiver {
                 // Keeping this match arm explicit to document that we intentionally skip it.
             }
 
+            Ctx::ClientConnect(disc) => {
+                eprintln!("CLIENT_CONNECT user={} audio_ssrc={}", disc.user_id.0, disc.audio_ssrc);
+                self.known_ssrcs.insert(disc.audio_ssrc, disc.user_id.0);
+            }
+
             Ctx::ClientDisconnect(disc) => {
                 let uid = disc.user_id.0;
                 eprintln!("DISCONNECT user={}", uid);

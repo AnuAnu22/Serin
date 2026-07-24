@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
+from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator import (
+    build_natural_system_prompt,
+)
 from serin.d1_2_gateway_io.d2_4_io_di import get_logger
 
 
@@ -58,51 +60,36 @@ async def _transcribe_and_store(self: Any, item: dict[str, Any]) -> None:
 
                 wav_b64 = self._pcm_to_wav_base64(audio_data)
 
-                # ── Build context from recent voice history + memories ──
-                formatted_context = ""
+                # ── Build clean voice context ──
+                messages: list[Any] = []
+
+                # 1. System prompt — who Serin is
+                messages.append({
+                    'role': 'system',
+                    'content': build_natural_system_prompt(),
+                })
+
+                # 2. Recent voice history as clean labeled turns (no narrative monologue)
                 vp = getattr(self, 'voice_pipeline', None)
                 if vp is not None:
                     recent_voice: list[dict[str, Any]] = vp.get_recent_context(channel_id, limit=5)
-                    user_messages: list[dict[str, Any]] = []
-                    for msg in recent_voice:
-                        user_messages.append({
-                            "user_id": msg["user_id"],
-                            "user_name": msg["username"],
-                            "content": msg["content"],
-                            "timestamp": msg["timestamp"],
-                        })
-                    if not any(m["content"] == "" for m in user_messages):
-                        user_messages.append({
-                            "user_id": user_id,
-                            "user_name": username,
-                            "content": "",
-                            "timestamp": datetime.now().isoformat(),
+                    if recent_voice:
+                        conv_lines: list[str] = []
+                        for msg in recent_voice:
+                            name = msg.get('username', 'Unknown')
+                            conv_lines.append(f"{name}: {msg['content']}")
+                        messages.append({
+                            'role': 'system',
+                            'content': "Recent conversation in this channel:\n" + "\n".join(conv_lines),
                         })
 
-                    mm = getattr(vp, 'message_manager', None)
-                    if mm is not None:
-                        cb = getattr(mm, 'context_builder', None)
-                        if cb is not None:
-                            context = cb.build_context(
-                                user_messages=user_messages,
-                                channel_id=channel_id,
-                            )
-                            formatted_context = cb.format_context_for_llm(context)
+                # 3. Voice channel instruction
+                messages.append({
+                    'role': 'system',
+                    'content': 'You are speaking in a voice channel. Keep responses concise and natural. Avoid lists or code blocks.',
+                })
 
-                        bp = getattr(mm, 'bot_personality', None)
-                        if bp is not None:
-                            pc = bp.get_personality_context()
-                            if pc:
-                                formatted_context += f"\n\n{pc}"
-
-                formatted_context += "\n\n[SYSTEM: You are speaking in a voice channel. Keep responses concise and natural. Avoid lists or code blocks.]"
-
-                messages: list[Any] = []
-                if formatted_context.strip():
-                    messages.append({
-                        'role': 'system',
-                        'content': formatted_context,
-                    })
+                # 4. Current audio with speaker label
                 messages.append({
                     'role': 'user',
                     'content': [
@@ -111,7 +98,20 @@ async def _transcribe_and_store(self: Any, item: dict[str, Any]) -> None:
                     ],
                 })
 
-                get_logger().info(f"DIRECT_AUDIO_PROMPT: {messages}")
+                # Log prompt structure without the bloated base64 audio data
+                log_messages: list[Any] = []
+                for msg in messages:
+                    if msg.get('role') == 'user' and isinstance(msg.get('content'), list):
+                        cleaned_content: list[Any] = []
+                        for part in msg['content']:
+                            if isinstance(part, dict) and part.get('type') == 'input_audio':
+                                cleaned_content.append({'type': 'input_audio', 'input_audio': {'data': f'<{len(part["input_audio"]["data"])} bytes>', 'format': 'wav'}})
+                            else:
+                                cleaned_content.append(part)
+                        log_messages.append({'role': 'user', 'content': cleaned_content})
+                    else:
+                        log_messages.append(msg)
+                get_logger().info(f"DIRECT_AUDIO_PROMPT: {log_messages}")
 
                 try:
                     response = await self.llm_connector.chat_completion(
@@ -123,8 +123,8 @@ async def _transcribe_and_store(self: Any, item: dict[str, Any]) -> None:
                     )
                 except Exception as e:
                     get_logger().error(f" Direct audio LLM call failed: {e}")
-                    self.stats['errors'] += 1
-                    return
+                    get_logger().info("Direct audio failed, falling back to Whisper STT")
+                    response = None
 
                 if response and response.strip():
                     get_logger().info(f" Voice Response: '{response[:200]}'")
@@ -136,11 +136,10 @@ async def _transcribe_and_store(self: Any, item: dict[str, Any]) -> None:
                             get_logger().error(f" TTS failed for guild {guild_id}: {e}")
                     else:
                         get_logger().warning("voice_output_manager not available — response not spoken")
-                else:
-                    get_logger().warning("Empty response from LLM — nothing to speak")
+                    self.stats['transcriptions_completed'] += 1
+                    return
 
-                self.stats['transcriptions_completed'] += 1
-                return
+                get_logger().info("Direct audio path produced no response, falling through to Whisper STT")
 
         # ── Whisper STT Path (no direct audio or non-Gemma model) ──
         transcription = await self.transcriber.transcribe(audio_data, language='en')

@@ -366,18 +366,32 @@ class BotPersonality:
             elif stance == 'hate':
                 hates.append(item)
 
+        # Cap each category at 7 total for loves/likes, 3 for dislikes/hates
+        loves = loves[:7]
+        likes = likes[:7]
+        dislikes = dislikes[:3]
+        hates = hates[:3]
+
+        def _join_items(items: list[str]) -> str:
+            if len(items) == 1:
+                return items[0]
+            if len(items) == 2:
+                return f"{items[0]} and {items[1]}"
+            return f"{', '.join(items[:-1])}, and {items[-1]}"
+
         # Create natural sentences
         context_parts: list[str] = []
         if loves:
-            context_parts.append(f"I'm really into {' and '.join(loves)}")
+            context_parts.append(f"I'm really into {_join_items(loves)}")
         if likes:
-            context_parts.append(f"{' and '.join(likes)} are pretty cool too")
+            likes_text = _join_items(likes)
+            context_parts.append(f"{likes_text[0].upper() + likes_text[1:]} are pretty cool too")
         if dislikes:
-            context_parts.append(f"Not really into {' or '.join(dislikes)}")
+            context_parts.append(f"Not really into {_join_items(dislikes)}")
         if hates:
-            context_parts.append(f"Can't stand {' or '.join(hates)}")
+            context_parts.append(f"Can't stand {_join_items(hates)}")
 
-        return " ".join(context_parts) if context_parts else ""
+        return ". ".join(context_parts) + "." if context_parts else ""
 
     def detect_topic_in_message(self, message: str) -> tuple[str, str] | None:
         """

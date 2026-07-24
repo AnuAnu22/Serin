@@ -54,7 +54,7 @@ class ConversationContextBuilder:
         primary_user_id = user_messages[-1]['user_id']
         primary_username = user_messages[-1]['user_name']
 
-        # 1. Working memory — always present, from SQLite
+        # 1. Working memory — from SQLite (includes image descriptions)
         recent_messages = []
         if channel_id:
             recent_messages = self.memory.get_recent_conversation(

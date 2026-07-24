@@ -7,8 +7,9 @@ requires-python = ">=3.11"
 dependencies = [
     # Core dependencies
     "aiohttp>=3.13.2",
-    "fastapi>=0.122.0",
-    "uvicorn>=0.38.0",
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
+    "pydantic>=2.0",
     "flask>=2.3.0",
     "flask-cors>=4.0.0",
     # Qdrant vector database

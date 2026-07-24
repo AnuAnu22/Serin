@@ -12,8 +12,11 @@ def get_model_connector(
     provider: str | None = None,
     model_name: str | None = None
 ) -> ModelInterface:
-    """Create a single LLMConnector pointed at llama-swap (or any OpenAI-compatible endpoint)."""
-    return LLMConnector(model_name)
+    """Return a cached LLMConnector, creating one if not yet cached for this model_name."""
+    key = model_name or "__default__"
+    if key not in loaded_models:
+        loaded_models[key] = LLMConnector(model_name)
+    return loaded_models[key]
 
 def get_available_providers() -> dict[str, bool]:
     """Return available providers (always just llama-swap)."""

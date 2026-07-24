@@ -79,8 +79,10 @@ class RustVoiceBridge:
         self._reconnect_callback: Callable[..., Any] | None = None
         self._restart_timestamps: collections.deque[float] = collections.deque(maxlen=5)
 
-        # Username cache: maps user_id string to display name
+        # Username cache: maps Rust user_id (SSRC string) to display name
         self._usernames: dict[str, str] = {}
+        # Reverse: maps Discord member ID to assigned SSRC (for multi-speaker tracking)
+        self._ssrc_by_member_id: dict[int, str] = {}
 
         # Stderr ring buffer — captures last N lines for diagnostics on crash
         self._stderr_buf: collections.deque[str] = collections.deque(maxlen=200)
@@ -378,7 +380,7 @@ class RustVoiceBridge:
 
                 if event_type == 'audio':
                     _, user_id, pcm_data = event
-                    self._handle_audio(user_id, pcm_data)
+                    await self._handle_audio(user_id, pcm_data)
 
                 elif event_type == 'join':
                     user_id = event[1]
@@ -406,7 +408,7 @@ class RustVoiceBridge:
 
         get_logger().info(" Rust stdout reader loop ended")
 
-    def _handle_audio(self, user_id: str, pcm_data: bytes) -> None:
+    async def _handle_audio(self, user_id: str, pcm_data: bytes) -> None:
         """
         Route decoded PCM audio from Rust to AudioStreamProcessor.
 
@@ -419,8 +421,10 @@ class RustVoiceBridge:
         """
         self.stats['audio_chunks'] += 1
 
-        # Resolve username from cache (set by set_username)
-        username = self._usernames.get(user_id, f"user_{user_id}")
+        # Resolve username from cache; fallback to voice channel member list
+        username = self._usernames.get(user_id)
+        if username is None:
+            username = await self._resolve_username_from_vc(user_id)
 
         # Log every 100th chunk to confirm audio is flowing (diagnostic)
         if self.stats['audio_chunks'] % 100 == 0:
@@ -442,29 +446,92 @@ class RustVoiceBridge:
         """A user started speaking in voice — resolve their Discord display name."""
         self.stats['joins'] += 1
 
-        # Resolve and cache the display name on first encounter
         if user_id not in self._usernames:
-            try:
-                guild = self.voice_listener.client.get_guild(self._guild_id)
-                if guild:
-                    member = guild.get_member(int(user_id))
-                    if member:
-                        self._usernames[user_id] = member.display_name
-            except Exception:
-                pass
+            await self._resolve_username_from_vc(user_id)
 
         username = self._usernames.get(user_id, f"user_{user_id}")
         get_logger().info(f" User speaking: {username} (ID: {user_id})")
 
+    async def _resolve_username_from_vc(self, user_id: str) -> str:
+        """Resolve a Rust SSRC/user_id to a Discord display name via voice channel members.
+
+        The Rust bridge sends SSRC numbers as user_ids because Discord voice v4
+        doesn't always include user_id in SpeakingState events. We fall back to
+        looking up voice channel members directly.
+
+        Multiple speakers: each new SSRC is assigned to the first channel member
+        not already mapped to an active SSRC. When a user leaves (_handle_leave),
+        their member slot is freed for reuse.
+        """
+        # 1. Is this SSRC already mapped?
+        if user_id in self._usernames:
+            return self._usernames[user_id]
+
+        try:
+            guild = self.voice_listener.client.get_guild(self._guild_id)
+            if guild is None or self._channel_id is None:
+                return f"user_{user_id}"
+
+            channel = guild.get_channel(self._channel_id)
+            if channel is None or not hasattr(channel, 'members'):
+                return f"user_{user_id}"
+
+            bot_id = self.voice_listener.client.user.id
+            members = channel.members  # type: ignore[attr-defined]
+
+            # 2. Find a member not already mapped to an active SSRC
+            for member in members:
+                if member.id == bot_id:
+                    continue
+                if member.id not in self._ssrc_by_member_id:
+                    self._ssrc_by_member_id[member.id] = user_id
+                    self._usernames[user_id] = member.display_name
+                    return member.display_name
+
+            # 3. All members are already speaking — reuse the first non-bot member
+            for member in members:
+                if member.id != bot_id:
+                    self._usernames[user_id] = member.display_name
+                    return member.display_name
+        except Exception:
+            pass
+
+        return f"user_{user_id}"
+
     def _handle_leave(self, user_id: str) -> None:
         """A user stopped speaking in voice (no longer in VoiceTick.speaking)."""
         self.stats['leaves'] += 1
+        # Free the member slot so a reconnecting speaker gets a fresh assignment
+        user_name = self._usernames.pop(user_id, None)
+        if user_name is not None:
+            stale: list[int] = [mid for mid, sid in self._ssrc_by_member_id.items() if sid == user_id]
+            for mid in stale:
+                del self._ssrc_by_member_id[mid]
 
     def _handle_process_death(self) -> None:
         """Handle Rust process death — log diagnostics and signal supervisor."""
         get_logger().error(" Rust process died unexpectedly")
         self.stats['errors'] += 1
         self._death_event.set()
+
+    def get_stats(self) -> dict[str, Any]:
+        """Return current Rust voice bridge statistics."""
+        try:
+            stats: dict[str, Any] = {
+                "active": self._running,
+                "pid": self.proc.pid if self.proc else None,
+                "guild_id": str(self._guild_id) if self._guild_id else None,
+                "channel_id": str(self._channel_id) if self._channel_id else None,
+                "receiver_mode": "rust",
+            }
+            stats["audio_chunks"] = self.stats.get("audio_chunks", 0)
+            stats["joins"] = self.stats.get("joins", 0)
+            stats["leaves"] = self.stats.get("leaves", 0)
+            stats["restarts"] = self.stats.get("restarts", 0)
+            stats["errors"] = self.stats.get("errors", 0)
+            return stats
+        except Exception:
+            return {"active": False, "error": "stats unavailable"}
 
     def _handle_tts_done(self) -> None:
         """

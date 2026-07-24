@@ -1,7 +1,7 @@
 """PersonalityState — tone modifier from conversation mood."""
 from collections import deque
 from datetime import datetime
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from serin.d1_3_state_core.d2_5_core_logger import logger
 
@@ -42,6 +42,66 @@ class PersonalityState:
             'sass_level': round(self.sass_level, 3),
             'engagement': round(self.engagement, 3),
         })
+
+    def save_to_db(self, conn: Any) -> None:
+        """Persist personality state to SQLite."""
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS personality_state (
+                    key TEXT PRIMARY KEY,
+                    value REAL,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS personality_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    energy REAL, sass REAL, engagement REAL,
+                    recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                INSERT INTO personality_history (energy, sass, engagement)
+                VALUES (?, ?, ?)
+            """, (self.energy_level, self.sass_level, self.engagement))
+            state = self.to_dict()
+            for key, value in state.items():
+                if isinstance(value, (int, float)):
+                    cursor.execute("""
+                        INSERT INTO personality_state (key, value, updated_at)
+                        VALUES (?, ?, CURRENT_TIMESTAMP)
+                        ON CONFLICT(key) DO UPDATE SET
+                            value = excluded.value,
+                            updated_at = CURRENT_TIMESTAMP
+                    """, (key, float(value)))
+            conn.commit()
+        except Exception as e:
+            logger.debug("Failed to save personality state: %s", e)
+
+    def load_from_db(self, conn: Any) -> None:
+        """Load personality state from SQLite."""
+        try:
+            self._conn = conn
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS personality_state (
+                    key TEXT PRIMARY KEY,
+                    value REAL,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("SELECT key, value FROM personality_state")
+            rows = cursor.fetchall()
+            if not rows:
+                return
+            for row in rows:
+                key, value = row[0], row[1]
+                if hasattr(self, key):
+                    setattr(self, key, value)
+            logger.info("Loaded personality state from DB: %d keys", len(rows))
+        except Exception as e:
+            logger.debug("Failed to load personality state: %s", e)
 
     def get_history(self, limit: int = 100) -> list[MoodSample]:
         """Return the most recent mood samples, oldest first."""
@@ -97,6 +157,11 @@ class PersonalityState:
 
         self.last_update = datetime.now()
         self._record_sample()
+
+        # Periodic save to DB every 10th update
+        self._update_count = getattr(self, '_update_count', 0) + 1
+        if self._update_count % 10 == 0 and hasattr(self, '_conn'):
+            self.save_to_db(self._conn)
 
         logger.debug(
             "Personality: "

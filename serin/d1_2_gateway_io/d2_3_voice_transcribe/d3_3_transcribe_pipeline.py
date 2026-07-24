@@ -81,6 +81,15 @@ class VoiceMemoryPipeline:
             self.memory.upsert_user(user_id, username, username)
             self.memory.update_user_activity(user_id, len(transcription))
 
+            # Skip empty or placeholder transcriptions
+            transcription = transcription.strip()
+            if not transcription or len(transcription) < 3:
+                get_logger().debug(f"Skipping empty/short transcription from {username}")
+                return
+            if transcription.lower() in ('[voice input]', 'voice input', 'no speech detected', 'no audio'):
+                get_logger().debug(f"Skipping placeholder transcription from {username}: {transcription}")
+                return
+
             # Store as memory (with voice metadata)
             self.memory.add_memory(
                 content=f"[Voice] {transcription}",

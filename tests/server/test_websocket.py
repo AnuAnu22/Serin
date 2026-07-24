@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state import active_websockets
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_1_state_access import active_websockets
 from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_5_server_websocket import (
     broadcast_event,
     broadcast_log,
@@ -23,16 +24,19 @@ class TestBroadcastLog:
     def setup_method(self) -> None:
         active_websockets.clear()
 
+    @pytest.mark.asyncio
     async def test_sends_log_to_connected_ws(self) -> None:
         ws = _mock_ws(1)
         active_websockets.append(ws)
 
         await broadcast_log({"message": "hello world"})
 
-        ws.send_json.assert_awaited_once_with(
-            {"type": "log", "msg": "hello world"}
-        )
+        ws.send_json.assert_awaited_once()
+        sent = ws.send_json.call_args[0][0]
+        assert sent["type"] == "log"
+        assert sent["msg"] == "hello world"
 
+    @pytest.mark.asyncio
     async def test_skips_disconnected_ws(self) -> None:
         ws = _mock_ws(0)  # disconnected
         active_websockets.append(ws)
@@ -41,6 +45,7 @@ class TestBroadcastLog:
 
         ws.send_json.assert_not_awaited()
 
+    @pytest.mark.asyncio
     async def test_removes_disconnected_ws(self) -> None:
         ws = _mock_ws(0)
         active_websockets.append(ws)
@@ -49,6 +54,7 @@ class TestBroadcastLog:
 
         assert ws not in active_websockets
 
+    @pytest.mark.asyncio
     async def test_removes_ws_that_raises(self) -> None:
         ws = _mock_ws(1)
         ws.send_json = AsyncMock(side_effect=RuntimeError("gone"))
@@ -58,6 +64,7 @@ class TestBroadcastLog:
 
         assert ws not in active_websockets
 
+    @pytest.mark.asyncio
     async def test_removes_multiple_disconnected_ws(self) -> None:
         ws1 = _mock_ws(0)
         ws2 = _mock_ws(0)
@@ -71,6 +78,7 @@ class TestBroadcastLog:
         assert ws3 in active_websockets
         ws3.send_json.assert_awaited_once()
 
+    @pytest.mark.asyncio
     async def test_handles_empty_active_list(self) -> None:
         await broadcast_log({"message": "x"})  # should not raise
 
@@ -81,6 +89,7 @@ class TestBroadcastEvent:
     def setup_method(self) -> None:
         active_websockets.clear()
 
+    @pytest.mark.asyncio
     async def test_sends_decision_event_directly(self) -> None:
         ws = _mock_ws(1)
         active_websockets.append(ws)
@@ -90,16 +99,19 @@ class TestBroadcastEvent:
 
         ws.send_json.assert_awaited_once_with(data)
 
+    @pytest.mark.asyncio
     async def test_wraps_non_decision_event(self) -> None:
         ws = _mock_ws(1)
         active_websockets.append(ws)
 
         await broadcast_event("model_loaded", {"model": "gpt4"})
 
-        ws.send_json.assert_awaited_once_with(
-            {"type": "model_loaded", "data": {"model": "gpt4"}}
-        )
+        ws.send_json.assert_awaited_once()
+        sent = ws.send_json.call_args[0][0]
+        assert sent["type"] == "model_loaded"
+        assert sent["data"] == {"model": "gpt4"}
 
+    @pytest.mark.asyncio
     async def test_skips_disconnected_ws(self) -> None:
         ws = _mock_ws(0)
         active_websockets.append(ws)
@@ -108,6 +120,7 @@ class TestBroadcastEvent:
 
         ws.send_json.assert_not_awaited()
 
+    @pytest.mark.asyncio
     async def test_removes_ws_that_raises(self) -> None:
         ws = _mock_ws(1)
         ws.send_json = AsyncMock(side_effect=RuntimeError("gone"))
@@ -117,6 +130,7 @@ class TestBroadcastEvent:
 
         assert ws not in active_websockets
 
+    @pytest.mark.asyncio
     async def test_broadcasts_to_all_connected(self) -> None:
         ws1 = _mock_ws(1)
         ws2 = _mock_ws(1)
@@ -124,13 +138,16 @@ class TestBroadcastEvent:
 
         await broadcast_event("config_update", {"key": "x"})
 
-        ws1.send_json.assert_awaited_once_with(
-            {"type": "config_update", "data": {"key": "x"}}
-        )
-        ws2.send_json.assert_awaited_once_with(
-            {"type": "config_update", "data": {"key": "x"}}
-        )
+        ws1.send_json.assert_awaited_once()
+        ws2.send_json.assert_awaited_once()
+        sent1 = ws1.send_json.call_args[0][0]
+        sent2 = ws2.send_json.call_args[0][0]
+        assert sent1["type"] == "config_update"
+        assert sent1["data"] == {"key": "x"}
+        assert sent2["type"] == "config_update"
+        assert sent2["data"] == {"key": "x"}
 
+    @pytest.mark.asyncio
     async def test_mixed_connected_and_disconnected(self) -> None:
         ws1 = _mock_ws(1)
         ws2 = _mock_ws(0)

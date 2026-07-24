@@ -110,6 +110,24 @@ class MessageCrawler(BackfillMixin):
 
         logger.info(" Message crawler stopped")
 
+    async def force_backfill(self, channel_ids: list[str] | None = None, limit: int | None = None) -> dict[str, Any]:
+        """Force a full re-backfill of specified channels (or all)."""
+        if limit is None:
+            limit = self.max_messages_per_channel
+        results: dict[str, Any] = {}
+        for guild in self.client.guilds:
+            for channel in guild.text_channels:
+                if channel_ids and str(channel.id) not in channel_ids:
+                    continue
+                try:
+                    count = await self._backfill_channel(channel, limit=limit)
+                    results[channel.name] = count
+                    logger.info(f"Force backfill #{channel.name}: {count} messages")
+                except Exception as e:
+                    results[channel.name] = f"error: {e}"
+                    logger.error(f"Force backfill failed for #{channel.name}: {e}")
+        return results
+
     async def _quick_sync_loop(self) -> None:
         """
         Quick sync loop - checks latest message every 15 minutes.

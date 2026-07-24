@@ -1,1830 +1,1668 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SERIN AI // MISSION CONTROL</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Serin Control Panel</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --border: #30363d;
+  --text: #e6edf3;
+  --accent: #58a6ff;
+  --green: #3fb950;
+  --red: #f85149;
+  --yellow: #d29922;
+  --purple: #bc8cff;
+  --header-h: 56px;
+  --nav-h: 40px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh;
+}
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 8px 20px; height: var(--header-h);
+  display: flex; align-items: center; gap: 16px;
+}
+.status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.status-dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.status-dot.yellow { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+.status-dot.red { background: var(--red); box-shadow: 0 0 6px var(--red); }
+header h1 { font-size: 16px; font-weight: 600; flex: 1; }
+.header-metrics { display: flex; gap: 16px; font-size: 12px; color: #8b949e; }
+.header-metrics span { white-space: nowrap; }
+.header-metrics .val { color: var(--text); font-weight: 500; }
+nav {
+  position: sticky; top: var(--header-h); z-index: 99;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; overflow-x: auto; height: var(--nav-h);
+}
+nav button {
+  background: none; border: none; color: #8b949e; cursor: pointer;
+  padding: 0 16px; font-size: 13px; white-space: nowrap;
+  border-bottom: 2px solid transparent; transition: all .15s;
+}
+nav button:hover { color: var(--text); }
+nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+main { padding: 20px; max-width: 1400px; margin: 0 auto; }
+.tab { display: none; }
+.tab.active { display: block; }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 16px; margin-bottom: 16px;
+}
+.card h3 { font-size: 14px; color: #8b949e; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .5px; }
+.card .value { font-size: 28px; font-weight: 600; }
+.card .sub { font-size: 12px; color: #8b949e; margin-top: 4px; }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+input, select, textarea {
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  border-radius: 6px; padding: 8px 12px; font-size: 13px; width: 100%;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+button {
+  background: var(--accent); color: #fff; border: none; border-radius: 6px;
+  padding: 8px 16px; font-size: 13px; cursor: pointer; font-weight: 500;
+}
+button:hover { opacity: .85; }
+button.danger { background: var(--red); }
+button.secondary { background: #21262d; border: 1px solid var(--border); color: var(--text); }
+.score-badge {
+  display: inline-block; padding: 2px 6px; border-radius: 4px;
+  font-size: 11px; font-weight: 500; margin: 2px;
+}
+.score-badge.vec { background: #1a3a5c; color: var(--accent); }
+.score-badge.bm25 { background: #2d1b4e; color: var(--purple); }
+.score-badge.rrf { background: #1a3a2a; color: var(--green); }
+.score-badge.temp { background: #3a2a1a; color: var(--yellow); }
+.score-badge.imp { background: #3a1a1a; color: var(--red); }
+.score-badge.final { background: #1a2a3a; color: #79c0ff; }
+.score-badge.type { background: #2a1a3a; color: var(--purple); }
+.score-badge.days { background: #1a3a3a; color: #56d4dd; }
+.result-card {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  padding: 12px; margin-bottom: 8px;
+}
+.result-card .content { font-size: 13px; line-height: 1.5; margin-bottom: 8px; color: #c9d1d9; }
+.result-card .meta { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.log-viewer {
+  background: #000; border: 1px solid var(--border); border-radius: 6px;
+  padding: 12px; font-family: 'Courier New', monospace; font-size: 12px;
+  height: 500px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+}
+.log-viewer .log-line { padding: 1px 0; }
+.log-viewer .log-line.INFO { color: #c9d1d9; }
+.log-viewer .log-line.WARN { color: var(--yellow); }
+.log-viewer .log-line.ERROR { color: var(--red); }
+.log-viewer .log-line.DEBUG { color: #8b949e; }
+.slider-group { margin-bottom: 16px; }
+.slider-group label { display: block; font-size: 13px; margin-bottom: 4px; }
+.slider-group input[type=range] { width: 100%; }
+.slider-value { font-size: 12px; color: #8b949e; margin-top: 2px; }
+.pipeline-stage {
+  display: flex; gap: 12px; padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.pipeline-stage:last-child { border-bottom: none; }
+.pipeline-stage .num {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; flex-shrink: 0;
+}
+.pipeline-stage .info { flex: 1; }
+.pipeline-stage .info .name { font-weight: 500; font-size: 14px; }
+.pipeline-stage .info .desc { font-size: 12px; color: #8b949e; margin-top: 2px; }
+.config-json { font-family: 'Courier New', monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+.search-controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: flex-end; }
+.search-controls > * { flex: 1; min-width: 120px; }
+.search-controls button { flex: 0 0 auto; }
+.result-count { font-size: 12px; color: #8b949e; margin-bottom: 8px; }
+.empty-state { text-align: center; padding: 40px; color: #8b949e; font-size: 14px; }
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+/* ── Override / overflow fixes ── */
+body { font-size: 14px; line-height: 1.5; overflow-x: hidden; }
+.card { overflow: hidden; word-break: break-word; overflow-wrap: break-word; min-width: 0; }
+.card pre, .card code {
+  max-width: 100%; overflow-x: auto; overflow-y: auto; max-height: 300px;
+  font-size: 12px; line-height: 1.4; white-space: pre-wrap; word-break: break-all;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+  padding: 8px; margin: 0;
+}
+.card h3 { font-size: 13px; margin-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .value { font-size: 22px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .sub { font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+.stat-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
 
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        serin: {
-                            dark: '#050505',
-                            panel: '#111111',
-                            border: '#333333',
-                            accent: '#00f2ff',
-                            danger: '#ff2a2a',
-                            success: '#00ff9d',
-                            warn: '#ffb700'
-                        }
-                    },
-                    fontFamily: {
-                        mono: ['"JetBrains Mono"', 'monospace', 'ui-monospace', 'SFMono-Regular']
-                    }
-                }
-            }
-        }
-    </script>
+/* Key-value display */
+.kv-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; gap: 12px; }
+.kv-row:last-child { border-bottom: none; }
+.kv-label { color: var(--text-dim, #8b949e); flex-shrink: 0; min-width: 120px; }
+.kv-value { text-align: right; word-break: break-all; overflow: hidden; text-overflow: ellipsis; }
+.kv-value.ok { color: var(--green); }
+.kv-value.err { color: var(--red); }
+.kv-value.warn { color: var(--yellow); }
 
-    <style>
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #050505;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #333;
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #00f2ff;
-        }
-        body {
-            background-color: #050505;
-            color: #e5e5e5;
-        }
-        .glass-panel {
-            background: rgba(17, 17, 17, 0.95);
-            border: 1px solid #333;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-        }
-        .crt-text {
-            text-shadow: 0 0 2px rgba(0, 242, 255, 0.3);
-        }
-        .status-dot {
-            height: 8px;
-            width: 8px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-        .bg-green-glow {
-            background-color: #00ff9d;
-            box-shadow: 0 0 8px #00ff9d;
-        }
-        .bg-red-glow {
-            background-color: #ff2a2a;
-            box-shadow: 0 0 8px #ff2a2a;
-        }
-        .bg-yellow-glow {
-            background-color: #ffb700;
-            box-shadow: 0 0 8px #ffb700;
-        }
-        .bg-gray-glow {
-            background-color: #666;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            appearance: none;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: #00f2ff;
-            cursor: pointer;
-        }
-        input[type="range"]::-moz-range-thumb {
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: #00f2ff;
-            cursor: pointer;
-            border: none;
-        }
-        .config-input {
-            background: #000;
-            border: 1px solid #333;
-            color: #e5e5e5;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-family: inherit;
-            width: 100%;
-        }
-        .config-input:focus {
-            border-color: #00f2ff;
-            outline: none;
-        }
-        select.config-input {
-            cursor: pointer;
-        }
-        .bg-cyan-glow {
-            background-color: #00f2ff;
-            box-shadow: 0 0 6px #00f2ff;
-        }
-    </style>
+/* Status badges */
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.badge.ok { background: rgba(63,185,80,0.15); color: var(--green); }
+.badge.err { background: rgba(248,81,73,0.15); color: var(--red); }
+.badge.warn { background: rgba(210,153,34,0.15); color: var(--yellow); }
+.badge.info { background: rgba(88,166,255,0.15); color: var(--accent); }
+
+/* Section headers */
+.section-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #8b949e); margin: 16px 0 8px 0; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+
+/* Scrollable panels */
+.scroll-panel { max-height: 400px; overflow-y: auto; overflow-x: hidden; }
+
+/* Table fixes */
+table { table-layout: fixed; width: 100%; }
+td, th { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; font-size: 13px; }
+</style>
 </head>
+<body>
+<header>
+  <span class="status-dot green" id="statusDot"></span>
+  <h1>Serin Control Panel</h1>
+  <div class="header-metrics">
+    <span>Latency: <span class="val" id="headerLatency">0</span>ms</span>
+    <span>Brain: <span class="val" id="headerBrain">OFFLINE</span></span>
+    <span>GPU: <span class="val" id="headerGpu">0</span>GB</span>
+    <span>WS: <span class="val" id="headerWs">disconnected</span></span>
+  </div>
+</header>
+<nav id="nav">
+  <button class="active" data-tab="dashboard">Dashboard</button>
+  <button data-tab="memory">Memory Explorer</button>
+  <button data-tab="facts">Facts &amp; Beliefs</button>
+  <button data-tab="personality">Personality</button>
+  <button data-tab="voice">Voice</button>
+  <button data-tab="pipeline">Pipeline</button>
+  <button data-tab="config">Config</button>
+  <button data-tab="logs">Logs</button>
+  <button data-tab="tests">Tests</button>
+  <button data-tab="decisions">Decisions</button>
+  <button data-tab="debug">Debug</button>
+  <button data-tab="relationships">Relationships</button>
+</nav>
+<main>
+<div id="tab-dashboard" class="tab active">
+  <div class="stat-grid" id="dashGrid">
+    <div class="card"><h3>Discord</h3><div class="value" id="dashDiscord">—</div></div>
+    <div class="card"><h3>Memory</h3><div class="value" id="dashMemory">—</div></div>
+    <div class="card"><h3>Voice</h3><div class="value" id="dashVoice">—</div></div>
+    <div class="card"><h3>Bg Processor</h3><div class="value" id="dashBg">—</div></div>
+    <div class="card"><h3>Users</h3><div class="value" id="dashUsers">—</div></div>
+    <div class="card"><h3>Relationships</h3><div class="value" id="dashRelationships">—</div></div>
+  </div>
+  <div class="card">
+    <h3>Alerts</h3>
+    <div style="display:flex;gap:4px;margin-bottom:8px"><select id="alertMetric"><option value="error_count">Error Count</option><option value="queue_size">Queue Size</option><option value="gpu_vram">GPU VRAM (GB)</option><option value="qdrant_status">Qdrant Down</option></select><select id="alertOp" style="width:50px"><option value=">">&gt;</option><option value="<">&lt;</option><option value=">=">&gt;=</option><option value="==">==</option></select><input type="number" id="alertThreshold" value="5" style="width:60px"><button onclick="addAlert()">Add</button><button onclick="checkAlerts()">Check Now</button></div>
+    <div id="alertRules"></div><div id="alertHistory" style="margin-top:8px"></div>
+  </div>
+  <div class="card"><button onclick="generateReport()">📋 Generate Report</button><pre id="reportOutput" style="display:none;max-height:400px;overflow:auto;margin-top:8px;font-size:11px"></pre></div>
+</div>
 
-<body class="font-mono h-screen flex flex-col overflow-hidden">
-
-    <header class="h-16 border-b border-serin-border flex items-center justify-between px-6 bg-serin-panel z-10 shrink-0">
-        <div class="flex items-center gap-4">
-            <h1 class="text-xl font-bold tracking-widest text-serin-accent crt-text">SERIN<span class="text-white">.AI</span> // CONTROL</h1>
-            <div class="h-6 w-px bg-serin-border mx-2"></div>
-            <div class="flex items-center gap-2 px-3 py-1 rounded border border-serin-border bg-black/50">
-                <span id="brain-state-indicator" class="status-dot bg-green-glow animate-pulse"></span>
-                <span id="brain-state-text" class="text-xs uppercase font-bold text-serin-success">ONLINE</span>
-            </div>
-        </div>
-        <div class="flex items-center gap-8">
-            <div class="text-right">
-                <div class="text-xs text-gray-500 uppercase">API Latency</div>
-                <div class="text-sm font-bold text-serin-accent"><span id="metric-latency">--</span>ms</div>
-            </div>
-            <div class="text-right">
-                <div class="text-xs text-gray-500 uppercase">GPU VRAM</div>
-                <div class="text-sm font-bold text-serin-warn"><span id="metric-vram">--</span>GB</div>
-            </div>
-            <button onclick="serinBridge.emergencyStop()"
-                class="bg-serin-danger/10 hover:bg-serin-danger hover:text-white text-serin-danger border border-serin-danger px-6 py-2 rounded transition-all duration-200 uppercase font-bold text-sm tracking-wider flex items-center gap-2">
-                <i class="fa-solid fa-power-off"></i> ABORT
-            </button>
-        </div>
-    </header>
-
-    <div class="flex flex-1 overflow-hidden">
-        <nav class="w-16 border-r border-serin-border flex flex-col items-center py-4 gap-4 bg-serin-panel shrink-0 overflow-y-auto">
-            <button onclick="ui.switchTab('dashboard', this)"
-                class="nav-btn text-serin-accent hover:text-white text-xl p-2 relative group">
-                <i class="fa-solid fa-chart-line"></i>
-                <span class="absolute left-14 bg-serin-border px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition pointer-events-none z-50">Overview</span>
-            </button>
-            <button onclick="ui.switchTab('memory', this)"
-                class="nav-btn text-gray-500 hover:text-white text-xl p-2 relative group">
-                <i class="fa-solid fa-database"></i>
-                <span class="absolute left-14 bg-serin-border px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition pointer-events-none z-50">Memory</span>
-            </button>
-            <button onclick="ui.switchTab('voice', this)"
-                class="nav-btn text-gray-500 hover:text-white text-xl p-2 relative group">
-                <i class="fa-solid fa-microphone-lines"></i>
-                <span class="absolute left-14 bg-serin-border px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition pointer-events-none z-50">Voice</span>
-            </button>
-            <button onclick="ui.switchTab('channels', this)"
-                class="nav-btn text-gray-500 hover:text-white text-xl p-2 relative group">
-                <i class="fa-solid fa-hashtag"></i>
-                <span class="absolute left-14 bg-serin-border px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition pointer-events-none z-50">Channels</span>
-            </button>
-            <button onclick="ui.switchTab('voice-behavior', this)"
-                class="nav-btn text-gray-500 hover:text-white text-xl p-2 relative group">
-                <i class="fa-solid fa-robot"></i>
-                <span class="absolute left-14 bg-serin-border px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition pointer-events-none z-50">V-Behavior</span>
-            </button>
-            <button onclick="ui.switchTab('personality', this)"
-                class="nav-btn text-gray-500 hover:text-white text-xl p-2 relative group">
-                <i class="fa-solid fa-brain"></i>
-                <span class="absolute left-14 bg-serin-border px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition pointer-events-none z-50">Personality</span>
-            </button>
-            <button onclick="ui.switchTab('config', this)"
-                class="nav-btn text-gray-500 hover:text-white text-xl p-2 relative group">
-                <i class="fa-solid fa-gear"></i>
-                <span class="absolute left-14 bg-serin-border px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition pointer-events-none z-50">Config</span>
-            </button>
-            <button onclick="ui.switchTab('background', this)"
-                class="nav-btn text-gray-500 hover:text-white text-xl p-2 relative group">
-                <i class="fa-solid fa-tasks"></i>
-                <span class="absolute left-14 bg-serin-border px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition pointer-events-none z-50">Background</span>
-            </button>
-            <button onclick="ui.switchTab('logs', this)"
-                class="nav-btn text-gray-500 hover:text-white text-xl p-2 relative group">
-                <i class="fa-solid fa-terminal"></i>
-                <span class="absolute left-14 bg-serin-border px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition pointer-events-none z-50">Console</span>
-            </button>
-            <button onclick="restartBot()"
-                class="nav-btn restart-btn text-red-500 hover:text-white text-xl p-2 relative group mt-auto">
-                <i class="fa-solid fa-rotate"></i>
-                <span class="absolute left-14 bg-serin-border px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition pointer-events-none z-50">Restart</span>
-            </button>
-        </nav>
-
-        <main class="flex-1 overflow-auto bg-[#090909] p-6 relative">
-
-            <!-- TAB: DASHBOARD -->
-            <div id="tab-dashboard" class="grid grid-cols-12 gap-6 tab-content">
-                <div class="col-span-12 lg:col-span-4 glass-panel p-4 rounded">
-                    <h3 class="text-xs uppercase text-gray-500 font-bold mb-4">Component Health</h3>
-                    <div class="grid grid-cols-2 gap-4" id="health-grid">
-                        <div class="flex items-center gap-3">
-                            <span class="status-dot bg-gray-glow" id="status-discord"></span> <span class="text-sm">Discord Gateway</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="status-dot bg-gray-glow" id="status-memory"></span> <span class="text-sm">Qdrant DB</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="status-dot bg-gray-glow" id="status-voice_input"></span> <span class="text-sm">Voice Listener</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="status-dot bg-gray-glow" id="status-tts"></span> <span class="text-sm">TTS Engine</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="status-dot bg-gray-glow" id="status-background"></span> <span class="text-sm">Background Worker</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="status-dot bg-green-glow" id="status-ws"></span> <span class="text-sm">Web Socket</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-span-12 lg:col-span-8 glass-panel p-4 rounded">
-                    <h3 class="text-xs uppercase text-gray-500 font-bold mb-2">Live Telemetry (Latency vs Messages)</h3>
-                    <div class="h-40 w-full">
-                        <canvas id="telemetryChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="col-span-12 lg:col-span-8 glass-panel p-0 rounded overflow-hidden flex flex-col h-96">
-                    <div class="p-3 border-b border-serin-border bg-black/20 flex justify-between">
-                        <h3 class="text-xs uppercase text-gray-500 font-bold">Decision Logic Feed</h3>
-                        <span class="text-xs text-serin-accent">Live</span>
-                    </div>
-                    <div id="decision-feed" class="flex-1 overflow-y-auto p-4 space-y-2 font-mono text-xs">
-                        <div class="text-gray-500 italic">Waiting for decisions...</div>
-                    </div>
-                </div>
-
-                <div class="col-span-12 lg:col-span-4 glass-panel p-4 rounded h-96 flex flex-col">
-                    <h3 class="text-xs uppercase text-gray-500 font-bold mb-4">Active Contexts</h3>
-                    <div class="flex-1 overflow-y-auto space-y-3" id="active-contexts-list">
-                        <div class="text-gray-500 text-sm">No active conversations.</div>
-                    </div>
-                </div>
-
-                <!-- Status / Stats / Model panel -->
-                <div class="col-span-12 lg:col-span-6 glass-panel p-4 rounded">
-                    <h3 class="text-xs uppercase text-gray-500 font-bold mb-4">Bot Status</h3>
-                    <div class="grid grid-cols-3 gap-4">
-                        <div>
-                            <div class="text-xs text-gray-500">Online</div>
-                            <div class="text-sm font-bold" id="status-online">--</div>
-                        </div>
-                        <div>
-                            <div class="text-xs text-gray-500">Guilds</div>
-                            <div class="text-sm font-bold" id="status-guilds">--</div>
-                        </div>
-                        <div>
-                            <div class="text-xs text-gray-500">Latency</div>
-                            <div class="text-sm font-bold" id="status-latency">-- ms</div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-3 gap-4 mt-3">
-                        <div>
-                            <div class="text-xs text-gray-500">Msgs Processed</div>
-                            <div class="text-sm font-bold" id="stats-msg-processed">--</div>
-                        </div>
-                        <div>
-                            <div class="text-xs text-gray-500">Responses</div>
-                            <div class="text-sm font-bold" id="stats-responses">--</div>
-                        </div>
-                        <div>
-                            <div class="text-xs text-gray-500">Memories</div>
-                            <div class="text-sm font-bold" id="stats-memories">--</div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-3 gap-4 mt-3">
-                        <div>
-                            <div class="text-xs text-gray-500">Uptime</div>
-                            <div class="text-sm font-bold" id="stats-uptime">--</div>
-                        </div>
-                        <div>
-                            <div class="text-xs text-gray-500">Model</div>
-                            <div class="text-sm font-bold" id="model-name">--</div>
-                        </div>
-                        <div>
-                            <div class="text-xs text-gray-500">Temperature</div>
-                            <div class="text-sm font-bold" id="model-temperature">--</div>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <div class="text-xs text-gray-500">Provider</div>
-                        <div class="text-sm font-bold" id="model-provider">--</div>
-                    </div>
-                    <button onclick="serinBridge.loadStatus(); serinBridge.loadStats(); serinBridge.loadModel()"
-                        class="mt-3 text-xs bg-serin-accent/20 text-serin-accent px-3 py-1 rounded hover:bg-serin-accent hover:text-black">Refresh</button>
-                </div>
-            </div>
-
-            <!-- TAB: PERSONALITY -->
-            <div id="tab-personality" class="hidden tab-content grid grid-cols-12 gap-6">
-                <div class="col-span-12 lg:col-span-6 glass-panel p-6 rounded flex flex-col items-center">
-                    <h3 class="text-xs uppercase text-gray-500 font-bold mb-4 w-full">Current Mood State</h3>
-                    <div class="h-64 w-64">
-                        <canvas id="moodChart"></canvas>
-                    </div>
-                    <div class="mt-4 flex gap-2">
-                        <button type="button" onclick="serinBridge.forceMood('high_energy')"
-                            class="text-xs border border-serin-accent text-serin-accent px-3 py-1 rounded hover:bg-serin-accent hover:text-black focus-visible:ring-2 focus-visible:ring-serin-accent outline-none">Force Hype</button>
-                        <button type="button" onclick="serinBridge.forceMood('neutral')"
-                            class="text-xs border border-gray-500 text-gray-400 px-3 py-1 rounded hover:bg-gray-700 focus-visible:ring-2 focus-visible:ring-gray-400 outline-none">Reset Neutral</button>
-                        <button type="button" onclick="serinBridge.forceMood('sass')"
-                            class="text-xs border border-purple-500 text-purple-400 px-3 py-1 rounded hover:bg-purple-900 focus-visible:ring-2 focus-visible:ring-purple-400 outline-none">Force Sass</button>
-                    </div>
-                    <div class="w-full mt-6 pt-4 border-t border-serin-border">
-                        <h4 class="text-xs uppercase text-gray-500 font-bold mb-2">Mood Over Time</h4>
-                        <div class="h-32 w-full">
-                            <canvas id="moodHistoryChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-span-12 lg:col-span-6 glass-panel p-6 rounded">
-                    <h3 class="text-xs uppercase text-gray-500 font-bold mb-6">Dynamics Config</h3>
-                    <div class="space-y-6">
-                        <div>
-                            <div class="flex justify-between text-xs mb-2">
-                                <span class="text-gray-400">Active Conversation Probability</span>
-                                <span class="text-serin-accent font-bold">95%</span>
-                            </div>
-                            <input type="range" class="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer" min="0" max="100" value="95">
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-xs mb-2">
-                                <span class="text-gray-400">Short Message Skip Rate</span>
-                                <span class="text-serin-accent font-bold">30%</span>
-                            </div>
-                            <input type="range" class="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer" min="0" max="100" value="30">
-                        </div>
-                        <div class="pt-4 border-t border-serin-border">
-                            <label class="text-xs text-gray-400 mb-2 block">System Prompt Override</label>
-                            <textarea id="system-prompt" class="w-full bg-black/50 border border-serin-border text-xs text-gray-300 p-2 rounded h-32 focus:border-serin-accent outline-none">Loading...</textarea>
-                            <button onclick="serinBridge.updateSystemPrompt()"
-                                class="mt-2 text-xs bg-serin-accent text-black font-bold px-4 py-1 rounded">Update Prompt</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB: VOICE -->
-            <div id="tab-voice" class="hidden tab-content grid grid-cols-12 gap-6">
-                <div class="col-span-12 lg:col-span-6 glass-panel p-4 rounded h-full">
-                    <h3 class="text-xs uppercase text-gray-500 font-bold mb-4">Voice Channels</h3>
-                    <div class="space-y-2" id="voice-channel-list">
-                        <div class="text-gray-500 text-sm">Loading channels...</div>
-                    </div>
-                </div>
-
-                <div class="col-span-12 lg:col-span-6 glass-panel p-4 rounded space-y-4">
-                    <h3 class="text-xs uppercase text-gray-500 font-bold mb-4">Audio Engine</h3>
-
-                    <div>
-                        <label class="text-xs text-gray-400">Voice Model</label>
-                        <select id="voice-model-select"
-                            class="w-full bg-black border border-serin-border text-sm p-2 rounded mt-1">
-                            <option>Loading...</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="text-xs text-gray-400 flex justify-between">
-                            <span>VAD Threshold (Sensitivity)</span>
-                            <span id="vad-val">-40dB</span>
-                        </label>
-                        <div class="relative h-6 mt-1 bg-gray-800 rounded overflow-hidden">
-                            <div id="audio-meter" class="absolute left-0 top-0 bottom-0 bg-green-500/30 transition-all duration-75" style="width: 0%"></div>
-                            <input id="vad-slider" type="range" class="absolute w-full h-full opacity-0 cursor-pointer" min="-80" max="0" value="-40">
-                            <div class="absolute top-0 bottom-0 w-0.5 bg-serin-accent pointer-events-none" style="left: 50%"></div>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <button onclick="serinBridge.clearAudioQueue()" class="bg-gray-800 hover:bg-gray-700 py-2 rounded text-xs">Clear Audio Queue</button>
-                        <button onclick="serinBridge.testTTS()" class="bg-gray-800 hover:bg-gray-700 py-2 rounded text-xs">Test TTS</button>
-                    </div>
-
-                    <hr class="border-serin-border">
-
-                    <div>
-                        <h4 class="text-xs uppercase text-gray-500 font-bold mb-3">TTS Voice Management</h4>
-                        <div class="space-y-3">
-                            <div>
-                                <label class="text-xs text-gray-400">Select Voice File</label>
-                                <select id="tts-voice-select" class="w-full bg-black border border-serin-border text-sm p-2 rounded mt-1">
-                                    <option>Loading...</option>
-                                </select>
-                            </div>
-                            <div class="flex gap-2">
-                                <button onclick="loadTTSVoice()" class="bg-serin-accent/20 text-serin-accent px-3 py-1 rounded text-xs hover:bg-serin-accent hover:text-black">Load Voice</button>
-                                <button onclick="clearTTSVoice()" class="bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded text-xs">Clear Voice</button>
-                            </div>
-                            <div>
-                                <label class="text-xs text-gray-400">Voice Profile</label>
-                                <div class="flex gap-2 mt-1">
-                                    <select id="tts-voice-profile" class="flex-1 bg-black border border-serin-border text-sm p-2 rounded">
-                                        <option>Loading...</option>
-                                    </select>
-                                    <button onclick="updateTTSSettings()" class="bg-serin-accent/20 text-serin-accent px-3 py-1 rounded text-xs hover:bg-serin-accent hover:text-black">Apply</button>
-                                </div>
-                            </div>
-                            <div id="tts-status" class="grid grid-cols-2 gap-2 text-xs">
-                                <div class="bg-black/40 p-2 rounded"><span class="text-gray-500">Device:</span> <span class="text-serin-accent">--</span></div>
-                                <div class="bg-black/40 p-2 rounded"><span class="text-gray-500">CUDA:</span> <span class="text-serin-accent">--</span></div>
-                                <div class="bg-black/40 p-2 rounded"><span class="text-gray-500">Voice Cloning:</span> <span class="text-serin-accent">--</span></div>
-                                <div class="bg-black/40 p-2 rounded"><span class="text-gray-500">Generations:</span> <span class="text-serin-accent">--</span></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <hr class="border-serin-border">
-
-                    <div>
-                        <h4 class="text-xs uppercase text-gray-500 font-bold mb-3">Voice Profiles</h4>
-                        <div id="voice-profiles-list" class="space-y-2">
-                            <div class="text-gray-500 text-xs">Loading profiles...</div>
-                        </div>
-                        <details class="mt-3">
-                            <summary class="text-xs text-serin-accent cursor-pointer">Create New Profile</summary>
-                            <div class="mt-2 space-y-2">
-                                <input id="new-profile-name" placeholder="Profile name" class="w-full bg-black border border-serin-border text-xs p-2 rounded">
-                                <div class="flex gap-2">
-                                    <div class="flex-1">
-                                        <label class="text-[10px] text-gray-500">Speed</label>
-                                        <input id="new-profile-speed" type="range" min="0.5" max="2.0" step="0.1" value="1.0" class="w-full">
-                                        <span id="new-profile-speed-value" class="text-xs text-serin-accent">1.0</span>
-                                    </div>
-                                    <div class="flex-1">
-                                        <label class="text-[10px] text-gray-500">Temperature</label>
-                                        <input id="new-profile-temp" type="range" min="0.1" max="1.5" step="0.05" value="0.7" class="w-full">
-                                        <span id="new-profile-temp-value" class="text-xs text-serin-accent">0.7</span>
-                                    </div>
-                                </div>
-                                <input id="new-profile-desc" placeholder="Description (optional)" class="w-full bg-black border border-serin-border text-xs p-2 rounded">
-                                <button onclick="createVoiceProfile()" class="bg-serin-accent text-black text-xs font-bold px-4 py-1 rounded">Create</button>
-                            </div>
-                        </details>
-                    </div>
-                </div>
-
-                <!-- Voice status panel -->
-                <div class="col-span-12 lg:col-span-4 glass-panel p-4 rounded">
-                    <h3 class="text-xs uppercase text-gray-500 font-bold mb-4">Voice Connection</h3>
-                    <div class="space-y-2">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs text-gray-400">Status</span>
-                            <span class="text-sm font-bold" id="voice-status-text">--</span>
-                        </div>
-                    </div>
-                    <button onclick="serinBridge.loadVoiceStatus()"
-                        class="mt-3 text-xs bg-serin-accent/20 text-serin-accent px-3 py-1 rounded hover:bg-serin-accent hover:text-black">Refresh</button>
-                </div>
-
-                <!-- Active speakers panel -->
-                <div class="col-span-12 lg:col-span-4 glass-panel p-4 rounded">
-                    <h3 class="text-xs uppercase text-gray-500 font-bold mb-4">Active Speakers</h3>
-                    <div class="space-y-2" id="active-speakers-list">
-                        <div class="text-gray-500 text-sm">Loading...</div>
-                    </div>
-                    <button onclick="serinBridge.loadActiveSpeakers()"
-                        class="mt-3 text-xs bg-serin-accent/20 text-serin-accent px-3 py-1 rounded hover:bg-serin-accent hover:text-black">Refresh</button>
-                </div>
-            </div>
-
-            <!-- TAB: CHANNELS -->
-            <div id="tab-channels" class="hidden tab-content grid grid-cols-12 gap-6">
-                <div class="col-span-12 lg:col-span-6 glass-panel p-4 rounded">
-                    <h3 class="text-xs uppercase text-gray-500 font-bold mb-4">Allowed Channels</h3>
-                    <div class="flex gap-2 mb-4">
-                        <input id="channel-id-input" placeholder="Channel ID" class="flex-1 bg-black border border-serin-border text-xs p-2 rounded">
-                        <button onclick="serinBridge.addChannel()" class="bg-serin-accent/20 text-serin-accent px-3 py-1 rounded text-xs hover:bg-serin-accent hover:text-black">Add</button>
-                    </div>
-                    <div class="space-y-2" id="channels-list">
-                        <div class="text-gray-500 text-sm">Loading...</div>
-                    </div>
-                    <button onclick="serinBridge.loadChannels()" class="mt-3 text-xs bg-serin-accent/20 text-serin-accent px-3 py-1 rounded hover:bg-serin-accent hover:text-black">Refresh</button>
-                </div>
-
-                <div class="col-span-12 lg:col-span-6 glass-panel p-4 rounded">
-                    <h3 class="text-xs uppercase text-gray-500 font-bold mb-4">Crawler</h3>
-                    <p class="text-xs text-gray-500 mb-4">Trigger a manual message crawl to sync recent messages from all allowed channels.</p>
-                    <button onclick="serinBridge.triggerCrawl()" class="bg-serin-accent/20 text-serin-accent px-4 py-2 rounded text-xs hover:bg-serin-accent hover:text-black">Trigger Sync</button>
-                </div>
-            </div>
-
-            <!-- TAB: VOICE BEHAVIOR -->
-            <div id="tab-voice-behavior" class="hidden tab-content grid grid-cols-12 gap-6">
-                <div class="col-span-12 lg:col-span-6 glass-panel p-6 rounded">
-                    <h3 class="text-xs uppercase text-gray-500 font-bold mb-6">Behavior Settings</h3>
-                    <div class="space-y-6">
-                        <div>
-                            <div class="flex justify-between text-xs mb-2">
-                                <span class="text-gray-400">Join Aggressiveness</span>
-                                <span id="join-aggro-val" class="text-serin-accent font-bold">50%</span>
-                            </div>
-                            <input id="join-aggro-slider" type="range" class="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer" min="0" max="100" value="50">
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-xs mb-2">
-                                <span class="text-gray-400">Leave After Silence</span>
-                                <span id="leave-silence-val" class="text-serin-accent font-bold">120s</span>
-                            </div>
-                            <input id="leave-silence-slider" type="range" class="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer" min="30" max="600" value="120">
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-xs mb-2">
-                                <span class="text-gray-400">Max Session Duration</span>
-                                <span id="max-session-val" class="text-serin-accent font-bold">30m</span>
-                            </div>
-                            <input id="max-session-slider" type="range" class="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer" min="5" max="120" value="30">
-                        </div>
-                        <button onclick="serinBridge.saveVoiceBehavior()" class="bg-serin-accent text-black text-xs font-bold px-6 py-2 rounded">Save Settings</button>
-                    </div>
-                </div>
-                <div class="col-span-12 lg:col-span-6 glass-panel p-6 rounded">
-                    <h3 class="text-xs uppercase text-gray-500 font-bold mb-6">Auto Join/Leave Stats</h3>
-                    <div class="grid grid-cols-3 gap-4 text-center">
-                        <div class="bg-black/40 p-4 rounded">
-                            <div class="text-2xl font-bold text-serin-accent" id="stat-auto-joins">0</div>
-                            <div class="text-xs text-gray-500 mt-1">Auto Joins</div>
-                        </div>
-                        <div class="bg-black/40 p-4 rounded">
-                            <div class="text-2xl font-bold text-serin-warn" id="stat-auto-leaves">0</div>
-                            <div class="text-xs text-gray-500 mt-1">Auto Leaves</div>
-                        </div>
-                        <div class="bg-black/40 p-4 rounded">
-                            <div class="text-2xl font-bold text-serin-danger" id="stat-rejected-joins">0</div>
-                            <div class="text-xs text-gray-500 mt-1">Rejected Joins</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB: MEMORY -->
-            <div id="tab-memory" class="hidden tab-content grid grid-cols-12 gap-6">
-                <div class="col-span-12 lg:col-span-8 glass-panel p-6 rounded h-full">
-                    <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-xs uppercase text-gray-500 font-bold">Qdrant Memory Explorer</h3>
-                        <div class="flex gap-2">
-                            <input type="text" id="memory-search-input" placeholder="Search memories..."
-                                class="bg-black border border-serin-border px-3 py-1 text-sm rounded w-64 focus:border-serin-accent outline-none">
-                            <button onclick="serinBridge.searchMemories()"
-                                class="bg-serin-accent text-black px-4 py-1 rounded text-sm font-bold">Search</button>
-                        </div>
-                    </div>
-                    <table class="w-full text-left text-sm text-gray-400">
-                        <thead class="border-b border-serin-border text-xs uppercase">
-                            <tr>
-                                <th class="py-2">Score</th>
-                                <th>Memory Content</th>
-                                <th>Metadata</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="memory-table-body" class="divide-y divide-gray-800">
-                            <tr>
-                                <td colspan="4" class="py-3 text-center italic">Enter a query to search memories</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="col-span-12 lg:col-span-4 glass-panel p-4 rounded h-full">
-                    <h3 class="text-xs uppercase text-gray-500 font-bold mb-4">Known Users</h3>
-                    <div class="space-y-2" id="memory-users-list">
-                        <div class="text-gray-500 text-sm">Loading...</div>
-                    </div>
-                    <button onclick="serinBridge.loadMemoryUsers()"
-                        class="mt-3 text-xs bg-serin-accent/20 text-serin-accent px-3 py-1 rounded hover:bg-serin-accent hover:text-black">Refresh</button>
-                </div>
-            </div>
-
-            <!-- TAB: CONFIG -->
-            <div id="tab-config" class="hidden tab-content grid grid-cols-12 gap-6">
-                <div class="col-span-12 glass-panel p-6 rounded">
-                    <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-xs uppercase text-gray-500 font-bold">Full Configuration</h3>
-                        <button onclick="serinBridge.saveConfig()" class="bg-serin-accent text-black text-xs font-bold px-6 py-2 rounded">Save All</button>
-                    </div>
-                    <div id="config-editor" class="space-y-6">
-                        <div class="text-gray-500 text-sm">Loading configuration...</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB: BACKGROUND -->
-            <div id="tab-background" class="hidden tab-content grid grid-cols-12 gap-6">
-                <div class="col-span-12 lg:col-span-4 glass-panel p-6 rounded">
-                    <h3 class="text-xs uppercase text-gray-500 font-bold mb-6">Queue Status</h3>
-                    <div class="space-y-4">
-                        <div class="flex justify-between text-sm">
-                            <span class="text-gray-400">Queue Size</span>
-                            <span id="bg-queue-size" class="text-serin-accent font-bold">0</span>
-                        </div>
-                        <div class="flex justify-between text-sm">
-                            <span class="text-gray-400">Status</span>
-                            <span id="bg-queue-status" class="text-serin-warn font-bold">Stopped</span>
-                        </div>
-                        <div class="flex gap-2 mt-4">
-                            <button onclick="serinBridge.startBackground()" class="bg-serin-success/20 text-serin-success px-4 py-2 rounded text-xs hover:bg-serin-success hover:text-black">Start</button>
-                            <button onclick="serinBridge.stopBackground()" class="bg-red-900/30 text-red-400 px-4 py-2 rounded text-xs hover:bg-red-900/50">Stop</button>
-                            <button onclick="serinBridge.clearBackgroundQueue()" class="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded text-xs">Clear Queue</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-span-12 lg:col-span-8 glass-panel p-6 rounded">
-                    <h3 class="text-xs uppercase text-gray-500 font-bold mb-4">Audio Stats</h3>
-                    <div class="grid grid-cols-3 gap-4 text-center">
-                        <div class="bg-black/40 p-3 rounded">
-                            <div class="text-lg font-bold text-serin-accent" id="audio-chunks-received">0</div>
-                            <div class="text-[10px] text-gray-500">Chunks Received</div>
-                        </div>
-                        <div class="bg-black/40 p-3 rounded">
-                            <div class="text-lg font-bold text-serin-accent" id="audio-chunks-processed">0</div>
-                            <div class="text-[10px] text-gray-500">Chunks Processed</div>
-                        </div>
-                        <div class="bg-black/40 p-3 rounded">
-                            <div class="text-lg font-bold text-serin-warn" id="audio-queue-size">0</div>
-                            <div class="text-[10px] text-gray-500">Queue Size</div>
-                        </div>
-                        <div class="bg-black/40 p-3 rounded">
-                            <div class="text-lg font-bold text-serin-success" id="audio-transcriptions">0</div>
-                            <div class="text-[10px] text-gray-500">Transcriptions</div>
-                        </div>
-                        <div class="bg-black/40 p-3 rounded">
-                            <div class="text-lg font-bold text-serin-warn" id="audio-vad-detections">0</div>
-                            <div class="text-[10px] text-gray-500">VAD Detections</div>
-                        </div>
-                        <div class="bg-black/40 p-3 rounded">
-                            <div class="text-lg font-bold text-gray-400" id="audio-active-speakers">0</div>
-                            <div class="text-[10px] text-gray-500">Active Speakers</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB: LOGS -->
-            <div id="tab-logs" class="hidden tab-content h-full flex flex-col glass-panel rounded overflow-hidden">
-                <div class="p-2 border-b border-serin-border bg-black/20 text-xs font-bold text-gray-500 flex justify-between items-center">
-                    <span>SYSTEM LOGS</span>
-                    <button onclick="ui.refreshLogs()" class="text-serin-accent hover:text-white text-xs"><i class="fa-solid fa-rotate"></i> Refresh</button>
-                </div>
-                <div id="full-log-container"
-                    class="flex-1 overflow-y-auto p-4 font-mono text-xs space-y-1 bg-black text-gray-300">
-                </div>
-            </div>
-
-        </main>
+<div id="tab-memory" class="tab">
+  <div class="search-controls">
+    <input type="text" id="memQuery" placeholder="Search memories..." maxlength="2000">
+    <select id="memType"><option value="all">All types</option><option value="evidence">Evidence</option><option value="episode">Episode</option><option value="utterance">Utterance</option><option value="summary">Summary</option><option value="bot_response">Bot Response</option></select>
+    <select id="memSort"><option value="rrf">RRF Score</option><option value="vector">Vector Score</option><option value="bm25">BM25 Score</option><option value="recency">Recency</option><option value="importance">Importance</option></select>
+    <select id="memLimit"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select>
+    <button id="memSearchBtn">Search</button>
+  </div>
+  <div id="memResults" class="scroll-panel"><div class="empty-state">Enter a query and click Search</div></div>
+  <div class="card">
+    <h3>Memory Users</h3>
+    <div id="memoryUsersList" class="scroll-panel"><div class="empty-state">Loading...</div></div>
+  </div>
+  <div class="card">
+    <h3>User Profile</h3>
+    <div id="userProfile"><div class="empty-state">Click a user above</div></div>
+  </div>
+  <div class="card">
+    <h3>Qdrant Connection Test</h3>
+    <div style="display:flex;gap:8px;align-items:end">
+      <div style="flex:1"><label style="display:block;font-size:13px;margin-bottom:4px">Host</label><input type="text" id="qdrantHost" value="localhost"></div>
+      <div style="flex:1"><label style="display:block;font-size:13px;margin-bottom:4px">Port</label><input type="number" id="qdrantPort" value="6333"></div>
+      <button id="testQdrantBtn">Test Connection</button>
     </div>
+    <div id="qdrantTestResult" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <h3>Maintenance</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button id="rebuildBm25Btn" class="secondary">Rebuild BM25 Index</button>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Force Backfill (Human Messages)</h3>
+    <div class="kv-row">
+      <span class="kv-label">Limit per channel</span>
+      <input type="number" id="backfillLimit" value="20000" min="100" max="100000" style="width:100px">
+    </div>
+    <button onclick="forceBackfill()" style="margin-top:8px">Run Backfill</button>
+    <div id="backfillResult" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <h3>Memory Timeline <button onclick="loadTimeline()">Refresh</button></h3>
+    <div id="memoryTimeline" class="scroll-panel" style="max-height:400px"></div>
+    <button id="loadMoreBtn" onclick="loadMoreTimeline()" style="margin-top:8px;display:none">Load More</button>
+  </div>
+  <div class="card">
+    <h3>Qdrant Collection Info</h3>
+    <div id="qdrantCollectionInfo"><div class="sub">Loading...</div></div>
+  </div>
+</div>
+
+<div id="tab-facts" class="tab">
+  <div class="stat-grid">
+    <div class="card"><h3>Active Facts</h3><div class="value" id="factsTotal">—</div></div>
+    <div class="card"><h3>Active Beliefs</h3><div class="value" id="beliefsTotal">—</div></div>
+  </div>
+  <div class="card">
+    <h3>Fact Search</h3>
+    <div class="search-controls">
+      <input type="text" id="factQuery" placeholder="Search facts..." maxlength="1000">
+      <select id="factCategory"><option value="">All categories</option><option value="observation">Observation</option><option value="board_state">Board State</option><option value="game_result">Game Result</option><option value="reference">Reference</option><option value="personality">Personality</option><option value="preference">Preference</option></select>
+      <button id="factSearchBtn">Search</button>
+    </div>
+    <div id="factResults" class="scroll-panel"><div class="empty-state">No results</div></div>
+  </div>
+</div>
+
+<div id="tab-personality" class="tab">
+  <div class="card"><h3>Current State</h3><div id="personalityState"><div class="sub">Loading...</div></div></div>
+  <div class="card">
+    <h3>Mood Controls</h3>
+    <div class="slider-group"><label>Energy: <span id="energyVal">50</span></label><input type="range" id="energySlider" min="0" max="100" value="50"><div class="slider-value">0 = low, 100 = high energy</div></div>
+    <div class="slider-group"><label>Sass: <span id="sassVal">50</span></label><input type="range" id="sassSlider" min="0" max="100" value="50"><div class="slider-value">0 = polite, 100 = sassy</div></div>
+    <div class="slider-group"><label>Engagement: <span id="engageVal">50</span></label><input type="range" id="engageSlider" min="0" max="100" value="50"><div class="slider-value">0 = aloof, 100 = eager</div></div>
+    <button id="applyMood">Apply</button>
+    <hr style="border-color:var(--border);margin:16px 0">
+    <button class="danger" id="abortBtn">Abort Generation</button>
+    <button class="danger" id="emergencyBtn" style="margin-left:8px">Emergency Stop</button>
+  </div>
+  <div class="card">
+    <h3>Mood Presets</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="mood-preset" data-mood="cheerful">Cheerful</button>
+      <button class="mood-preset" data-mood="sarcastic">Sarcastic</button>
+      <button class="mood-preset" data-mood="calm">Calm</button>
+      <button class="mood-preset" data-mood="energetic">Energetic</button>
+      <button class="mood-preset" data-mood="neutral">Neutral</button>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Current Mood</h3>
+    <div id="currentMoodDisplay"><div class="sub">Loading...</div></div>
+  </div>
+  <div class="card">
+    <h3>Mood History</h3>
+    <div id="moodHistoryList"><div class="empty-state">Loading...</div></div>
+  </div>
+  <div class="card" style="grid-column:1/-1"><h3>Personality Evolution (24h) <select id="chartRange" onchange="loadPersonalityChart()"><option value="24">24 hours</option><option value="168">7 days</option><option value="720">30 days</option></select></h3><canvas id="personalityChart" width="800" height="200" style="width:100%;height:200px;background:var(--bg);border-radius:4px"></canvas></div>
+  <div class="card">
+    <h3>System Prompt</h3>
+    <textarea id="systemPromptTextarea" rows="10" style="font-family:'Courier New',monospace;font-size:12px;width:100%;background:#000;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px">Loading...</textarea>
+    <div style="margin-top:8px"><button id="saveSystemPromptBtn">Save Prompt</button></div>
+  </div>
+  <div class="card">
+    <h3>Context Sever</h3>
+    <div style="display:flex;gap:8px;align-items:end">
+      <div style="flex:1"><label style="display:block;font-size:13px;margin-bottom:4px">Channel ID</label><input type="text" id="severChannelId" placeholder="Channel ID to sever"></div>
+      <button id="severContextBtn" class="danger">Sever</button>
+    </div>
+  </div>
+</div>
+
+<div id="tab-voice" class="tab">
+  <div class="stat-grid">
+    <div class="card">    <h3>Voice Listener</h3><div id="voiceStatus"><div class="sub">Loading...</div></div>
+    <div style="margin-top:8px"><button id="leaveAllBtn" class="danger" style="font-size:11px;padding:4px 8px">Leave All Channels</button></div></div>
+    <div class="card"><h3>TTS Engine</h3><div id="ttsStatus"><div class="sub">Loading...</div></div></div>
+    <div class="card"><h3>Active Speakers</h3><div id="voiceSpeakers">—</div></div>
+    <div class="card"><h3>Behavior Stats</h3><div id="voiceBehaviorStats"><div class="sub">Loading...</div></div></div>
+  </div>
+
+  <div class="card">
+    <h3>Voice Channel List</h3>
+    <div id="voiceChannelList" class="scroll-panel"><div class="empty-state">Loading channels...</div></div>
+  </div>
+
+  <div class="card">
+    <h3>Voice Cloning</h3>
+    <div class="search-controls">
+      <select id="voiceFileSelect"><option value="">Select a voice...</option></select>
+      <button id="loadCloneVoiceBtn">Load Voice</button>
+      <button id="clearCloneVoiceBtn" class="danger">Clear Voice</button>
+      <button id="testCloneTtsBtn">Test TTS</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Voice Behavior Settings</h3>
+    <div class="slider-group"><label>Join Aggressiveness: <span id="joinAggroVal">50</span>%</label><input type="range" id="joinAggroSlider" min="0" max="100" value="50"></div>
+    <div class="slider-group"><label>Leave After Silence: <span id="leaveSilenceVal">30</span>s</label><input type="range" id="leaveSilenceSlider" min="0" max="600" value="30"></div>
+    <div class="slider-group"><label>Max Session Duration: <span id="maxSessionVal">60</span>m</label><input type="range" id="maxSessionSlider" min="0" max="120" value="60"></div>
+    <button id="saveBehaviorBtn">Save Behavior</button>
+  </div>
+
+  <div class="card">
+    <h3>TTS Controls</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button id="loadTtsVoiceBtn">Load TTS Voice</button>
+      <button id="clearTtsVoiceBtn" class="danger">Clear TTS Voice</button>
+      <button id="testTtsBtn">Test TTS</button>
+      <button id="updateTtsSettingsBtn" class="secondary">Update TTS Settings</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Audio Settings</h3>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+      <div style="flex:1"><label style="display:block;font-size:13px;margin-bottom:4px">VAD Threshold</label><input type="number" id="vadThreshold" step="0.01" value="0.5"></div>
+      <div style="flex:1"><label style="display:block;font-size:13px;margin-bottom:4px">Silence Threshold</label><input type="number" id="silenceThreshold" step="0.01" value="0.5"></div>
+      <button id="saveAudioSettingsBtn">Save Audio Settings</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Voice Profiles</h3>
+    <div id="voiceProfilesList" class="scroll-panel"><div class="empty-state">No profiles</div></div>
+    <hr style="border-color:var(--border);margin:12px 0">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+      <div style="flex:1"><label style="display:block;font-size:13px;margin-bottom:4px">Profile Name</label><input type="text" id="newProfileName" placeholder="New profile name"></div>
+      <button id="createProfileBtn">Create Profile</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Active Speakers</h3>
+    <div id="activeSpeakersList"><div class="empty-state">Loading...</div></div>
+  </div>
+  <div class="card">
+    <h3>Audio Stats</h3>
+    <div id="audioStatsDisplay"><div class="sub">Loading...</div></div>
+  </div>
+</div>
+
+<div id="tab-pipeline" class="tab">
+  <div class="card"><h3>Live Pipeline</h3><div id="pipelineLive" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;padding:12px 0"></div><div id="pipelineLog" class="scroll-panel" style="max-height:200px;font-family:monospace;font-size:12px"></div></div>
+</div>
+
+<div id="tab-config" class="tab">
+  <div id="configEditor" class="scroll-panel"></div>
+  <button id="saveConfigBtn" style="margin-top:12px">Save Config</button>
+  <div id="configSaveResult" style="margin-top:8px;font-size:13px"></div>
+</div>
+
+<div id="tab-logs" class="tab">
+  <div style="margin-bottom:8px"><button id="refreshLogs" class="secondary">Refresh</button></div>
+  <div class="log-viewer" id="logViewer"></div>
+  <div class="card" style="margin-top:16px">
+    <h3>Decision Log</h3>
+    <div id="decisionLog" class="log-viewer" style="height:200px"><div class="empty-state">Waiting for decisions...</div></div>
+  </div>
+</div>
+<div id="tab-tests" class="tab">
+  <div class="card">
+    <h3>Run Tests</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+      <button id="runAllTestsBtn" class="secondary">Run All Tests</button>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Run Single File</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+      <div style="flex:2;min-width:200px"><label style="display:block;font-size:13px;margin-bottom:4px">Test File</label><select id="testFileSelect"><option value="">Loading...</option></select></div>
+      <div style="flex:1;min-width:150px"><label style="display:block;font-size:13px;margin-bottom:4px">Test Name (optional)</label><input type="text" id="testNameInput" placeholder="test_something"></div>
+      <button id="runSingleTestBtn">Run</button>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Test Results</h3>
+    <div id="testSummary" style="display:flex;gap:16px;margin-bottom:12px"></div>
+    <div id="testDuration" style="font-size:12px;color:#8b949e;margin-bottom:8px"></div>
+    <div class="log-viewer" id="testOutput" style="height:400px"><div class="empty-state">Run a test to see output</div></div>
+  </div>
+</div>
+<div id="tab-decisions" class="tab"><div class="card"><h3>Decision Feed <select id="decisionFilter" onchange="filterDecisions()"><option value="all">All</option><option value="RESPOND">Respond</option><option value="SKIP">Skip</option><option value="REACT">React</option><option value="MISS">Miss</option></select></h3><div id="decisionFeed" class="scroll-panel" style="max-height:500px"></div></div></div>
+<div id="tab-debug" class="tab"><div style="display:grid;grid-template-columns:300px 1fr;gap:16px"><div class="card"><h3>Recent Prompts</h3><div id="promptList" class="scroll-panel" style="max-height:500px"></div></div><div class="card"><h3>Prompt Detail</h3><div id="promptDetail"><div class="sub">Select a prompt from the list</div></div></div></div></div>
+<div id="tab-relationships" class="tab"><div class="card"><h3>Relationship Heatmap</h3><div id="relHeatmap" style="display:flex;flex-wrap:wrap;gap:6px;padding:12px 0"></div></div><div class="card"><h3>Details</h3><div id="relDetail"><div class="sub">Click a user</div></div></div></div>
+<div id="cmdPalette" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:1000;justify-content:center;padding-top:15vh">
+  <div style="width:500px;max-width:90vw;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+    <input id="cmdInput" type="text" placeholder="Type a command..." style="width:100%;padding:14px 16px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:15px;outline:none">
+    <div id="cmdResults" style="max-height:300px;overflow-y:auto;padding:4px"></div>
+  </div>
+</div>
+</main>
 
 <script>
-const API_BASE = window.location.origin;
-
-// ============================================================
-// UI CONTROLLER
-// ============================================================
-const ui = {
-    switchTab: (tabId, btn) => {
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-        const tab = document.getElementById('tab-' + tabId);
-        if (tab) tab.classList.remove('hidden');
-
-        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('text-serin-accent'));
-        if (btn) btn.classList.add('text-serin-accent');
-
-        if (tabId === 'dashboard') { serinBridge.loadStatus(); serinBridge.loadStats(); serinBridge.loadModel(); }
-        if (tabId === 'voice') { serinBridge.loadVoiceData(); serinBridge.loadVoiceStatus(); serinBridge.loadActiveSpeakers(); loadAudioSettings(); loadAudioStats(); loadAvailableVoices(); loadCurrentTTS(); loadVoiceProfiles(); }
-        if (tabId === 'voice-behavior') { serinBridge.loadVoiceBehavior(); }
-        if (tabId === 'personality') { serinBridge.loadPersonalityData(); updateMoodChart(); }
-        if (tabId === 'memory') { serinBridge.loadMemoryUsers(); }
-        if (tabId === 'channels') { serinBridge.loadChannels(); }
-        if (tabId === 'config') { serinBridge.loadConfig(); }
-        if (tabId === 'background') { serinBridge.loadBackgroundQueue(); loadAudioStats(); }
-        if (tabId === 'logs') { ui.refreshLogs(); }
-    },
-
-    refreshLogs: async () => {
-        const container = document.getElementById('full-log-container');
-        try {
-            const res = await fetch(`${API_BASE}/api/logs/recent`);
-            const data = await res.json();
-            container.innerHTML = '';
-            if (data.logs) {
-                data.logs.forEach(line => {
-                    const div = document.createElement('div');
-                    div.innerText = line;
-                    container.appendChild(div);
-                });
-            }
-            container.scrollTop = container.scrollHeight;
-        } catch (e) {
-            ui.addSystemLog('Failed to fetch logs: ' + e.message);
-        }
-    },
-
-    addDecisionLog: (status, reason, time) => {
-        const container = document.getElementById('decision-feed');
-        if (container.children.length === 1 && container.children[0].textContent.includes('Waiting')) {
-            container.innerHTML = '';
-        }
-        const div = document.createElement('div');
-        let colorClass = 'border-l-2 border-gray-500 pl-2';
-        if (status === 'ACCEPTED') colorClass = 'border-l-2 border-serin-success pl-2 text-white';
-        if (status === 'SKIPPED') colorClass = 'border-l-2 border-serin-warn pl-2 text-gray-400';
-        if (status === 'ABORTED') colorClass = 'border-l-2 border-serin-danger pl-2 text-red-300';
-        div.className = `py-1 ${colorClass} animate-fade-in`;
-        div.innerHTML = `
-            <div class="flex justify-between">
-                <span class="font-bold text-[10px] opacity-70">${status}</span>
-                <span class="text-[10px] opacity-50">${time}</span>
-            </div>
-            <div class="truncate">${reason}</div>
-        `;
-        container.prepend(div);
-        if (container.children.length > 50) container.lastChild.remove();
-    },
-
-    addSystemLog: (msg, level = 'info') => {
-        const container = document.getElementById('full-log-container');
-        const div = document.createElement('div');
-        const colorClass = { error: 'text-serin-danger', warn: 'text-serin-warn', info: '' }[level] || '';
-        if (colorClass) div.className = colorClass;
-        div.innerText = `> ${msg}`;
-        container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
-        // aria-live region so screen-reader users get async log updates
-        // announced without needing to poll the log panel manually.
-        container.setAttribute('aria-live', 'polite');
-    },
-
-    updateMetrics: (latency, gpu) => {
-        document.getElementById('metric-latency').innerText = latency;
-        document.getElementById('metric-vram').innerText = gpu || '--';
-        const time = new Date().toLocaleTimeString();
-        addData(telemetryChart, time, latency);
-    },
-
-    updateComponentHealth: (components) => {
-        const mapStatus = (status) => {
-            if (status === 'ok' || status === 'running') return 'bg-green-glow';
-            if (status === 'error') return 'bg-red-glow';
-            if (status === 'stopped' || status === 'disabled') return 'bg-gray-glow';
-            return 'bg-gray-glow';
-        };
-        if (components.discord)
-            document.getElementById('status-discord').className = `status-dot ${mapStatus(components.discord.status)}`;
-        if (components.memory)
-            document.getElementById('status-memory').className = `status-dot ${mapStatus(components.memory.status)}`;
-        if (components.voice_input)
-            document.getElementById('status-voice_input').className = `status-dot ${mapStatus(components.voice_input.status)}`;
-        if (components.tts)
-            document.getElementById('status-tts').className = `status-dot ${mapStatus(components.tts.status)}`;
-        if (components.background)
-            document.getElementById('status-background').className = `status-dot ${mapStatus(components.background.status)}`;
-    },
-
-    renderVoiceChannels: (channels) => {
-        const container = document.getElementById('voice-channel-list');
-        if (!channels || channels.length === 0) {
-            container.innerHTML = '<div class="text-gray-500 text-sm">No voice channels found.</div>';
-            return;
-        }
-        container.innerHTML = channels.map(ch => `
-            <div class="flex justify-between items-center p-2 rounded border ${ch.connected ? 'bg-serin-accent/10 border-serin-accent' : 'bg-black/40 border-serin-border'}">
-                <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-volume-high ${ch.connected ? 'text-serin-accent' : 'text-gray-500'}"></i>
-                    <div>
-                        <span class="text-sm text-white">${ch.channel_name}</span>
-                        <div class="text-xs text-gray-500">${ch.guild_name}</div>
-                    </div>
-                    <span class="text-xs bg-gray-800 px-1 rounded">${ch.members} Users</span>
-                </div>
-                ${ch.connected ?
-                    `<button onclick="serinBridge.leaveVoice('${ch.guild_id}', '${ch.channel_id}')" class="text-xs bg-red-900/30 text-red-400 px-3 py-1 rounded hover:bg-red-900/50">Leave</button>` :
-                    `<button onclick="serinBridge.joinVoice('${ch.guild_id}', '${ch.channel_id}')" class="text-xs bg-serin-accent/20 text-serin-accent px-3 py-1 rounded hover:bg-serin-accent hover:text-black">Join</button>`
-                }
-            </div>
-        `).join('');
-    },
-
-    renderMemories: (memories) => {
-        const tbody = document.getElementById('memory-table-body');
-        if (!memories || memories.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="py-3 text-center italic">No memories found.</td></tr>';
-            return;
-        }
-        tbody.innerHTML = memories.map((mem, i) => {
-            const breakdown = mem.score_breakdown || null;
-            const relevance = (mem.relevance ?? 0).toFixed(3);
-            const rowId = `mem-detail-${i}`;
-            const contentEscaped = (mem.content || '').replace(/"/g, '&quot;');
-            const detailRow = breakdown ? `
-                <tr id="${rowId}" class="hidden bg-black/40">
-                    <td colspan="4" class="py-3 px-4">
-                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-3 text-xs" style="font-variant-numeric: tabular-nums;">
-                            <div><div class="text-gray-500">BM25</div><div class="text-serin-accent">${breakdown.bm25_score.toFixed(3)}</div></div>
-                            <div><div class="text-gray-500">Vector</div><div class="text-serin-accent">${breakdown.vector_score.toFixed(3)}</div></div>
-                            <div><div class="text-gray-500">Combined</div><div class="text-serin-accent">${breakdown.combined_score.toFixed(3)}</div></div>
-                            <div><div class="text-gray-500">Reranked</div><div class="text-serin-success">${breakdown.rerank_score.toFixed(3)}</div></div>
-                            <div><div class="text-gray-500">Importance</div><div class="text-serin-warn">${breakdown.importance_weight.toFixed(2)}</div></div>
-                            <div><div class="text-gray-500">Recency Boost</div><div class="text-serin-warn">${breakdown.recency_boost.toFixed(2)}</div></div>
-                        </div>
-                        <div class="text-gray-600 text-xs mt-2 italic">${breakdown.formula}</div>
-                        <div class="text-gray-500 text-xs mt-1">Age: ${mem.age_days ?? '?'} days &middot; Type: ${mem.memory_type || 'utterance'} &middot; Channel: ${mem.channel_id || '—'}</div>
-                    </td>
-                </tr>` : '';
-            return `
-            <tr class="hover:bg-white/5">
-                <td class="py-3 text-serin-success" style="font-variant-numeric: tabular-nums;">
-                    ${breakdown ? `
-                    <button type="button" aria-expanded="false" aria-controls="${rowId}"
-                        class="focus-visible:ring-2 focus-visible:ring-serin-accent outline-none rounded px-1 hover:text-serin-accent"
-                        onclick="ui.toggleMemoryDetail(this, '${rowId}')">
-                        <i class="fa-solid fa-caret-right mr-1" aria-hidden="true"></i>${relevance}
-                    </button>` : relevance}
-                </td>
-                <td class="py-3 text-white truncate max-w-md min-w-0" title="${contentEscaped}">${mem.content || ''}</td>
-                <td class="py-3 text-xs text-gray-500">
-                    ${mem.timestamp ? new Date(mem.timestamp).toLocaleString() : ''}
-                </td>
-                <td class="py-3"><button type="button" aria-label="Delete memory" class="text-red-400 hover:text-red-300 focus-visible:ring-2 focus-visible:ring-red-400 outline-none rounded"><i class="fa-solid fa-trash" aria-hidden="true"></i></button></td>
-            </tr>${detailRow}`;
-        }).join('');
-    },
-
-    toggleMemoryDetail: (btn, rowId) => {
-        const row = document.getElementById(rowId);
-        const expanded = btn.getAttribute('aria-expanded') === 'true';
-        btn.setAttribute('aria-expanded', String(!expanded));
-        row.classList.toggle('hidden');
-        const caret = btn.querySelector('i');
-        if (caret) caret.classList.toggle('fa-caret-down', !expanded);
-        if (caret) caret.classList.toggle('fa-caret-right', expanded);
-    }
-};
-
-// ============================================================
-// SERIN BRIDGE
-// ============================================================
-class SerinBridge {
-    constructor() {
-        this.socket = null;
-        this.isConnected = false;
-    }
-
-    connect() {
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        this.socket = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
-
-        this.socket.onopen = () => {
-            this.isConnected = true;
-            document.getElementById('status-ws').classList.remove('bg-gray-glow');
-            document.getElementById('status-ws').classList.add('bg-green-glow');
-            ui.addSystemLog('Connected to Serin Neural Link');
-            this.checkHealth();
-        };
-
-        this.socket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            this.handleData(data);
-        };
-
-        this.socket.onclose = () => {
-            this.isConnected = false;
-            document.getElementById('status-ws').classList.remove('bg-green-glow');
-            document.getElementById('status-ws').classList.add('bg-red-glow');
-            setTimeout(() => this.connect(), 3000);
-        };
-    }
-
-    handleData(data) {
-        if (data.type === 'heartbeat') {
-            ui.updateMetrics(data.latency, data.gpu);
-            if (data.brain_state) {
-                updateBrainStateFromValue(data.brain_state);
-            }
-        } else if (data.type === 'log') {
-            ui.addSystemLog(data.msg);
-        } else if (data.type === 'decision') {
-            ui.addDecisionLog(data.status, data.reason, data.time);
-        } else if (data.type === 'voice_joined' || data.type === 'voice_left') {
-            this.loadVoiceData();
-        } else if (data.type === 'brain_state') {
-            updateBrainStateFromValue(data.status || data.data);
-        } else if (data.type === 'stats_update') {
-        }
-    }
-
-    async apiCall(endpoint, method = 'GET', body = null) {
-        try {
-            const options = { method, headers: { 'Content-Type': 'application/json' } };
-            if (body) options.body = JSON.stringify(body);
-            const response = await fetch(`${API_BASE}${endpoint}`, options);
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP ${response.status}: ${errorText}`);
-            }
-            return await response.json();
-        } catch (e) {
-            ui.addSystemLog(`API Error: ${e.message}`);
-            return { success: false, error: e.message };
-        }
-    }
-
-    async post(endpoint, body = {}) {
-        return this.apiCall(endpoint, 'POST', body);
-    }
-
-    async emergencyStop() {
-        ui.addSystemLog('⚠️ EMERGENCY STOP TRIGGERED');
-        const res = await this.post('/api/emergency-stop');
-        if (res.success) ui.addDecisionLog('ABORTED', 'User triggered Manual Override', new Date().toLocaleTimeString());
-    }
-
-    async forceMood(moodType) {
-        ui.addSystemLog(`Setting mood to ${moodType}...`);
-        await this.post('/api/mood/set', { mood: moodType });
-    }
-
-    async forceDisengage(channelId) {
-        await this.post('/api/context/sever', { channel_id: channelId });
-    }
-
-    async joinVoice(guildId, channelId) {
-        ui.addSystemLog(`Joining voice channel ${channelId}...`);
-        const res = await this.post('/api/voice/join', { guild_id: guildId, channel_id: channelId, action: 'join' });
-        if (res.success) this.loadVoiceData();
-    }
-
-    async leaveVoice(guildId, channelId) {
-        ui.addSystemLog(`Leaving voice channel...`);
-        const res = await this.post('/api/voice/leave', { guild_id: guildId, channel_id: channelId, action: 'leave' });
-        if (res.success) this.loadVoiceData();
-    }
-
-    async checkHealth() {
-        try {
-            const res = await fetch(`${API_BASE}/api/health`);
-            const data = await res.json();
-            if (data.components) ui.updateComponentHealth(data.components);
-        } catch (e) {}
-    }
-
-    async loadVoiceData() {
-        try {
-            const res = await fetch(`${API_BASE}/api/voice/channels`);
-            const data = await res.json();
-            ui.renderVoiceChannels(data.channels);
-            const fileRes = await fetch(`${API_BASE}/api/voice/files`);
-            const fileData = await fileRes.json();
-            if (fileData.voices) {
-                const select = document.getElementById('voice-model-select');
-                select.innerHTML = fileData.voices.map(v => `<option value="${v}">${v}</option>`).join('');
-            }
-        } catch (e) {}
-    }
-
-    async loadPersonalityData() {
-        try {
-            const res = await fetch(`${API_BASE}/api/system_prompt`);
-            const data = await res.json();
-            document.getElementById('system-prompt').value = data.prompt || '';
-        } catch (e) {}
-    }
-
-    async updateSystemPrompt() {
-        const prompt = document.getElementById('system-prompt').value;
-        await this.post('/api/system_prompt', { prompt: prompt });
-        ui.addSystemLog('System prompt updated');
-    }
-
-    async searchMemories() {
-        const query = document.getElementById('memory-search-input').value;
-        if (!query.trim()) {
-            ui.addSystemLog('Enter a search query first', 'warn');
-            return;
-        }
-        ui.addSystemLog(`Searching memories for: ${query}`);
-        try {
-            const res = await this.post('/api/enhanced/search', { query: query, n_results: 15 });
-            if (res.error) {
-                ui.addSystemLog(`Search failed: ${res.error}`, 'error');
-                ui.renderMemories([]);
-                return;
-            }
-            ui.renderMemories(res.results || []);
-        } catch (e) {
-            ui.addSystemLog(`Search failed: ${e.message}`, 'error');
-            ui.renderMemories([]);
-        }
-    }
-
-    async clearAudioQueue() {
-        ui.addSystemLog('Clearing audio queue...');
-        await this.post('/api/background/clear-queue');
-    }
-
-    async testTTS() {
-        ui.addSystemLog('TTS test triggered');
-        await this.post('/api/tts/voice/test');
-    }
-
-    async loadConfig() {
-        try {
-            const data = await this.apiCall('/api/config');
-            if (data.error) {
-                document.getElementById('config-editor').innerHTML = `<div class="text-red-400 text-sm">Error loading config: ${data.error}</div>`;
-                return;
-            }
-            this.renderConfig(data);
-        } catch (e) {
-            document.getElementById('config-editor').innerHTML = `<div class="text-red-400 text-sm">Failed: ${e.message}</div>`;
-        }
-    }
-
-    renderConfig(configData) {
-        const container = document.getElementById('config-editor');
-        const categories = {
-            'Core': ['DEBUG_MODE', 'TRACE_MESSAGES', 'MAINTENANCE_INTERVAL_HOURS', 'CONTROL_PANEL_PORT', 'DISCORD_TOKEN', 'ALLOWED_CHANNEL_IDS'],
-            'Features': ['ENABLE_VOICE', 'ENABLE_TTS', 'VOICE_RECEIVER_MODE'],
-            'Personality': ['PERSONALITY.energy', 'PERSONALITY.sass', 'PERSONALITY.engagement'],
-            'Model': ['LLM_MODEL', 'LLM_API_URL'],
-            'Voice': ['VOICE_RECEIVER_MODE', 'RUST_VOICE_RECEIVER_PATH'],
-            'Qdrant': ['QDRANT_HOST', 'QDRANT_PORT', 'COLLECTION_NAME', 'EMBEDDING_MODEL', 'MEMORY_TOP_K']
-        };
-
-        // Collect all known keys to find orphans
-        const knownKeys = new Set(Object.values(categories).flat());
-
-        // Flatten the PERSONALITY sub-dict into the root
-        const flat = {};
-        for (const [key, val] of Object.entries(configData)) {
-            if (key === 'PERSONALITY' && typeof val === 'object') {
-                for (const [pk, pv] of Object.entries(val)) {
-                    flat[`PERSONALITY.${pk}`] = pv;
-                }
-            } else if (key === 'ALLOWED_CHANNEL_IDS' && Array.isArray(val)) {
-                flat[key] = val.join(', ');
-            } else {
-                flat[key] = val;
-            }
-        }
-
-        container.innerHTML = Object.entries(categories).map(([cat, keys]) => {
-            const fields = keys.filter(k => k in flat).map(k => {
-                const val = flat[k];
-                const isBool = typeof val === 'boolean' || val === 'true' || val === 'false';
-                const isNum = !isNaN(parseFloat(val)) && isFinite(val) && typeof val !== 'boolean';
-                const inputId = `cfg-${k.replace(/\./g, '-')}`;
-                let input;
-                if (isBool) {
-                    input = `<select id="${inputId}" class="config-input w-auto">
-                        <option value="true" ${String(val) === 'true' ? 'selected' : ''}>true</option>
-                        <option value="false" ${String(val) === 'false' ? 'selected' : ''}>false</option>
-                    </select>`;
-                } else {
-                    input = `<input id="${inputId}" class="config-input" value="${String(val).replace(/"/g, '&quot;')}" />`;
-                }
-                return `<div class="flex items-center justify-between py-1 border-b border-gray-800">
-                    <label for="${inputId}" class="text-xs text-gray-400 truncate mr-2" title="${k}">${k}</label>
-                    ${input}
-                </div>`;
-            }).join('');
-            if (!fields)             return '';
-            return `<div>
-                <h4 class="text-xs uppercase text-serin-accent font-bold mb-2 border-b border-serin-border pb-1">${cat}</h4>
-                <div class="space-y-1">${fields}</div>
-            </div>`;
-        }).join('');
-
-        // Orphan keys not in any category
-        const orphans = Object.keys(flat).filter(k => !knownKeys.has(k));
-        if (orphans.length > 0) {
-            const fields = orphans.map(k => {
-                const val = flat[k];
-                const isBool = typeof val === 'boolean' || val === 'true' || val === 'false';
-                const inputId = `cfg-${k.replace(/\./g, '-')}`;
-                let input;
-                if (isBool) {
-                    input = `<select id="${inputId}" class="config-input w-auto">
-                        <option value="true" ${String(val) === 'true' ? 'selected' : ''}>true</option>
-                        <option value="false" ${String(val) === 'false' ? 'selected' : ''}>false</option>
-                    </select>`;
-                } else {
-                    input = `<input id="${inputId}" class="config-input" value="${String(val).replace(/"/g, '&quot;')}" />`;
-                }
-                return `<div class="flex items-center justify-between py-1 border-b border-gray-800">
-                    <label for="${inputId}" class="text-xs text-gray-400 truncate mr-2" title="${k}">${k}</label>
-                    ${input}
-                </div>`;
-            }).join('');
-            container.innerHTML += `<div class="mt-4">
-                <h4 class="text-xs uppercase text-serin-warn font-bold mb-2 border-b border-serin-border pb-1">Other</h4>
-                <div class="space-y-1">${fields}</div>
-            </div>`;
-        }
-
-        container.dataset.rawConfig = JSON.stringify(configData);
-    }
-
-    async saveConfig() {
-        const raw = document.getElementById('config-editor').dataset.rawConfig;
-        if (!raw) return;
-        const configData = JSON.parse(raw);
-        const updated = { ...configData };
-
-        // Read all inputs
-        const inputs = document.querySelectorAll('#config-editor [id^="cfg-"]');
-        inputs.forEach(inp => {
-            const key = inp.id.replace('cfg-', '').replace(/-/g, '.');
-            let val = inp.value;
-            if (val === 'true' || val === 'false') {
-                val = val === 'true';
-            } else if (!isNaN(parseFloat(val)) && isFinite(val)) {
-                val = val.includes('.') ? parseFloat(val) : parseInt(val, 10);
-            }
-            if (key.startsWith('PERSONALITY.')) {
-                const personalityKey = key.split('.')[1];
-                if (!updated.PERSONALITY) updated.PERSONALITY = {};
-                updated.PERSONALITY[personalityKey] = val;
-            } else if (key === 'ALLOWED_CHANNEL_IDS') {
-                updated[key] = String(val).split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
-            } else {
-                updated[key] = val;
-            }
-        });
-
-        ui.addSystemLog('Saving configuration...');
-        let res = await this.post('/api/config', updated);
-
-        if (!res.success && res.blocked_keys && res.blocked_keys.length) {
-            const proceed = confirm(
-                `This change includes sensitive settings (${res.blocked_keys.join(', ')}) ` +
-                `that control where the bot sends data. Confirm you want to apply them?`
-            );
-            if (proceed) {
-                res = await this.post('/api/config', { ...updated, confirm: true });
-            }
-        }
-
-        if (res.success) {
-            ui.addSystemLog('Configuration saved');
-        } else {
-            ui.addSystemLog('Config save failed: ' + (res.error || 'unknown'));
-        }
-    }
-
-    async loadBackgroundQueue() {
-        try {
-            const data = await this.apiCall('/api/background/queue');
-            if (!data.error) {
-                document.getElementById('bg-queue-size').textContent = data.size || 0;
-                document.getElementById('bg-queue-status').textContent = data.is_running ? 'Running' : 'Stopped';
-            }
-        } catch (e) {}
-    }
-
-    async startBackground() {
-        ui.addSystemLog('Starting background processor...');
-        await this.post('/api/background/start');
-        this.loadBackgroundQueue();
-    }
-
-    async stopBackground() {
-        ui.addSystemLog('Stopping background processor...');
-        await this.post('/api/background/stop');
-        this.loadBackgroundQueue();
-    }
-
-    async clearBackgroundQueue() {
-        if (!confirm('Clear all pending background tasks?')) return;
-        ui.addSystemLog('Clearing background queue...');
-        const result = await this.post('/api/background/clear-queue');
-        if (result.success) ui.addSystemLog(`Cleared ${result.cleared || 0} tasks`);
-        this.loadBackgroundQueue();
-    }
-
-    async loadVoiceBehavior() {
-        try {
-            const settings = await this.apiCall('/api/voice/behavior/settings');
-            const stats = await this.apiCall('/api/voice/behavior/stats');
-            if (!settings.error) {
-                if (settings.join_aggressiveness !== undefined) {
-                    document.getElementById('join-aggro-slider').value = settings.join_aggressiveness;
-                    document.getElementById('join-aggro-val').textContent = settings.join_aggressiveness + '%';
-                }
-                if (settings.leave_after_silence !== undefined) {
-                    document.getElementById('leave-silence-slider').value = settings.leave_after_silence;
-                    document.getElementById('leave-silence-val').textContent = settings.leave_after_silence + 's';
-                }
-                if (settings.max_session_duration !== undefined) {
-                    document.getElementById('max-session-slider').value = settings.max_session_duration;
-                    document.getElementById('max-session-val').textContent = settings.max_session_duration + 'm';
-                }
-            } else {
-                ui.addSystemLog('Voice behavior settings not available (endpoint may not be implemented)');
-            }
-            if (!stats.error) {
-                document.getElementById('stat-auto-joins').textContent = stats.auto_joins || 0;
-                document.getElementById('stat-auto-leaves').textContent = stats.auto_leaves || 0;
-                document.getElementById('stat-rejected-joins').textContent = stats.rejected_joins || 0;
-            }
-        } catch (e) {}
-    }
-
-    async saveVoiceBehavior() {
-        const settings = {
-            join_aggressiveness: parseInt(document.getElementById('join-aggro-slider').value),
-            leave_after_silence: parseInt(document.getElementById('leave-silence-slider').value),
-            max_session_duration: parseInt(document.getElementById('max-session-slider').value)
-        };
-        ui.addSystemLog('Saving voice behavior settings...');
-        const res = await this.post('/api/voice/behavior/settings', settings);
-        if (res.success) ui.addSystemLog('Voice behavior saved');
-    }
-
-    // ---- New API methods for unexposed routes ----
-
-    async loadStatus() {
-        const data = await this.apiCall('/api/status');
-        if (data && !data.error) {
-            document.getElementById('status-online').textContent = data.online ? 'Online' : 'Offline';
-            document.getElementById('status-guilds').textContent = data.guild_count || 0;
-            document.getElementById('status-latency').textContent = data.latency_ms || '--';
-        }
-    }
-
-    async loadStats() {
-        const data = await this.apiCall('/api/stats');
-        if (data && !data.error) {
-            document.getElementById('stats-msg-processed').textContent = data.messages_processed || 0;
-            document.getElementById('stats-responses').textContent = data.responses_generated || 0;
-            document.getElementById('stats-memories').textContent = data.total_memories || 0;
-            document.getElementById('stats-uptime').textContent = data.uptime_hours ? `${data.uptime_hours.toFixed(1)}h` : '--';
-        }
-    }
-
-    async loadModel() {
-        const data = await this.apiCall('/api/model');
-        if (data && !data.error) {
-            document.getElementById('model-name').textContent = data.model_name || '--';
-            document.getElementById('model-provider').textContent = data.provider || '--';
-            document.getElementById('model-temperature').textContent = data.temperature || '--';
-        }
-    }
-
-    async loadMemoryUsers() {
-        const data = await this.apiCall('/api/memory/users');
-        const list = document.getElementById('memory-users-list');
-        if (!list) return;
-        if (data && data.users && data.users.length > 0) {
-            list.innerHTML = data.users.map(u => `
-                <div class="flex items-center justify-between p-2 bg-black/30 rounded">
-                    <span class="text-sm">${u.username || u.user_id}</span>
-                    <span class="text-xs text-gray-500">${u.message_count || 0} msgs</span>
-                </div>
-            `).join('');
-        } else {
-            list.innerHTML = '<div class="text-gray-500 text-sm">No users found</div>';
-        }
-    }
-
-    async loadVoiceStatus() {
-        const data = await this.apiCall('/api/voice/status');
-        if (data && !data.error) {
-            const el = document.getElementById('voice-status-text');
-            if (el) el.textContent = data.connected ? `Connected (${data.guild_name || ''})` : 'Disconnected';
-        }
-    }
-
-    async loadActiveSpeakers() {
-        const data = await this.apiCall('/api/audio/speakers');
-        const container = document.getElementById('active-speakers-list');
-        if (!container) return;
-        if (data && data.speakers && data.speakers.length > 0) {
-            container.innerHTML = data.speakers.map(s => `
-                <div class="flex items-center justify-between p-2 bg-black/30 rounded">
-                    <span class="text-sm">${s.username}</span>
-                    <span class="text-xs text-gray-500">${(s.buffer_size / 1024).toFixed(1)}KB</span>
-                </div>
-            `).join('');
-        } else {
-            container.innerHTML = '<div class="text-gray-500 text-sm">No one speaking</div>';
-        }
-    }
-
-    async loadChannels() {
-        const data = await this.apiCall('/api/channels/allowed');
-        const list = document.getElementById('channels-list');
-        if (!list) return;
-        if (data && data.channels && data.channels.length > 0) {
-            list.innerHTML = data.channels.map(ch => `
-                <div class="flex items-center justify-between p-2 bg-black/30 rounded">
-                    <span class="text-sm font-mono">${ch}</span>
-                    <button onclick="serinBridge.removeChannel('${ch}')" class="text-xs text-red-400 hover:text-red-300">Remove</button>
-                </div>
-            `).join('');
-        } else {
-            list.innerHTML = '<div class="text-gray-500 text-sm">No channels restricted</div>';
-        }
-    }
-
-    async addChannel() {
-        const input = document.getElementById('channel-id-input');
-        if (!input || !input.value) return;
-        const ch = input.value.trim();
-        const res = await this.post('/api/channels/allowed', { channel_id: ch, action: 'add' });
-        if (res.success) {
-            ui.addSystemLog(`Channel ${ch} added`);
-            input.value = '';
-            this.loadChannels();
-        } else {
-            ui.addSystemLog(`Failed: ${res.error || 'unknown'}`);
-        }
-    }
-
-    async removeChannel(channelId) {
-        const res = await this.post('/api/channels/allowed', { channel_id: channelId, action: 'remove' });
-        if (res.success) {
-            ui.addSystemLog(`Channel ${channelId} removed`);
-            this.loadChannels();
-        } else {
-            ui.addSystemLog(`Failed: ${res.error || 'unknown'}`);
-        }
-    }
-
-    async triggerCrawl() {
-        ui.addSystemLog('Triggering message crawl...');
-        const res = await this.post('/api/crawler/trigger-sync');
-        if (res.success) {
-            ui.addSystemLog('Crawl triggered successfully');
-        } else {
-            ui.addSystemLog(`Crawl failed: ${res.error || 'unknown'}`);
-        }
-    }
+const API_KEY = '';
+function headers(extra) {
+  const h = { 'Content-Type': 'application/json' };
+  if (API_KEY) h['X-API-Key'] = API_KEY;
+  if (extra) Object.assign(h, extra);
+  return h;
 }
 
-const serinBridge = new SerinBridge();
+async function apiGet(url) {
+  try {
+    const r = await fetch(url, {headers: headers()});
+    if (!r.ok) return {error: `HTTP ${r.status}`};
+    return await r.json();
+  } catch(e) {
+    console.error('apiGet failed:', url, e);
+    return {error: e.message};
+  }
+}
 
-// ============================================================
-// CHART.JS SETUP
-// ============================================================
+async function apiPost(url, body={}) {
+  try {
+    const r = await fetch(url, {method:'POST', headers: headers(), body:JSON.stringify(body)});
+    if (!r.ok) return {error: `HTTP ${r.status}`};
+    return await r.json();
+  } catch(e) {
+    console.error('apiPost failed:', url, e);
+    return {error: e.message};
+  }
+}
 
-const ctxTelemetry = document.getElementById('telemetryChart').getContext('2d');
-const telemetryChart = new Chart(ctxTelemetry, {
-    type: 'line',
-    data: {
-        labels: [],
-        datasets: [{
-            label: 'Latency (ms)',
-            data: [],
-            borderColor: '#00f2ff',
-            backgroundColor: 'rgba(0, 242, 255, 0.1)',
-            borderWidth: 1,
-            fill: true,
-            tension: 0.4,
-            pointRadius: 0
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-            x: { display: false },
-            y: { grid: { color: '#222' }, ticks: { color: '#666' } }
-        },
-        animation: false
-    }
+// ── Tab switching ──
+document.querySelectorAll('nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
 });
 
-const ctxMood = document.getElementById('moodChart').getContext('2d');
-const moodChart = new Chart(ctxMood, {
-    type: 'radar',
-    data: {
-        // Exactly the three axes PersonalityState actually tracks
-        // (energy_level, sass_level, engagement). The previous version
-        // included "Kindness" (mislabeled engagement) plus "Chaos" and
-        // "Logic" axes filled with Math.random() — cosmetic noise with no
-        // backing data. Three real axes beat five, two of them fake.
-        labels: ['Energy', 'Sass', 'Engagement'],
-        datasets: [{
-            label: 'Current Mood',
-            data: [50, 50, 50],
-            backgroundColor: 'rgba(0, 255, 157, 0.2)',
-            borderColor: '#00ff9d',
-            borderWidth: 2,
-            pointBackgroundColor: '#00ff9d'
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-            r: {
-                angleLines: { color: '#333' },
-                grid: { color: '#222' },
-                pointLabels: { color: '#888', font: { size: 10 } },
-                suggestedMin: 0,
-                suggestedMax: 100
-            }
-        },
-        plugins: { legend: { display: false } },
-        // Respect prefers-reduced-motion: skip the chart's entrance
-        // animation for people who've asked for reduced motion.
-        animation: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : undefined
-    }
+// ── Dashboard ──
+async function loadDashboard() {
+  const grid = document.getElementById('dashGrid');
+
+  const [status, health, stats, model] = await Promise.allSettled([
+    apiGet('/api/status'),
+    apiGet('/api/health'),
+    apiGet('/api/stats'),
+    apiGet('/api/model'),
+  ]);
+
+  const s = status.status === 'fulfilled' ? status.value : {};
+  const h = health.status === 'fulfilled' ? health.value : {components:{}};
+  const st = stats.status === 'fulfilled' ? stats.value : {};
+  const m = model.status === 'fulfilled' ? model.value : {};
+
+  const c = h.components || {};
+  const bg = c.background || {};
+
+  grid.innerHTML = `
+    <div class="card">
+      <h3>Discord</h3>
+      <div class="value">${s.online ? '🟢 Online' : '🔴 Offline'}</div>
+      <div class="sub">${(s.guilds||[]).length} servers | ${s.latency||0}ms</div>
+    </div>
+    <div class="card">
+      <h3>Memory</h3>
+      <div class="value">${(c.memory||{}).status === 'ok' ? '🟢' : '🔴'} ${(c.memory||{}).type || 'N/A'}</div>
+      <div class="sub">Qdrant: ${(c.memory||{}).qdrant_connected ? '✓' : '✗'} | BM25: ${(c.memory||{}).bm25_available ? '✓' : '✗'}</div>
+    </div>
+    <div class="card">
+      <h3>Model</h3>
+      <div class="value">${m.model_name || 'N/A'}</div>
+      <div class="sub">${m.provider || ''} | temp: ${m.temperature || '?'}</div>
+    </div>
+    <div class="card">
+      <h3>Stats</h3>
+      <div class="value">${st.messages_processed || st.total_messages || 0}</div>
+      <div class="sub">${st.responses_generated || 0} responses | ${st.uptime_hours || 0}h uptime</div>
+    </div>
+    <div class="card">
+      <h3>Voice</h3>
+      <div class="value">${(c.voice_input||{}).status === 'ok' ? '🟢 Active' : '⚪ Disabled'}</div>
+    </div>
+    <div class="card">
+      <h3>Bg Processor</h3>
+      <div class="value">${bg.status === 'ok' ? '🟢 Running' : '🔴 Stopped'}</div>
+      <div class="sub">Queue: ${bg.queue_size || 0}</div>
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+        <button onclick="apiPost('/api/background/start').then(()=>loadDashboard())" class="secondary" style="font-size:11px;padding:4px 8px">Start</button>
+        <button onclick="apiPost('/api/background/stop').then(()=>loadDashboard())" class="secondary" style="font-size:11px;padding:4px 8px">Stop</button>
+        <button onclick="if(confirm('Clear background queue?')){apiPost('/api/background/clear-queue').then(()=>loadDashboard())}" class="secondary" style="font-size:11px;padding:4px 8px">Clear</button>
+        <button onclick="apiPost('/api/background/maintenance').then(()=>loadDashboard())" class="secondary" style="font-size:11px;padding:4px 8px">Run Maintenance</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Crawler</h3>
+      <div class="value">${(c.crawler||{}).status === 'ok' ? '🟢 Active' : '⚪ Disabled'}</div>
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <button onclick="apiPost('/api/crawler/start').then(()=>loadDashboard())" class="secondary" style="font-size:11px;padding:4px 8px">Start Crawler</button>
+        <button onclick="apiPost('/api/crawler/stop').then(()=>loadDashboard())" class="secondary" style="font-size:11px;padding:4px 8px">Stop Crawler</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Users</h3>
+      <div class="value">${(st.memory||{}).total_users || 0}</div>
+      <div class="sub">${(st.memory||{}).total_memories || 0} memories</div>
+    </div>
+    <div class="card">
+      <h3>Relationships</h3>
+      <div class="value">${(st.memory||{}).strong_relationships || 0}</div>
+      <div class="sub">strong bonds</div>
+    </div>
+  `;
+}
+
+// ── Memory Search ──
+document.getElementById('memSearchBtn').addEventListener('click', async () => {
+  const query = document.getElementById('memQuery').value.trim();
+  if (!query) return;
+  const container = document.getElementById('memResults');
+  container.innerHTML = '<div class="empty-state">Searching...</div>';
+  const data = await apiPost('/api/memory/search/advanced', {
+    query,
+    limit: parseInt(document.getElementById('memLimit').value),
+    memory_types: [document.getElementById('memType').value],
+    sort_by: document.getElementById('memSort').value,
+    include_bm25_scores: true,
+    include_vector_scores: true,
+    include_rrf_scores: true,
+    include_temporal_scores: true,
+  });
+  if (data.error) { container.innerHTML = '<div class="empty-state">Error: ' + data.error + '</div>'; return; }
+  let html = '<div class="result-count">' + data.results_count + ' results (' + data.search_time_ms + 'ms)</div>';
+  (data.results || []).forEach(r => {
+    html += '<div class="result-card"><div class="content">' + esc(r.content || '') + '</div><div class="meta">';
+    if (r.vector_score != null) html += '<span class="score-badge vec">vec:' + r.vector_score.toFixed(3) + '</span>';
+    if (r.bm25_score != null) html += '<span class="score-badge bm25">bm25:' + r.bm25_score.toFixed(3) + '</span>';
+    if (r.rrf_score != null) html += '<span class="score-badge rrf">rrf:' + r.rrf_score.toFixed(3) + '</span>';
+    if (r.temporal_score != null) html += '<span class="score-badge temp">t:' + r.temporal_score.toFixed(3) + '</span>';
+    if (r.importance != null) html += '<span class="score-badge imp">imp:' + r.importance.toFixed(2) + '</span>';
+    if (r.final_score != null) html += '<span class="score-badge final">' + r.final_score.toFixed(3) + '</span>';
+    html += '<span class="score-badge type">' + (r.memory_type || '?') + '</span>';
+    if (r.days_old != null) html += '<span class="score-badge days">' + r.days_old + 'd</span>';
+    html += '</div></div>';
+  });
+  if (!data.results || !data.results.length) html += '<div class="empty-state">No results found</div>';
+  container.innerHTML = html;
 });
 
-// Sparkline for mood-over-time, fed by /api/mood/history. Separate small
-// chart rather than overloading the radar (which only shows "right now").
-let moodHistoryChart = null;
-function initMoodHistoryChart() {
-    const el = document.getElementById('moodHistoryChart');
-    if (!el) return;
-    moodHistoryChart = new Chart(el.getContext('2d'), {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [
-                { label: 'Energy', data: [], borderColor: '#00f2ff', pointRadius: 0, tension: 0.3, borderWidth: 1.5 },
-                { label: 'Sass', data: [], borderColor: '#a855f7', pointRadius: 0, tension: 0.3, borderWidth: 1.5 },
-                { label: 'Engagement', data: [], borderColor: '#00ff9d', pointRadius: 0, tension: 0.3, borderWidth: 1.5 }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: { display: false },
-                y: { min: 0, max: 1, grid: { color: '#222' }, ticks: { color: '#666', font: { size: 9 } } }
-            },
-            plugins: { legend: { display: true, labels: { color: '#888', boxWidth: 10, font: { size: 10 } } } },
-            animation: false
-        }
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function renderKV(data, container) {
+  if (!data || typeof data !== 'object') {
+    container.innerHTML = '<div class="sub">No data</div>';
+    return;
+  }
+  let html = '';
+  for (const [key, val] of Object.entries(data)) {
+    if (val === null || val === undefined) continue;
+    let display, cls = '';
+    if (typeof val === 'boolean') {
+      display = val ? '\u2713 Yes' : '\u2717 No';
+      cls = val ? 'ok' : 'err';
+    } else if (typeof val === 'number') {
+      display = val.toLocaleString();
+    } else if (typeof val === 'object') {
+      if (Array.isArray(val)) {
+        display = val.length + ' items';
+      } else {
+        display = JSON.stringify(val).substring(0, 80);
+      }
+    } else {
+      display = String(val).substring(0, 100);
+    }
+    html += `<div class="kv-row"><span class="kv-label">${esc(key)}</span><span class="kv-value ${cls}">${esc(display)}</span></div>`;
+  }
+  container.innerHTML = html || '<div class="sub">Empty</div>';
+}
+
+function renderVoiceStatus(data) {
+  const el = document.getElementById('voiceStatus');
+  if (!data || data.error) { el.innerHTML = '<div class="sub">Voice not available</div>'; return; }
+  const conn = (data.active_connections || [])[0];
+  let html = '';
+  html += `<div class="kv-row"><span class="kv-label">Connected</span><span class="kv-value ${data.connected ? 'ok' : 'err'}">${data.connected ? '\u2713 Yes' : '\u2717 No'}</span></div>`;
+  html += `<div class="kv-row"><span class="kv-label">Receiver Mode</span><span class="kv-value">${esc(data.receiver_mode || 'N/A')}</span></div>`;
+  html += `<div class="kv-row"><span class="kv-label">Transcription</span><span class="kv-value ${data.transcription_enabled ? 'ok' : 'err'}">${data.transcription_enabled ? '\u2713 Enabled' : '\u2717 Disabled'}</span></div>`;
+  html += `<div class="kv-row"><span class="kv-label">Connections</span><span class="kv-value">${data.total_connections || 0}</span></div>`;
+  if (conn) {
+    html += '<div class="section-title">Active Connection</div>';
+    html += `<div class="kv-row"><span class="kv-label">Server</span><span class="kv-value">${esc(conn.guild_name || conn.guild_id)}</span></div>`;
+    html += `<div class="kv-row"><span class="kv-label">Channel</span><span class="kv-value">${esc(conn.channel_name || conn.channel_id)}</span></div>`;
+    html += `<div class="kv-row"><span class="kv-label">Members</span><span class="kv-value">${conn.members || 0}</span></div>`;
+    html += `<div class="kv-row"><span class="kv-label">Rust Bridge</span><span class="kv-value ${conn.rust_bridge_active ? 'ok' : 'err'}">${conn.rust_bridge_active ? '\u2713 Active' : '\u2717 Inactive'}</span></div>`;
+    if (conn.member_names && conn.member_names.length) {
+      html += `<div class="kv-row"><span class="kv-label">In Channel</span><span class="kv-value">${conn.member_names.map(m => esc(m.display_name || m.name)).join(', ')}</span></div>`;
+    }
+  }
+  el.innerHTML = html;
+}
+
+function renderTTSStatus(data) {
+  const el = document.getElementById('ttsStatus');
+  if (!data || data.error) { el.innerHTML = '<div class="sub">TTS not available</div>'; return; }
+  renderKV(data, el);
+}
+
+// ── Memory Users ──
+async function loadMemoryUsers() {
+  try {
+    const r = await apiGet('/api/memory/users');
+    const list = document.getElementById('memoryUsersList');
+    const users = r.users || r;
+    if (!Array.isArray(users) || !users.length) { list.innerHTML = '<div class="empty-state">No users</div>'; return; }
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="border-bottom:1px solid var(--border);color:#8b949e"><th style="text-align:left;padding:6px">Username</th><th style="text-align:left;padding:6px">User ID</th><th style="text-align:left;padding:6px">Messages</th></tr>';
+    users.forEach(u => {
+      html += `<tr style="border-bottom:1px solid var(--border);cursor:pointer" oncontextmenu="loadConversation('${u.user_id||u.id}','${esc(u.username||u.name||'?')}');return false" onclick="loadUserProfile('${u.user_id||u.id}')"><td style="padding:6px">${esc(u.username||u.name||'?')}</td><td style="padding:6px;color:#8b949e">${u.user_id||u.id||'?'}</td><td style="padding:6px">${u.total_messages||u.message_count||0}</td></tr>`;
     });
+    html += '</table>';
+    list.innerHTML = html;
+  } catch(e) { console.error('loadMemoryUsers failed:', e); }
+}
+async function loadUserProfile(userId) {
+  try {
+    const r = await apiGet('/api/memory/user/' + userId);
+    renderKV(r, document.getElementById('userProfile'));
+  } catch(e) { console.error('loadUserProfile failed:', e); }
+}
+document.getElementById('testQdrantBtn').addEventListener('click', async () => {
+  const host = document.getElementById('qdrantHost').value.trim() || 'localhost';
+  const port = parseInt(document.getElementById('qdrantPort').value) || 6333;
+  const result = await apiPost('/api/enhanced/test-connection', {qdrant_host: host, qdrant_port: port});
+  document.getElementById('qdrantTestResult').innerHTML = result.success
+    ? '<span style="color:var(--green)">✓ Connection successful</span>'
+    : '<span style="color:var(--red)">✗ Connection failed: ' + (result.error || result.message || 'unknown') + '</span>';
+});
+
+// ── Facts ──
+async function loadFactStats() {
+  try {
+    const [facts, beliefs] = await Promise.allSettled([
+      apiGet('/api/memory/facts/stats'),
+      apiGet('/api/memory/beliefs/stats'),
+    ]);
+    const f = facts.status === 'fulfilled' ? facts.value : {};
+    const b = beliefs.status === 'fulfilled' ? beliefs.value : {};
+    document.getElementById('factsTotal').textContent = f.total_active_facts ?? f.total ?? '—';
+    document.getElementById('beliefsTotal').textContent = b.total_active_beliefs ?? b.total ?? '—';
+  } catch(e) { console.error('loadFactStats failed:', e); }
+}
+document.getElementById('factSearchBtn').addEventListener('click', async () => {
+  const query = document.getElementById('factQuery').value.trim();
+  if (!query) return;
+  const container = document.getElementById('factResults');
+  container.innerHTML = '<div class="empty-state">Searching...</div>';
+  const data = await apiPost('/api/memory/facts/search', {
+    query,
+    category: document.getElementById('factCategory').value || null,
+    min_confidence: 0,
+    limit: 20,
+    active_only: true,
+  });
+  if (data.error) { container.innerHTML = '<div class="empty-state">Error: ' + data.error + '</div>'; return; }
+  let html = '<div class="result-count">' + (data.facts || []).length + ' facts</div>';
+  (data.facts || []).forEach(f => {
+    html += '<div class="result-card"><div class="content">' + esc(f.content || f.text || '') + '</div><div class="meta">';
+    html += '<span class="score-badge type">' + (f.category || f.type || '?') + '</span>';
+    if (f.confidence != null) html += '<span class="score-badge imp">c:' + f.confidence.toFixed(2) + '</span>';
+    html += '</div></div>';
+  });
+  if (!data.facts || !data.facts.length) html += '<div class="empty-state">No facts found</div>';
+  container.innerHTML = html;
+});
+
+// ── Personality ──
+['energy','sass','engage'].forEach(id => {
+  const slider = document.getElementById(id + 'Slider');
+  const val = document.getElementById(id + 'Val');
+  slider.addEventListener('input', () => { val.textContent = slider.value; });
+});
+document.getElementById('applyMood').addEventListener('click', async () => {
+  const data = await apiPost('/api/personality/mood', {
+    energy_level: parseInt(document.getElementById('energySlider').value) / 100,
+    sass_level: parseInt(document.getElementById('sassSlider').value) / 100,
+    engagement: parseInt(document.getElementById('engageSlider').value) / 100,
+  });
+  if (data.success) loadPersonalityState();
+});
+document.getElementById('abortBtn').addEventListener('click', () => apiPost('/api/brain/abort'));
+document.getElementById('emergencyBtn').addEventListener('click', () => apiPost('/api/emergency-stop'));
+
+async function loadPersonalityState() {
+  try {
+    const r = await apiGet('/api/personality/state');
+    renderKV(r, document.getElementById('personalityState'));
+  } catch(e) { console.error('loadPersonalityState failed:', e); }
 }
 
-function addData(chart, label, data) {
-    chart.data.labels.push(label);
-    chart.data.datasets.forEach((dataset) => {
-        dataset.data.push(data);
-    });
-    if (chart.data.labels.length > 30) {
-        chart.data.labels.shift();
-        chart.data.datasets.forEach((dataset) => {
-            dataset.data.shift();
-        });
-    }
-    chart.update();
+document.querySelectorAll('.mood-preset').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    await apiPost('/api/mood/set', {mood: btn.dataset.mood});
+    loadPersonalityState();
+    loadCurrentMood();
+    loadMoodHistory();
+  });
+});
+
+async function loadCurrentMood() {
+  try {
+    const r = await apiGet('/api/mood/current');
+    renderKV(r, document.getElementById('currentMoodDisplay'));
+  } catch(e) { console.error('loadCurrentMood failed:', e); }
 }
 
-// ============================================================
-// MOOD CHART UPDATER
-// ============================================================
-async function updateMoodChart() {
-    try {
-        const res = await fetch(`${API_BASE}/api/mood/current`);
-        const data = await res.json();
-        if (data && !data.error) {
-            const energy = data.energy_level !== undefined ? Math.round(data.energy_level * 100) : 50;
-            const sass = data.sass_level !== undefined ? Math.round(data.sass_level * 100) : 50;
-            const engagement = data.engagement !== undefined ? Math.round(data.engagement * 100) : 50;
-            moodChart.data.datasets[0].data = [energy, sass, engagement];
-            moodChart.update();
-            return;
-        }
-    } catch (e) {
-        console.log('Mood chart: API unavailable', e);
-    }
+async function loadMoodHistory() {
+  try {
+    const r = await apiGet('/api/mood/history?limit=50');
+    const list = document.getElementById('moodHistoryList');
+    const moods = r.moods || r.history || [];
+    if (!moods.length) { list.innerHTML = '<div class="empty-state">No mood history</div>'; return; }
+    list.innerHTML = moods.map(m => `<div style="padding:4px 0;font-size:12px;border-bottom:1px solid var(--border);display:flex;gap:8px">
+      <span style="color:var(--accent);min-width:60px">${m.mood || m.name || '?'}</span>
+      <span style="color:#8b949e">${m.timestamp || m.time || ''}</span>
+    </div>`).join('');
+  } catch(e) { console.error('loadMoodHistory failed:', e); }
 }
 
-async function updateMoodHistoryChart() {
-    if (!moodHistoryChart) return;
-    try {
-        const res = await fetch(`${API_BASE}/api/mood/history?limit=60`);
-        const data = await res.json();
-        const history = data.history || [];
-        moodHistoryChart.data.labels = history.map(h => new Date(h.timestamp).toLocaleTimeString());
-        moodHistoryChart.data.datasets[0].data = history.map(h => h.energy_level);
-        moodHistoryChart.data.datasets[1].data = history.map(h => h.sass_level);
-        moodHistoryChart.data.datasets[2].data = history.map(h => h.engagement);
-        moodHistoryChart.update();
-    } catch (e) {
-        console.log('Mood history chart: API unavailable', e);
-    }
+async function loadSystemPrompt() {
+  try {
+    const r = await apiGet('/api/system_prompt');
+    document.getElementById('systemPromptTextarea').value = r.prompt || r.system_prompt || '';
+  } catch(e) { console.error('loadSystemPrompt failed:', e); }
 }
 
-// ============================================================
-// BRAIN STATE UPDATER
-// ============================================================
-async function updateBrainState() {
-    try {
-        const res = await fetch(`${API_BASE}/api/brain/state`);
-        const data = await res.json();
-        if (data && !data.error) {
-            updateBrainStateFromValue(data.status || data);
-        }
-    } catch (e) {
-        console.log('Brain state: API unavailable');
-    }
-}
+document.getElementById('saveSystemPromptBtn').addEventListener('click', async () => {
+  const prompt = document.getElementById('systemPromptTextarea').value;
+  const result = await apiPost('/api/system_prompt', {prompt});
+  if (result.success) { document.getElementById('saveSystemPromptBtn').textContent = 'Saved!'; setTimeout(() => document.getElementById('saveSystemPromptBtn').textContent = 'Save Prompt', 2000); }
+});
 
-function updateBrainStateFromValue(state) {
-    const indicator = document.getElementById('brain-state-indicator');
-    const text = document.getElementById('brain-state-text');
-    let statusStr = 'ONLINE';
-    let colorClass = 'bg-green-glow';
-    if (typeof state === 'object') {
-        statusStr = state.status || 'ONLINE';
-    } else {
-        statusStr = String(state).toUpperCase();
-    }
-    if (statusStr === 'ONLINE' || statusStr === 'THINKING' || statusStr === 'IDLE') {
-        colorClass = 'bg-green-glow';
-    } else if (statusStr === 'OFFLINE' || statusStr === 'ERROR') {
-        colorClass = 'bg-red-glow';
-    } else {
-        colorClass = 'bg-yellow-glow';
-    }
-    indicator.className = `status-dot ${colorClass} animate-pulse`;
-    text.textContent = statusStr;
-}
+document.getElementById('severContextBtn').addEventListener('click', async () => {
+  const channelId = document.getElementById('severChannelId').value.trim();
+  if (!channelId) return;
+  await apiPost('/api/context/sever', {channel_id: channelId});
+  document.getElementById('severChannelId').value = '';
+});
 
-// ============================================================
-// VAD SLIDER WIRING
-// ============================================================
-async function loadAudioSettings() {
-    try {
-        const data = await serinBridge.apiCall('/api/audio/settings');
-        if (!data.error) {
-            const slider = document.getElementById('vad-slider');
-            const valDisplay = document.getElementById('vad-val');
-            if (data.vad_threshold !== undefined && slider) {
-                slider.value = data.vad_threshold;
-                valDisplay.textContent = data.vad_threshold + 'dB';
-            }
-        }
-    } catch (e) {}
+// ── Voice ──
+async function loadVoice() {
+  try {
+    const [vs, tts] = await Promise.allSettled([
+      apiGet('/api/voice/status'),
+      apiGet('/api/tts/status'),
+    ]);
+    const v = vs.status === 'fulfilled' ? vs.value : {};
+    const t = tts.status === 'fulfilled' ? tts.value : {};
+    renderVoiceStatus(v);
+    renderTTSStatus(t);
+  } catch(e) { console.error('loadVoice failed:', e); }
 }
-
-// ============================================================
-// TTS FUNCTIONS (from enhanced_control_panel.js)
-// ============================================================
-async function loadAvailableVoices() {
-    try {
-        const data = await serinBridge.apiCall('/api/tts/voices');
-        const select = document.getElementById('tts-voice-select');
-        if (!select) return;
-        if (data.voices && data.voices.length > 0) {
-            select.innerHTML = data.voices.map(v =>
-                `<option value="${v.file || v}">${v.name || v}${v.size ? ' (' + (v.size / 1024).toFixed(0) + 'KB)' : ''}</option>`
-            ).join('');
-        } else {
-            select.innerHTML = '<option value="">No voices found</option>';
-        }
-    } catch (e) {
-        console.error('Error loading voices:', e);
-    }
+async function loadVoiceChannels() {
+  try {
+    const r = await apiGet('/api/voice/channels');
+    const list = document.getElementById('voiceChannelList');
+    const channels = r.channels || r;
+    if (!Array.isArray(channels) || !channels.length) { list.innerHTML = '<div class="empty-state">No voice channels available</div>'; return; }
+    list.innerHTML = channels.map(ch => `<div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span style="flex:1;font-size:13px"><strong>${esc(ch.guild_name||'?')}</strong> / ${esc(ch.channel_name||ch.name||'?')} (${ch.member_count||0} members)</span>
+      <button onclick="apiPost('/api/voice/join',{guild_id:'${ch.guild_id}',channel_id:'${ch.channel_id}',action:'join'}).then(()=>{loadVoice();loadVoiceChannels()})" class="secondary" style="font-size:11px;padding:3px 8px">Join</button>
+      <button onclick="apiPost('/api/voice/leave',{guild_id:'${ch.guild_id}',channel_id:'${ch.channel_id}',action:'leave'}).then(()=>{loadVoice();loadVoiceChannels()})" class="danger" style="font-size:11px;padding:3px 8px">Leave</button>
+    </div>`).join('');
+  } catch(e) { console.error('loadVoiceChannels failed:', e); }
 }
-
-async function loadTTSVoice() {
-    const select = document.getElementById('tts-voice-select');
-    if (!select) return;
-    const voiceFile = select.value;
-    if (!voiceFile) {
-        ui.addSystemLog('Please select a voice file');
-        return;
-    }
-    ui.addSystemLog(`Loading TTS voice: ${voiceFile}...`);
-    const result = await serinBridge.post('/api/tts/voice/load', {
-        voice_name: voiceFile.split('.')[0],
-        voice_file: voiceFile
-    });
-    if (result.success) {
-        ui.addSystemLog(`Voice loaded: ${result.voice}`);
-    } else {
-        ui.addSystemLog(`Failed: ${result.error}`);
-    }
+async function loadVoiceFiles() {
+  try {
+    const r = await apiGet('/api/voice/files');
+    const sel = document.getElementById('voiceFileSelect');
+    const files = r.files || r;
+    if (!Array.isArray(files) || !files.length) { sel.innerHTML = '<option value="">No voices available</option>'; return; }
+    sel.innerHTML = '<option value="">Select a voice...</option>' + files.map(f => `<option value="${esc(f.filename||f)}">${esc(f.name||f.filename||f)}</option>`).join('');
+  } catch(e) { console.error('loadVoiceFiles failed:', e); }
 }
+document.getElementById('loadCloneVoiceBtn').addEventListener('click', async () => {
+  const filename = document.getElementById('voiceFileSelect').value;
+  if (!filename) return;
+  await apiPost('/api/voice/load', {filename});
+  loadVoice();
+});
+document.getElementById('clearCloneVoiceBtn').addEventListener('click', async () => {
+  await apiPost('/api/voice/clear');
+  loadVoice();
+});
+document.getElementById('testCloneTtsBtn').addEventListener('click', () => apiPost('/api/tts/voice/test'));
 
-async function clearTTSVoice() {
-    ui.addSystemLog('Clearing voice reference...');
-    const result = await serinBridge.post('/api/tts/voice/clear');
-    if (result.success) {
-        ui.addSystemLog('Voice cleared (using default)');
-    } else {
-        ui.addSystemLog(`Failed: ${result.error}`);
-    }
+// Behavior settings sliders
+['joinAggro','leaveSilence','maxSession'].forEach(id => {
+  const slider = document.getElementById(id + 'Slider');
+  const val = document.getElementById(id + 'Val');
+  if (slider) slider.addEventListener('input', () => { if (val) val.textContent = slider.value; });
+});
+document.getElementById('saveBehaviorBtn').addEventListener('click', async () => {
+  await apiPost('/api/voice/behavior/settings', {
+    join_aggressiveness: parseInt(document.getElementById('joinAggroSlider').value),
+    leave_after_silence: parseInt(document.getElementById('leaveSilenceSlider').value),
+    max_session_duration: parseInt(document.getElementById('maxSessionSlider').value),
+  });
+});
+async function loadBehaviorSettings() {
+  try {
+    const r = await apiGet('/api/voice/behavior/settings');
+    const set = r.settings || r;
+    if (set.join_aggressiveness != null) { document.getElementById('joinAggroSlider').value = set.join_aggressiveness; document.getElementById('joinAggroVal').textContent = set.join_aggressiveness; }
+    if (set.leave_after_silence != null) { document.getElementById('leaveSilenceSlider').value = set.leave_after_silence; document.getElementById('leaveSilenceVal').textContent = set.leave_after_silence; }
+    if (set.max_session_duration != null) { document.getElementById('maxSessionSlider').value = set.max_session_duration; document.getElementById('maxSessionVal').textContent = set.max_session_duration; }
+  } catch(e) { console.error('loadBehaviorSettings failed:', e); }
 }
-
-async function loadCurrentTTS() {
-    try {
-        const data = await serinBridge.apiCall('/api/tts/current');
-        if (!data.error) {
-            const statusDiv = document.getElementById('tts-status');
-            if (statusDiv) {
-                statusDiv.innerHTML = `
-                    <div class="bg-black/40 p-2 rounded"><span class="text-gray-500">Device:</span> <span class="text-serin-accent">${(data.device || '--').toUpperCase()}</span></div>
-                    <div class="bg-black/40 p-2 rounded"><span class="text-gray-500">CUDA:</span> <span class="text-serin-accent">${data.cuda_enabled ? 'Yes' : 'No'}</span></div>
-                    <div class="bg-black/40 p-2 rounded"><span class="text-gray-500">Voice Cloning:</span> <span class="text-serin-accent">${data.voice_cloning_active ? 'Active' : 'Off'}</span></div>
-                    <div class="bg-black/40 p-2 rounded"><span class="text-gray-500">Generations:</span> <span class="text-serin-accent">${data.total_generations || 0}</span></div>
-                `;
-            }
-            const profileSelect = document.getElementById('tts-voice-profile');
-            if (profileSelect && data.available_profiles) {
-                profileSelect.innerHTML = data.available_profiles.map(p =>
-                    `<option value="${p}" ${p === data.active_profile ? 'selected' : ''}>${p}</option>`
-                ).join('');
-            }
-        }
-    } catch (e) {}
+async function loadBehaviorStats() {
+  try {
+    const r = await apiGet('/api/voice/behavior/stats');
+    renderKV(r, document.getElementById('voiceBehaviorStats'));
+  } catch(e) { console.error('loadBehaviorStats failed:', e); }
 }
-
-async function updateTTSSettings() {
-    const profile = document.getElementById('tts-voice-profile')?.value || 'default';
-    ui.addSystemLog(`Setting TTS profile: ${profile}...`);
-    const result = await serinBridge.post('/api/tts/settings/update', {
-        enabled: true,
-        profile: profile,
-        speed: 1.0,
-        pitch: 1.0
-    });
-    if (result.success) {
-        ui.addSystemLog(`TTS profile: ${profile}`);
-    } else {
-        ui.addSystemLog(`Failed: ${result.error}`);
-    }
-}
-
-// ============================================================
-// VOICE PROFILE MANAGEMENT
-// ============================================================
+document.getElementById('loadTtsVoiceBtn').addEventListener('click', () => apiPost('/api/tts/voice/load').then(loadVoice));
+document.getElementById('clearTtsVoiceBtn').addEventListener('click', () => apiPost('/api/tts/voice/clear').then(loadVoice));
+document.getElementById('testTtsBtn').addEventListener('click', () => apiPost('/api/tts/test'));
+document.getElementById('updateTtsSettingsBtn').addEventListener('click', () => apiPost('/api/tts/settings/update').then(loadVoice));
+document.getElementById('saveAudioSettingsBtn').addEventListener('click', async () => {
+  await apiPost('/api/audio/settings/update', {
+    vad_threshold: parseFloat(document.getElementById('vadThreshold').value),
+    silence_threshold: parseFloat(document.getElementById('silenceThreshold').value),
+  });
+});
 async function loadVoiceProfiles() {
-    try {
-        const data = await serinBridge.apiCall('/api/voice-profiles/list');
-        if (!data.error) {
-            const container = document.getElementById('voice-profiles-list');
-            const select = document.getElementById('tts-voice-profile');
-            if (select && data.profiles) {
-                select.innerHTML = data.profiles.map(p =>
-                    `<option value="${p.name}" ${p.name === data.active ? 'selected' : ''}>${p.name}</option>`
-                ).join('');
-            }
-            if (container && data.profiles) {
-                container.innerHTML = data.profiles.map(p => `
-                    <div class="flex justify-between items-center p-2 rounded bg-black/40 border border-serin-border">
-                        <div>
-                            <div class="text-sm text-white">${p.name} ${p.name === data.active ? '<span class="text-serin-accent text-[10px]">(Active)</span>' : ''}</div>
-                            <div class="text-xs text-gray-500">Speed: ${p.speed}x, Temp: ${p.temperature}</div>
-                        </div>
-                        <div class="flex gap-1">
-                            <button onclick="setActiveProfile('${p.name}')" class="text-xs bg-serin-accent/20 text-serin-accent px-2 py-1 rounded hover:bg-serin-accent hover:text-black">Activate</button>
-                            <button onclick="deleteProfile('${p.name}')" class="text-xs bg-red-900/30 text-red-400 px-2 py-1 rounded hover:bg-red-900/50">Del</button>
-                        </div>
-                    </div>
-                `).join('');
-            }
-        }
-    } catch (e) {}
+  try {
+    const r = await apiGet('/api/voice-profiles/list');
+    const list = document.getElementById('voiceProfilesList');
+    const profiles = r.profiles || r;
+    if (!Array.isArray(profiles) || !profiles.length) { list.innerHTML = '<div class="empty-state">No profiles</div>'; return; }
+    list.innerHTML = profiles.map(p => {
+      const pName = esc(p.name||p);
+      return `<div style="display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid var(--border)">
+      <span style="flex:1;font-size:13px">${pName}</span>
+      <button onclick="apiPost('/api/voice-profiles/set-active',{name:'${pName}'}).then(loadVoiceProfiles)" class="secondary" style="font-size:11px;padding:3px 8px">Set Active</button>
+      <button onclick="if(confirm('Delete profile?')){apiPost('/api/voice-profiles/delete',{name:'${pName}'}).then(loadVoiceProfiles)}" class="danger" style="font-size:11px;padding:3px 8px">Delete</button>
+    </div>`;
+    }).join('');
+  } catch(e) { console.error('loadVoiceProfiles failed:', e); }
+}
+document.getElementById('createProfileBtn').addEventListener('click', async () => {
+  const name = document.getElementById('newProfileName').value.trim();
+  if (!name) return;
+  await apiPost('/api/voice-profiles/create', {name});
+  document.getElementById('newProfileName').value = '';
+  loadVoiceProfiles();
+});
+async function loadActiveSpeakers() {
+  try {
+    const r = await apiGet('/api/audio/speakers');
+    const list = document.getElementById('activeSpeakersList');
+    const speakers = r.speakers || r;
+    if (!Array.isArray(speakers) || !speakers.length) { list.innerHTML = '<div class="empty-state">No active speakers</div>'; return; }
+    list.innerHTML = speakers.map(sp => `<div style="display:flex;gap:8px;padding:4px 0;font-size:13px;border-bottom:1px solid var(--border)">
+      <span style="flex:1">${esc(sp.name||sp.user||'?')}</span>
+      <span style="color:#8b949e">buffer: ${sp.buffer_size||sp.buffer||0}</span>
+    </div>`).join('');
+  } catch(e) { console.error('loadActiveSpeakers failed:', e); }
 }
 
-async function createVoiceProfile() {
-    const name = document.getElementById('new-profile-name')?.value;
-    const speed = parseFloat(document.getElementById('new-profile-speed')?.value || 1.0);
-    const temperature = parseFloat(document.getElementById('new-profile-temp')?.value || 0.7);
-    const description = document.getElementById('new-profile-desc')?.value || '';
-    if (!name) {
-        ui.addSystemLog('Profile name required');
-        return;
-    }
-    ui.addSystemLog(`Creating profile: ${name}...`);
-    const result = await serinBridge.post('/api/voice-profiles/create', { name, speed, temperature, description });
-    if (result.success) {
-        ui.addSystemLog(`Profile created: ${name}`);
-        document.getElementById('new-profile-name').value = '';
-        document.getElementById('new-profile-desc').value = '';
-        loadVoiceProfiles();
-    } else {
-        ui.addSystemLog(`Failed: ${result.error}`);
-    }
+// ── Pipeline ──
+async function loadPipeline() {
+  try {
+    const data = await apiGet('/api/pipeline/status');
+    const stages = data.stages || [
+      {id:1,name:'Ingest',desc:'Receive and validate message'},
+      {id:2,name:'Classify',desc:'Classify message type and intent'},
+      {id:3,name:'Perceive',desc:'Extract evidence, facts, and patterns'},
+      {id:4,name:'Memory Retrieve',desc:'Fetch relevant memories and context'},
+      {id:5,name:'Assemble Prompt',desc:'Build LLM prompt with context'},
+      {id:6,name:'LLM Call',desc:'Generate response via language model'},
+      {id:7,name:'Clean Response',desc:'Filter thinking tags and artifacts'},
+      {id:8,name:'Personality',desc:'Apply tone, sass, and engagement'},
+      {id:9,name:'Decide Response',desc:'Decide if/how to respond'},
+      {id:10,name:'Send',desc:'Send response with typing simulation'},
+    ];
+    let html = '';
+    stages.forEach((s, i) => {
+      html += '<div class="pipeline-stage"><div class="num">' + (i+1) + '</div><div class="info"><div class="name">' + esc(s.name) + '</div><div class="desc">' + esc(s.description || s.desc || '') + '</div></div></div>';
+    });
+    if (data.last_run) html += '<div class="card"><h3>Last Run</h3><div class="sub">' + data.last_run + '</div></div>';
+    if (data.total_processed != null) html += '<div class="card"><h3>Total Processed</h3><div class="value">' + data.total_processed + '</div></div>';
+    document.getElementById('pipelineList').innerHTML = html;
+  } catch(e) { console.error('loadPipeline failed:', e); }
 }
 
-async function setActiveProfile(profileName) {
-    ui.addSystemLog(`Setting profile: ${profileName}...`);
-    const result = await serinBridge.post(`/api/voice-profiles/set-active?profile_name=${profileName}`);
-    if (result.success) {
-        ui.addSystemLog(`Active: ${profileName}`);
-        loadVoiceProfiles();
-    } else {
-        ui.addSystemLog(`Failed: ${result.error}`);
-    }
-}
-
-async function deleteProfile(profileName) {
-    if (!confirm(`Delete profile "${profileName}"?`)) return;
-    const result = await serinBridge.apiCall(`/api/voice-profiles/${profileName}`, 'DELETE');
-    if (result.success) {
-        ui.addSystemLog(`Deleted: ${profileName}`);
-        loadVoiceProfiles();
-    } else {
-        ui.addSystemLog(`Failed: ${result.error}`);
-    }
-}
-
-// ============================================================
-// AUDIO STATS
-// ============================================================
-async function loadAudioStats() {
-    try {
-        const data = await serinBridge.apiCall('/api/audio/stats');
-        if (!data.error) {
-            const setStat = (id, val) => {
-                const el = document.getElementById(id);
-                if (el) el.textContent = val;
-            };
-            setStat('audio-chunks-received', data.chunks_received || 0);
-            setStat('audio-chunks-processed', data.chunks_processed || 0);
-            setStat('audio-queue-size', data.queue_size || 0);
-            setStat('audio-transcriptions', data.transcriptions_completed || 0);
-            setStat('audio-vad-detections', data.vad_detections || 0);
-        }
-    } catch (e) {}
-}
-
-// ============================================================
-// SLIDER INITIALIZATION
-// ============================================================
-function initSliders() {
-    const sliderMap = {
-        'vad-slider': (v) => { document.getElementById('vad-val').textContent = v + 'dB'; },
-        'join-aggro-slider': (v) => { document.getElementById('join-aggro-val').textContent = v + '%'; },
-        'leave-silence-slider': (v) => { document.getElementById('leave-silence-val').textContent = v + 's'; },
-        'max-session-slider': (v) => { document.getElementById('max-session-val').textContent = v + 'm'; },
-        'new-profile-speed': (v) => { document.getElementById('new-profile-speed-value').textContent = parseFloat(v).toFixed(1); },
-        'new-profile-temp': (v) => { document.getElementById('new-profile-temp-value').textContent = parseFloat(v).toFixed(2); }
-    };
-    for (const [id, fn] of Object.entries(sliderMap)) {
-        const el = document.getElementById(id);
-        if (el) {
-            el.addEventListener('input', (e) => fn(e.target.value));
-        }
-    }
-
-    // Wire VAD slider to backend
-    const vadSlider = document.getElementById('vad-slider');
-    if (vadSlider) {
-        vadSlider.addEventListener('change', async (e) => {
-            const val = parseInt(e.target.value);
-            ui.addSystemLog(`Updating VAD threshold to ${val}dB...`);
-            await serinBridge.post('/api/audio/settings/update', { vad_threshold: val });
-        });
-    }
-}
-
-// ============================================================
-// INIT
-// ============================================================
-window.onload = () => {
-    serinBridge.connect();
-    initMoodHistoryChart();
-    setInterval(() => serinBridge.checkHealth(), 5000);
-    setInterval(() => updateBrainState(), 10000);
-    setInterval(() => {
-        const activeTab = document.querySelector('.tab-content:not(.hidden)');
-        if (activeTab) {
-            const id = activeTab.id;
-            if (id === 'voice') { loadAudioStats(); }
-            if (id === 'background') { serinBridge.loadBackgroundQueue(); loadAudioStats(); }
-            if (id === 'voice-behavior') { serinBridge.loadVoiceBehavior(); }
-            // Only poll mood data while the personality tab is actually
-            // visible — no point spending a request every 30s to update a
-            // chart nobody's looking at.
-            if (id === 'tab-personality') { updateMoodChart(); updateMoodHistoryChart(); }
-        }
-    }, 30000);
-
-    initSliders();
-    updateBrainState();
-    updateMoodChart();
-    updateMoodHistoryChart();
+// ── Config Editor ──
+const CONFIG_CATEGORIES = {
+  Core: ['DEBUG_MODE','TRACE_MESSAGES','MAINTENANCE_INTERVAL_HOURS','CONTROL_PANEL_PORT','DISCORD_TOKEN','ALLOWED_CHANNEL_IDS'],
+  Features: ['ENABLE_VOICE','ENABLE_TTS','VOICE_RECEIVER_MODE'],
+  Personality: ['PERSONALITY.energy','PERSONALITY.sass','PERSONALITY.engagement'],
+  Model: ['LLM_MODEL','LLM_API_URL'],
+  Voice: ['VOICE_RECEIVER_MODE','RUST_VOICE_RECEIVER_PATH'],
+  Qdrant: ['QDRANT_HOST','QDRANT_PORT','COLLECTION_NAME','EMBEDDING_MODEL','MEMORY_TOP_K'],
 };
+const SENSITIVE_KEYS = ['LLM_BASE_URL','LLM_MODEL'];
+let configData = {};
+let configValues = {};
 
-async function restartBot() {
-    if (!confirm('Restart bot? This will disconnect from Discord briefly.')) return;
-    const btn = document.querySelector('.restart-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-    try {
-        const res = await fetch('/api/bot/restart', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ confirm: true })
-        });
-        const data = await res.json();
-        if (data.success) {
-            btn.innerHTML = '<i class="fa-solid fa-check" style="color:#00ff9d"></i>';
-            setTimeout(() => {
-                btn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
-                btn.disabled = false;
-            }, 3000);
-        }
-    } catch(e) {
-        btn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
-        btn.disabled = false;
-    }
+function renderConfigEditor() {
+  const container = document.getElementById('configEditor');
+  let html = '';
+  const used = new Set();
+  for (const [cat, keys] of Object.entries(CONFIG_CATEGORIES)) {
+    html += `<div class="card"><h3>${esc(cat)}</h3>`;
+    keys.forEach(k => {
+      used.add(k);
+      const val = configValues[k];
+      let input;
+      if (typeof val === 'boolean') {
+        input = `<select id="cfg-${esc(k)}"><option value="true"${val ? ' selected' : ''}>true</option><option value="false"${!val ? ' selected' : ''}>false</option></select>`;
+      } else if (typeof val === 'number') {
+        input = `<input type="number" id="cfg-${esc(k)}" value="${val}">`;
+      } else if (k === 'ALLOWED_CHANNEL_IDS' && Array.isArray(val)) {
+        input = `<input type="text" id="cfg-${esc(k)}" value="${esc(val.join(', '))}">`;
+      } else {
+        input = `<input type="text" id="cfg-${esc(k)}" value="${esc(String(val ?? ''))}">`;
+      }
+      html += `<div style="margin-bottom:8px"><label style="display:block;font-size:12px;color:#8b949e;margin-bottom:2px">${esc(k)}</label>${input}</div>`;
+    });
+    html += '</div>';
+  }
+  // Orphan keys
+  const orphans = Object.keys(configValues).filter(k => !used.has(k));
+  if (orphans.length) {
+    html += `<div class="card"><h3>Other</h3>`;
+    orphans.forEach(k => {
+      const val = configValues[k];
+      let input;
+      if (typeof val === 'boolean') {
+        input = `<select id="cfg-${esc(k)}"><option value="true"${val ? ' selected' : ''}>true</option><option value="false"${!val ? ' selected' : ''}>false</option></select>`;
+      } else {
+        input = `<input type="text" id="cfg-${esc(k)}" value="${esc(String(val ?? ''))}">`;
+      }
+      html += `<div style="margin-bottom:8px"><label style="display:block;font-size:12px;color:#8b949e;margin-bottom:2px">${esc(k)}</label>${input}</div>`;
+    });
+    html += '</div>';
+  }
+  container.innerHTML = html;
 }
+
+function collectConfigValues() {
+  const values = {};
+  Object.keys(configValues).forEach(k => {
+    const el = document.getElementById('cfg-' + k);
+    if (!el) { values[k] = configValues[k]; return; }
+    if (el.tagName === 'SELECT') values[k] = el.value === 'true';
+    else if (el.type === 'number') values[k] = parseFloat(el.value);
+    else if (k === 'ALLOWED_CHANNEL_IDS') values[k] = el.value.split(',').map(s => s.trim()).filter(Boolean);
+    else values[k] = el.value;
+  });
+  return values;
+}
+
+async function loadConfig() {
+  try {
+    const data = await apiGet('/api/config');
+    configData = data;
+    // Flatten PERSONALITY sub-dict
+    configValues = {};
+    Object.keys(data).forEach(k => {
+      if (k === 'PERSONALITY' && typeof data[k] === 'object') {
+        Object.keys(data[k]).forEach(sk => { configValues['PERSONALITY.' + sk] = data[k][sk]; });
+      } else {
+        configValues[k] = data[k];
+      }
+    });
+    renderConfigEditor();
+  } catch(e) { console.error('loadConfig failed:', e); }
+}
+
+async function saveConfig() {
+  const updated = collectConfigValues();
+  // Re-nest PERSONALITY.*
+  const payload = {};
+  Object.keys(updated).forEach(k => {
+    if (k.startsWith('PERSONALITY.')) {
+      const sk = k.slice('PERSONALITY.'.length);
+      if (!payload.PERSONALITY) payload.PERSONALITY = {};
+      payload.PERSONALITY[sk] = updated[k];
+    } else {
+      payload[k] = updated[k];
+    }
+  });
+  const resultDiv = document.getElementById('configSaveResult');
+  // Check for sensitive keys
+  const sensitiveChanged = Object.keys(payload).some(k => SENSITIVE_KEYS.includes(k));
+  if (sensitiveChanged && !payload.confirm) {
+    if (confirm('This change includes sensitive settings (' + SENSITIVE_KEYS.join(', ') + '). Confirm?')) {
+      payload.confirm = true;
+    } else {
+      resultDiv.innerHTML = '<span style="color:var(--yellow)">Save cancelled</span>';
+      return;
+    }
+  }
+  const result = await apiPost('/api/config', payload);
+  if (result.success) {
+    resultDiv.innerHTML = '<span style="color:var(--green)">✓ Config saved</span>';
+  } else {
+    resultDiv.innerHTML = '<span style="color:var(--red)">✗ Save failed: ' + (result.error || result.message || 'unknown') + '</span>';
+  }
+}
+document.getElementById('saveConfigBtn').addEventListener('click', saveConfig);
+
+// ── Logs ──
+document.getElementById('refreshLogs').addEventListener('click', loadLogs);
+async function loadLogs() {
+  try {
+    const data = await apiGet('/api/logs/recent');
+    const viewer = document.getElementById('logViewer');
+    const logs = data.logs || [];
+    viewer.innerHTML = logs.map(ln => {
+      const level = ln.includes('ERROR') ? 'ERROR' : ln.includes('WARN') ? 'WARN' : ln.includes('DEBUG') ? 'DEBUG' : 'INFO';
+      return '<div class="log-line ' + level + '">' + esc(ln) + '</div>';
+    }).join('');
+  } catch(e) { console.error('loadLogs failed:', e); }
+}
+
+// ── Tests Tab ──
+document.getElementById('runAllTestsBtn').addEventListener('click', async () => {
+  const output = document.getElementById('testOutput');
+  const summary = document.getElementById('testSummary');
+  const duration = document.getElementById('testDuration');
+  output.innerHTML = '<div class="empty-state">Running all tests...</div>';
+  summary.innerHTML = '';
+  duration.textContent = '';
+  const result = await apiPost('/api/tests/run', {test_path: 'tests/', verbose: true});
+  if (result.error) { output.innerHTML = '<div class="log-line ERROR">Error: ' + esc(result.error) + '</div>'; return; }
+  displayTestResult(result, output, summary, duration);
+});
+document.getElementById('runSingleTestBtn').addEventListener('click', async () => {
+  const testFile = document.getElementById('testFileSelect').value;
+  if (!testFile) return;
+  const testName = document.getElementById('testNameInput').value.trim();
+  const output = document.getElementById('testOutput');
+  const summary = document.getElementById('testSummary');
+  const duration = document.getElementById('testDuration');
+  output.innerHTML = '<div class="empty-state">Running ' + esc(testFile) + '...</div>';
+  summary.innerHTML = '';
+  duration.textContent = '';
+  const result = await apiPost('/api/tests/run-single', {test_file: testFile, test_name: testName || undefined});
+  if (result.error) { output.innerHTML = '<div class="log-line ERROR">Error: ' + esc(result.error) + '</div>'; return; }
+  displayTestResult(result, output, summary, duration);
+});
+async function loadTestFiles() {
+  try {
+    const r = await apiGet('/api/tests/list');
+    const sel = document.getElementById('testFileSelect');
+    const files = r.test_files || [];
+    if (!files.length) { sel.innerHTML = '<option value="">No test files found</option>'; return; }
+    sel.innerHTML = '<option value="">Select a test file...</option>' + files.map(f => '<option value="' + esc(f) + '">' + esc(f) + '</option>').join('');
+  } catch(e) { console.error('loadTestFiles failed:', e); }
+}
+function displayTestResult(result, outputEl, summaryEl, durationEl) {
+  const s = result.summary || {};
+  summaryEl.innerHTML = `
+    <span style="color:var(--green);font-weight:500">${s.passed || 0} passed</span>
+    <span style="color:var(--red);font-weight:500">${s.failed || 0} failed</span>
+    <span style="color:var(--yellow);font-weight:500">${s.errors || 0} errors</span>
+    <span style="color:#8b949e">${s.skipped || 0} skipped</span>
+    <span style="color:#8b949e">| ${s.total || 0} total</span>
+  `;
+  durationEl.textContent = 'Duration: ' + (result.duration_seconds || 0) + 's';
+  const lines = (result.output || '').split('\n');
+  outputEl.innerHTML = lines.map(ln => {
+    const level = ln.includes('FAILED') ? 'ERROR' : ln.includes('ERROR') ? 'ERROR' : ln.includes('PASSED') ? 'INFO' : 'DEBUG';
+    return '<div class="log-line ' + level + '">' + esc(ln) + '</div>';
+  }).join('');
+}
+
+// ── WebSocket ──
+let ws = null;
+let wsRetryCount = 0;
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/ws`);
+  ws.onopen = () => {
+    wsRetryCount = 0;
+    document.getElementById('headerWs').textContent = 'connected';
+  };
+  ws.onclose = () => {
+    document.getElementById('headerWs').textContent = 'disconnected';
+    wsRetryCount++;
+    const delay = Math.min(wsRetryCount * 2000, 30000);
+    setTimeout(connectWS, delay);
+  };
+  ws.onerror = (e) => {
+    console.warn('WebSocket error, will retry');
+  };
+  ws.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.type === 'heartbeat') {
+        document.getElementById('headerLatency').textContent = data.latency || '--';
+        document.getElementById('headerBrain').textContent = data.brain_state || '--';
+        document.getElementById('headerGpu').textContent = data.gpu || '--';
+        const dot = document.getElementById('statusDot');
+        if (dot) dot.style.background = data.brain_state === 'ONLINE' ? 'var(--green)' : 'var(--yellow)';
+      } else if (data.type === 'log') {
+        const viewer = document.getElementById('logViewer');
+        const level = data.level || 'INFO';
+        const line = document.createElement('div');
+        line.className = 'log-line ' + level;
+        line.textContent = '[' + new Date().toLocaleTimeString() + '] ' + (data.msg || '');
+        viewer.appendChild(line);
+        viewer.scrollTop = viewer.scrollHeight;
+      } else if (data.type === 'decision') {
+        const log = document.getElementById('decisionLog');
+        const status = data.status || 'UNKNOWN';
+        const color = status === 'RESPOND' ? 'var(--green)' : 'var(--yellow)';
+        const line = document.createElement('div');
+        line.style.cssText = 'padding:4px 0;font-size:12px;border-bottom:1px solid var(--border)';
+        line.innerHTML = `<span style="color:${color};font-weight:500">${status}</span> <span style="color:#8b949e">${esc(data.reason||'')}</span> <span style="color:#8b949e;float:right">${data.time||new Date().toLocaleTimeString()}</span>`;
+        log.appendChild(line);
+        log.scrollTop = log.scrollHeight;
+      } else if (data.type === 'voice_joined' || data.type === 'voice_left') {
+        loadVoice();
+        loadVoiceChannels();
+        loadActiveSpeakers();
+      } else if (data.type === 'pipeline_stage') {
+        const d = data.data;
+        const el = document.getElementById('pstage-' + d.stage_id);
+        const timeEl = document.getElementById('pstage-time-' + d.stage_id);
+        if (el) {
+          if (d.status === 'running') {
+            el.style.background = 'rgba(210,153,34,0.2)';
+            el.style.borderColor = 'var(--yellow)';
+          } else if (d.status === 'done') {
+            el.style.background = 'rgba(63,185,80,0.15)';
+            el.style.borderColor = 'var(--green)';
+            if (timeEl) timeEl.textContent = d.elapsed_ms + 'ms';
+          } else if (d.status === 'error') {
+            el.style.background = 'rgba(248,81,73,0.15)';
+            el.style.borderColor = 'var(--red)';
+          } else if (d.status === 'skipped') {
+            el.style.background = 'var(--surface)';
+            el.style.borderColor = 'var(--border)';
+            el.style.opacity = '0.5';
+          }
+        }
+        const log = document.getElementById('pipelineLog');
+        if (log) {
+          const t = new Date().toLocaleTimeString();
+          log.innerHTML += `<div>${t} [${d.user}] Stage ${d.stage_id+1} ${d.stage_name}: ${d.status} ${d.elapsed_ms ? d.elapsed_ms+'ms' : ''}</div>`;
+          log.scrollTop = log.scrollHeight;
+          while (log.children.length > 50) log.removeChild(log.firstChild);
+        }
+        if (d.stage_id === 0 && d.status === 'running') {
+          PIPELINE_STAGES.forEach((_, i) => {
+            const se = document.getElementById('pstage-' + i);
+            const st = document.getElementById('pstage-time-' + i);
+            if (se) { se.style.background = 'var(--surface)'; se.style.borderColor = 'var(--border)'; se.style.opacity = '1'; }
+            if (st) st.textContent = '—';
+          });
+        }
+      } else if (data.type === 'decision') {
+        const d = data.data;
+        decisionLog.unshift(d);
+        if (decisionLog.length > 200) decisionLog.pop();
+        renderDecisions();
+      } else if (data.type === 'brain_state') {
+        document.getElementById('headerBrain').textContent = data.brain_state || data.state || '--';
+        const dot = document.getElementById('statusDot');
+        if (dot) dot.style.background = (data.brain_state === 'ONLINE' || data.state === 'ONLINE') ? 'var(--green)' : 'var(--yellow)';
+      } else if (data.type === 'mood_changed') {
+        loadPersonalityState();
+        loadCurrentMood();
+        loadMoodHistory();
+      }
+    } catch(err) {
+      console.warn('Bad WS message:', err);
+    }
+  };
+}
+
+// ── Command Palette (Ctrl+K) ──
+const COMMANDS = [
+  {label: "Dashboard", action: () => switchTab('dashboard')},
+  {label: "Memory Explorer", action: () => switchTab('memory')},
+  {label: "Facts & Beliefs", action: () => switchTab('facts')},
+  {label: "Personality", action: () => switchTab('personality')},
+  {label: "Voice", action: () => switchTab('voice')},
+  {label: "Pipeline", action: () => switchTab('pipeline')},
+  {label: "Config", action: () => switchTab('config')},
+  {label: "Logs", action: () => switchTab('logs')},
+  {label: "Tests", action: () => switchTab('tests')},
+  {label: "Decisions", action: () => switchTab('decisions')},
+  {label: "Debug", action: () => switchTab('debug')},
+  {label: "Relationships", action: () => switchTab('relationships')},
+  {label: "Emergency Stop", action: () => apiPost('/api/emergency-stop')},
+  {label: "Abort Generation", action: () => apiPost('/api/brain/abort')},
+  {label: "Check Alerts", action: () => checkAlerts()},
+  {label: "Generate Health Report", action: () => generateReport()},
+];
+
+function switchTab(name) {
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  const btn = document.querySelector(`nav button[data-tab="${name}"]`);
+  if (btn) btn.classList.add('active');
+  const tab = document.getElementById('tab-' + name);
+  if (tab) tab.classList.add('active');
+}
+
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    const pal = document.getElementById('cmdPalette');
+    if (pal) {
+      pal.style.display = pal.style.display === 'none' ? 'flex' : 'none';
+      if (pal.style.display === 'flex') {
+        document.getElementById('cmdInput').value = '';
+        document.getElementById('cmdInput').focus();
+        renderCmdResults('');
+      }
+    }
+  }
+  if (e.key === 'Escape') {
+    const pal = document.getElementById('cmdPalette');
+    if (pal) pal.style.display = 'none';
+  }
+});
+
+let cmdInputInitialized = false;
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'cmdInput') renderCmdResults(e.target.value);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.target.id === 'cmdInput' && e.key === 'Enter') {
+    const first = document.querySelector('#cmdResults > div');
+    if (first) first.click();
+  }
+});
+
+function renderCmdResults(query) {
+  const el = document.getElementById('cmdResults');
+  if (!el) return;
+  const filtered = COMMANDS.filter(c => c.label.toLowerCase().includes(query.toLowerCase()));
+  el.innerHTML = filtered.map(c =>
+    `<div onclick="execCmd(${COMMANDS.indexOf(c)})"
+      style="padding:10px 16px;cursor:pointer;font-size:14px;border-radius:6px"
+      onmouseover="this.style.background='var(--border)'"
+      onmouseout="this.style.background='transparent'">${esc(c.label)}</div>`
+  ).join('') || '<div style="padding:12px 16px;color:var(--text-dim)">No matches</div>';
+}
+
+function execCmd(index) {
+  COMMANDS[index].action();
+  const pal = document.getElementById('cmdPalette');
+  if (pal) pal.style.display = 'none';
+}
+
+// ── Pipeline Visualization ──
+const PIPELINE_STAGES = [
+  "ResponseDecision","MemoryRetrieval","ResponsePlanner",
+  "Temporal","Personality","PromptAssembly",
+  "LLMCall","ResponseCleaning","Send","MemoryWrite"
+];
+
+function initPipelineViz() {
+  const el = document.getElementById('pipelineLive');
+  if (!el) return;
+  el.innerHTML = PIPELINE_STAGES.map((name, i) =>
+    `<div id="pstage-${i}" style="padding:6px 10px;border-radius:6px;
+     background:var(--surface);border:1px solid var(--border);
+     font-size:11px;text-align:center;min-width:80px;transition:all 0.3s">
+      <div style="font-weight:600">${i+1}</div>
+      <div style="font-size:10px;color:var(--text-dim)">${name}</div>
+      <div id="pstage-time-${i}" style="font-size:10px;color:var(--text-dim)">—</div>
+    </div>`
+  ).join('<span style="color:var(--text-dim)">→</span>');
+}
+
+// ── Decision Feed ──
+const decisionLog = [];
+
+function renderDecisions() {
+  const filter = document.getElementById('decisionFilter').value;
+  const el = document.getElementById('decisionFeed');
+  if (!el) return;
+  const filtered = filter === 'all' ? decisionLog : decisionLog.filter(d => d.decision === filter);
+  el.innerHTML = filtered.slice(0, 100).map(d => {
+    const colors = {RESPOND:'var(--green)',SKIP:'var(--text-dim)',REACT:'var(--yellow)',MISS:'var(--red)'};
+    const time = new Date().toLocaleTimeString();
+    return `<div style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;display:flex;gap:8px;align-items:center">
+      <span style="color:var(--text-dim);flex-shrink:0">${time}</span>
+      <span class="badge" style="background:${colors[d.decision]||'var(--text-dim)'}22;color:${colors[d.decision]||'var(--text-dim)'}">${d.decision}</span>
+      <span style="font-weight:500">${esc(d.user)}</span>
+      <span style="color:var(--text-dim)">in #${esc(d.channel)}</span>
+      <span style="color:var(--text-dim);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.content_preview)}</span>
+      <span style="color:var(--text-dim);font-size:11px">${esc(d.reason)}</span>
+    </div>`;
+  }).join('') || '<div class="empty-state">No decisions yet</div>';
+}
+
+function filterDecisions() { renderDecisions(); }
+
+// ── Prompt Debugger ──
+async function loadPromptHistory() {
+  const res = await apiGet('/api/debug/prompts?limit=30');
+  const el = document.getElementById('promptList');
+  if (!el) return;
+  const prompts = res.prompts || [];
+  el.innerHTML = prompts.map((p, i) =>
+    `<div onclick="showPrompt(${i})" style="padding:8px;border-bottom:1px solid var(--border);cursor:pointer;font-size:12px">
+      <div style="font-weight:500">${esc(p.user)} in #${esc(p.channel)}</div>
+      <div style="color:var(--text-dim)">${new Date(p.timestamp*1000).toLocaleTimeString()} — ${esc((p.user_message||'').substring(0,60))}</div>
+      <div style="color:var(--text-dim);font-size:11px">${p.elapsed_ms||'?'}ms</div>
+    </div>`
+  ).join('') || '<div class="sub">No prompts recorded yet</div>';
+}
+
+async function showPrompt(index) {
+  const res = await apiGet('/api/debug/prompts/' + index);
+  const el = document.getElementById('promptDetail');
+  if (!el) return;
+  if (res.error) { el.innerHTML = '<div class="sub">'+esc(res.error)+'</div>'; return; }
+  el.innerHTML = `
+    <div class="section-title">User Message</div>
+    <pre style="max-height:100px">${esc(res.user_message||'')}</pre>
+    <div class="section-title">Relationship Context</div>
+    <pre style="max-height:80px">${esc(res.relationship_context||'none')}</pre>
+    <div class="section-title">Fuzzy Memories</div>
+    <pre style="max-height:120px">${esc(res.memories_injected||'none')}</pre>
+    <div class="section-title">Belief Evolution</div>
+    <pre style="max-height:80px">${esc(res.belief_context||'none')}</pre>
+    <div class="section-title">Time + Energy</div>
+    <pre style="max-height:60px">${esc(res.time_context||'')} ${esc(res.energy_instruction||'')}</pre>
+    <div class="section-title">Full Prompt (first 3000 chars)</div>
+    <pre style="max-height:200px">${esc((res.full_prompt||'').substring(0,3000))}</pre>
+    <div class="section-title">LLM Response</div>
+    <pre style="max-height:150px;color:var(--green)">${esc(res.response||'pending...')}</pre>
+  `;
+}
+
+// ── Conversation Replay ──
+async function loadConversation(userId, username) {
+  const res = await apiGet('/api/debug/conversation/' + userId + '?limit=100');
+  const el = document.getElementById('memResults');
+  if (!el) return;
+  const msgs = res.messages || [];
+  el.innerHTML = `<div class="section-title">Conversation with ${esc(username)} (${msgs.length} messages)</div>` +
+    `<div class="scroll-panel" style="max-height:500px">` +
+    msgs.map(m => `
+      <div style="padding:8px;border-bottom:1px solid var(--border);font-size:13px">
+        <div style="display:flex;justify-content:space-between">
+          <span style="font-weight:600;color:var(--accent)">${esc(m.username)}</span>
+          <span style="color:var(--text-dim);font-size:11px">${esc(m.timestamp||'')}</span>
+        </div>
+        <div style="margin-top:4px">${esc(m.content)}</div>
+        <div style="color:var(--text-dim);font-size:11px">#${esc(m.channel_id)}</div>
+      </div>
+    `).join('') + '</div>';
+}
+
+// ── Personality Chart ──
+async function loadPersonalityChart() {
+  const hours = document.getElementById('chartRange').value;
+  const res = await apiGet('/api/debug/personality-history?hours=' + hours);
+  const history = res.history || [];
+  const canvas = document.getElementById('personalityChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  if (history.length < 2) {
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '14px sans-serif';
+    ctx.fillText('Not enough data yet', W/2 - 60, H/2);
+    return;
+  }
+
+  const colors = {energy: '#58a6ff', sass: '#f85149', engagement: '#3fb950'};
+  const keys = ['energy', 'sass', 'engagement'];
+
+  keys.forEach(key => {
+    ctx.beginPath();
+    ctx.strokeStyle = colors[key];
+    ctx.lineWidth = 2;
+    history.forEach((point, i) => {
+      const x = (i / (history.length - 1)) * W;
+      const y = H - (point[key] * H);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  });
+
+  ctx.font = '11px sans-serif';
+  keys.forEach((key, i) => {
+    ctx.fillStyle = colors[key];
+    ctx.fillRect(10 + i * 100, 10, 12, 12);
+    ctx.fillStyle = '#e6edf3';
+    ctx.fillText(key, 26 + i * 100, 20);
+  });
+}
+
+// ── Relationships ──
+async function loadRelationships() {
+  const res = await apiGet('/api/debug/relationships');
+  const rels = res.relationships || [];
+  const el = document.getElementById('relHeatmap');
+  if (!el) return;
+  el.innerHTML = rels.map(r => {
+    const aff = r.affinity || 0;
+    let color;
+    if (aff > 0.5) color = 'rgba(63,185,80,0.6)';
+    else if (aff > 0.2) color = 'rgba(63,185,80,0.3)';
+    else if (aff > -0.2) color = 'rgba(139,148,158,0.3)';
+    else if (aff > -0.5) color = 'rgba(248,81,73,0.3)';
+    else color = 'rgba(248,81,73,0.6)';
+    const size = Math.max(60, Math.min(120, 60 + r.total_messages / 10));
+    return `<div onclick="showRelDetail('${r.user_id}','${esc(r.username)}')"
+      style="width:${size}px;height:${size}px;background:${color};border-radius:8px;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      cursor:pointer;border:1px solid var(--border);transition:transform 0.2s"
+      onmouseover="this.style.transform='scale(1.1)'"
+      onmouseout="this.style.transform='scale(1)'">
+      <div style="font-size:12px;font-weight:600">${esc(r.username)}</div>
+      <div style="font-size:10px;color:var(--text-dim)">${r.total_messages} msgs</div>
+      <div style="font-size:10px">${aff > 0 ? '💚' : aff < 0 ? '❤️‍🩹' : '🤍'} ${aff.toFixed(2)}</div>
+    </div>`;
+  }).join('') || '<div class="empty-state">No relationships yet</div>';
+}
+
+async function showRelDetail(userId, username) {
+  const [profile, conv] = await Promise.allSettled([
+    apiGet('/api/memory/user/' + userId),
+    apiGet('/api/debug/conversation/' + userId + '?limit=20'),
+  ]);
+  const p = profile.status === 'fulfilled' ? profile.value : {};
+  const c = conv.status === 'fulfilled' ? conv.value : {};
+  const el = document.getElementById('relDetail');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="section-title">${esc(username)}</div>
+    <div id="relKV"></div>
+    <div class="section-title">Recent Messages</div>
+    <div class="scroll-panel" style="max-height:300px">
+      ${(c.messages||[]).map(m => `<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:12px">
+        <span style="color:var(--text-dim)">${esc(m.timestamp||'')}</span> ${esc(m.content)}
+      </div>`).join('')}
+    </div>`;
+  renderKV(p, document.getElementById('relKV'));
+}
+
+// ── Alerts ──
+async function addAlert() {
+  await apiPost('/api/alerts/rules', {
+    metric: document.getElementById('alertMetric').value,
+    operator: document.getElementById('alertOp').value,
+    threshold: parseFloat(document.getElementById('alertThreshold').value),
+  });
+  loadAlerts();
+}
+
+async function checkAlerts() {
+  const res = await apiPost('/api/alerts/check');
+  if (res.triggered && res.triggered.length) {
+    alert('⚠️ ' + res.triggered.length + ' alert(s) triggered!');
+  }
+  loadAlerts();
+}
+
+async function loadAlerts() {
+  const [rules, history] = await Promise.allSettled([
+    apiGet('/api/alerts/rules'), apiGet('/api/alerts/history')
+  ]);
+  const r = rules.status === 'fulfilled' ? rules.value : {rules:[]};
+  const h = history.status === 'fulfilled' ? history.value : {history:[]};
+  const rulesEl = document.getElementById('alertRules');
+  if (rulesEl) {
+    rulesEl.innerHTML = (r.rules||[]).map(rule =>
+      `<div class="kv-row"><span class="kv-label">${esc(rule.metric)} ${esc(rule.operator)} ${rule.threshold}</span>
+       <span class="kv-value"><button onclick="deleteAlert(${rule.id})" style="background:var(--red);color:white;border:none;border-radius:4px;padding:2px 8px;cursor:pointer">✕</button></span></div>`
+    ).join('') || '<div class="sub">No alert rules</div>';
+  }
+  const histEl = document.getElementById('alertHistory');
+  if (histEl) {
+    histEl.innerHTML = (h.history||[]).slice(-5).map(a =>
+      `<div style="font-size:11px;color:var(--yellow)">⚠️ ${esc(a.metric)} = ${a.value} at ${new Date(a.time*1000).toLocaleTimeString()}</div>`
+    ).join('') || '';
+  }
+}
+
+async function deleteAlert(id) {
+  await fetch('/api/alerts/rules/' + id, {method:'DELETE', headers: headers()});
+  loadAlerts();
+}
+
+// ── Memory Timeline ──
+let timelineBefore = "";
+
+async function loadTimeline() {
+  timelineBefore = "";
+  const res = await apiGet('/api/memory/timeline?limit=50');
+  renderTimeline(res, false);
+}
+
+async function loadMoreTimeline() {
+  const res = await apiGet('/api/memory/timeline?limit=50&before=' + encodeURIComponent(timelineBefore));
+  renderTimeline(res, true);
+}
+
+function renderTimeline(res, append) {
+  const el = document.getElementById('memoryTimeline');
+  if (!el) return;
+  const msgs = res.messages || [];
+  if (msgs.length) timelineBefore = msgs[msgs.length-1].timestamp;
+  const html = msgs.map(m => `
+    <div style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px">
+      <div style="display:flex;justify-content:space-between">
+        <span style="font-weight:500;color:var(--accent)">${esc(m.username)}</span>
+        <span style="color:var(--text-dim);font-size:11px">${esc(m.timestamp||'')}</span>
+      </div>
+      <div style="margin-top:2px">${esc((m.content||'').substring(0,200))}</div>
+    </div>`).join('');
+  if (append) el.innerHTML += html;
+  else el.innerHTML = html;
+  const btn = document.getElementById('loadMoreBtn');
+  if (btn) btn.style.display = res.has_more ? 'block' : 'none';
+}
+
+// ── Generate Report ──
+async function generateReport() {
+  const res = await apiGet('/api/debug/report');
+  const el = document.getElementById('reportOutput');
+  if (!el) return;
+  el.style.display = 'block';
+  el.textContent = JSON.stringify(res, null, 2);
+  try { await navigator.clipboard.writeText(JSON.stringify(res, null, 2)); } catch(e) {}
+}
+
+// ── Additional Controls ──
+document.getElementById('rebuildBm25Btn').addEventListener('click', async () => {
+  if (!confirm('Rebuild BM25 index? This may take a moment.')) return;
+  const result = await apiPost('/api/memory/rebuild-bm25');
+  if (result.success) loadMemoryUsers();
+});
+document.getElementById('leaveAllBtn').addEventListener('click', async () => {
+  if (!confirm('Leave all voice channels?')) return;
+  await apiPost('/api/voice/leave-all');
+  loadVoice();
+  loadVoiceChannels();
+});
+async function forceBackfill() {
+  const limit = parseInt(document.getElementById('backfillLimit').value) || 20000;
+  const el = document.getElementById('backfillResult');
+  el.innerHTML = '<div class="sub">Backfilling human messages... may take minutes</div>';
+  const res = await apiPost('/api/crawler/force-backfill', {limit});
+  if (res.success) {
+    let html = '<div class="kv-row"><span class="kv-label">Total</span><span class="kv-value ok">' + res.total_backfilled + ' messages</span></div>';
+    for (const [ch, count] of Object.entries(res.channels || {})) {
+      html += '<div class="kv-row"><span class="kv-label">#' + esc(ch) + '</span><span class="kv-value">' + (typeof count === 'number' ? count + ' msgs' : esc(String(count))) + '</span></div>';
+    }
+    el.innerHTML = html;
+  } else {
+    el.innerHTML = '<div class="sub" style="color:var(--red)">' + esc(res.error || 'Unknown error') + '</div>';
+  }
+}
+
+async function loadQdrantInfo() {
+  try {
+    const r = await apiGet('/api/memory/distribution');
+    renderKV(r, document.getElementById('qdrantCollectionInfo'));
+  } catch(e) { console.error('loadQdrantInfo failed:', e); }
+}
+async function loadAudioStats() {
+  try {
+    const r = await apiGet('/api/audio/stats');
+    renderKV(r, document.getElementById('audioStatsDisplay'));
+  } catch(e) { console.error('loadAudioStats failed:', e); }
+}
+
+// ── Init ──
+try { loadDashboard(); } catch(e) { console.error('dashboard init failed:', e); }
+try { loadFactStats(); } catch(e) { console.error('fact stats init failed:', e); }
+try { loadPersonalityState(); } catch(e) { console.error('personality init failed:', e); }
+try { loadCurrentMood(); } catch(e) { console.error('current mood init failed:', e); }
+try { loadMoodHistory(); } catch(e) { console.error('mood history init failed:', e); }
+try { loadSystemPrompt(); } catch(e) { console.error('system prompt init failed:', e); }
+try { loadVoice(); } catch(e) { console.error('voice init failed:', e); }
+try { loadVoiceChannels(); } catch(e) { console.error('voice channels init failed:', e); }
+try { loadVoiceFiles(); } catch(e) { console.error('voice files init failed:', e); }
+try { loadBehaviorSettings(); } catch(e) { console.error('behavior settings init failed:', e); }
+try { loadBehaviorStats(); } catch(e) { console.error('behavior stats init failed:', e); }
+try { loadVoiceProfiles(); } catch(e) { console.error('voice profiles init failed:', e); }
+try { loadActiveSpeakers(); } catch(e) { console.error('active speakers init failed:', e); }
+try { loadPipeline(); } catch(e) { console.error('pipeline init failed:', e); }
+try { loadConfig(); } catch(e) { console.error('config init failed:', e); }
+try { loadLogs(); } catch(e) { console.error('logs init failed:', e); }
+try { loadMemoryUsers(); } catch(e) { console.error('memory users init failed:', e); }
+try { loadQdrantInfo(); } catch(e) { console.error('qdrant info init failed:', e); }
+try { loadAudioStats(); } catch(e) { console.error('audio stats init failed:', e); }
+try { loadTestFiles(); } catch(e) { console.error('test files init failed:', e); }
+try { initPipelineViz(); } catch(e) { console.error('pipeline viz init failed:', e); }
+try { loadPromptHistory(); } catch(e) { console.error('prompt history init failed:', e); }
+try { loadPersonalityChart(); } catch(e) { console.error('personality chart init failed:', e); }
+try { loadRelationships(); } catch(e) { console.error('relationships init failed:', e); }
+try { loadTimeline(); } catch(e) { console.error('timeline init failed:', e); }
+try { loadAlerts(); } catch(e) { console.error('alerts init failed:', e); }
+connectWS();
+setInterval(() => { try { loadDashboard(); } catch(e) {} }, 10000);
 </script>
 </body>
 </html>
