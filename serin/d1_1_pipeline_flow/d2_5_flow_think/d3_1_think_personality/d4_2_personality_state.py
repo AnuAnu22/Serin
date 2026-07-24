@@ -3,7 +3,7 @@ from collections import deque
 from datetime import datetime
 from typing import Any, TypedDict
 
-from serin.d1_3_state_core.d2_5_core_logger import logger
+from serin.d1_4_config_base.d2_3_logger import logger
 
 # Bound the history so this can never grow unbounded in a long-running
 # process. 500 samples at one update per processed message is comfortably

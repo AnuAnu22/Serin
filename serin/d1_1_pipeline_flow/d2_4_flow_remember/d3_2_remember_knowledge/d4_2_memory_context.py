@@ -3,10 +3,7 @@ Enhanced Memory Context Module
 Handles advanced memory context processing and system prompt enhancement
 """
 
-from datetime import datetime
 from typing import Any
-
-from serin.d1_3_state_core.d2_5_core_logger import logger
 
 
 class EnhancedMemoryContext:
@@ -15,26 +12,7 @@ class EnhancedMemoryContext:
     def __init__(self, memory_system: Any | None = None) -> None:
         self.memory_system: Any | None = memory_system
         self.context_history: list[dict[str, Any]] = []
-        self.memory_weights: dict[str, float] = {}
         self.temporal_context: dict[str, Any] = {}
-
-    def add_context(self, context: dict[str, Any]) -> None:
-        """Add memory context"""
-        self.context_history.append({
-            'timestamp': datetime.now(),
-            'context': context
-        })
-        logger.debug(f"Added context: {context}")
-
-    def get_relevant_context(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
-        """Get relevant context based on query"""
-        # Simple implementation - can be enhanced with embeddings
-        relevant = []
-        for item in self.context_history[-limit:]:
-            if any(word in str(item['context']).lower() for word in query.lower().split()):
-                relevant.append(item['context'])
-        return relevant
-
 
 class ImprovedSystemPrompt:
     """Handles improved system prompt generation"""
@@ -50,12 +28,4 @@ When we talk, I'll respond based on what's been happening in our conversation an
 
         return base_prompt
 
-    @staticmethod
-    def get_personality_traits() -> dict[str, str]:
-        """Get personality traits that sound natural"""
-        return {
-            'tone': 'chill and friendly',
-            'formality': 'pretty casual',
-            'helpfulness': 'when needed',
-            'memory_usage': 'bring up stuff naturally'
-        }
+

@@ -12,7 +12,7 @@ import sqlite3
 from datetime import UTC, datetime
 from typing import Any
 
-from serin.d1_3_state_core.d2_5_core_logger import logger
+from serin.d1_4_config_base.d2_3_logger import logger
 
 
 class BayesianBeliefEngine:
@@ -185,9 +185,19 @@ class BayesianBeliefEngine:
         if observation_type == "corroborate":
             set_parts.append("corroboration_count = corroboration_count + 1")
 
+        # Whitelist validation — every set_part must start with an allowed column
+        _allowed_fact_columns = {
+            "belief", "variance", "log_odds", "state", "last_confirmed",
+            "last_challenged", "observation_count", "corroboration_count",
+        }
+        for part in set_parts:
+            col = part.split("=")[0].strip().split("(")[0].strip()
+            if col not in _allowed_fact_columns:
+                raise ValueError(f"Disallowed column in SQL UPDATE: {col!r}")
+
         set_vals.append(fact_id)
         cursor.execute(
-            f"UPDATE facts SET {', '.join(set_parts)} WHERE id = ?",
+            f"UPDATE facts SET {', '.join(set_parts)} WHERE id = ?",  # nosec B608
             set_vals,
         )
         self.conn.commit()

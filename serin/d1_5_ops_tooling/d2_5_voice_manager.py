@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from serin.d1_2_gateway_io.d2_2_voice_system.d3_5_tts_engine import TTSEngine
-from serin.d1_3_state_core.d2_5_core_logger import logger
+from serin.d1_4_config_base.d2_3_logger import logger
 
 
 class TTSVoiceManager:

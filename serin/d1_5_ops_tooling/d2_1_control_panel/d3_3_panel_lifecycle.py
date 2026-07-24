@@ -7,9 +7,10 @@ from datetime import datetime
 from typing import Any
 
 import uvicorn
+from fastapi import FastAPI
 
-from serin.d1_3_state_core.d2_5_core_logger import logger
 from serin.d1_4_config_base.d2_1_base_config import config
+from serin.d1_4_config_base.d2_3_logger import logger
 from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server import (
     bot_state,
     broadcast_log,
@@ -38,7 +39,7 @@ def init_bot_state(
     bot_state['voice_manager'] = voice_manager
     logger.info(" Control panel state initialized")
 
-async def start_server(app: Any = None, host: str = "127.0.0.1", port: int = 8080) -> None:
+async def start_server(app: FastAPI | None = None, host: str = "127.0.0.1", port: int = 8080) -> None:
     """Start web server with port retry logic"""
     if app is None:
         from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server import (
@@ -111,7 +112,7 @@ class WebSocketLogHandler(logging.Handler):
             logger.exception("WebSocket log handler emit failed")
 
 
-def register_lifecycle_routes(app: Any) -> None:
+def register_lifecycle_routes(app: FastAPI) -> None:
     """Register lifecycle routes."""
     ws_handler = WebSocketLogHandler()
     ws_handler.setLevel(logging.INFO)

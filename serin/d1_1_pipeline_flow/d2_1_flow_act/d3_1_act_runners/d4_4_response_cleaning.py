@@ -10,8 +10,10 @@ from __future__ import annotations
 from typing import Any
 
 from serin.d1_1_pipeline_flow.d2_1_flow_act.d3_3_stages_base import PipelineStage
-from serin.d1_3_state_core.d2_5_core_logger import logger
-from serin.d1_3_state_core.d2_5_message_context import MessageContext
+from serin.d1_3_state_core.d2_5_state_conversation.d3_2_message_context import (
+    MessageContext,
+)
+from serin.d1_4_config_base.d2_3_logger import logger
 
 
 class ResponseCleaningStage(PipelineStage):

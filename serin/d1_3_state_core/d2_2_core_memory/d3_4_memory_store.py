@@ -16,10 +16,13 @@ from typing import Any
 
 from serin.d1_3_state_core.d2_2_core_memory.d3_1_belief_store import BeliefStore
 from serin.d1_3_state_core.d2_2_core_memory.d3_2_evidence_store import FactStore
-from serin.d1_3_state_core.d2_5_bm25_index import SQLiteBM25Index
-from serin.d1_3_state_core.d2_5_core_logger import logger
+from serin.d1_3_state_core.d2_2_core_memory.d3_5_bm25_index import SQLiteBM25Index
+from serin.d1_4_config_base.d2_3_logger import logger
 
 # Qdrant imports
+QdrantClient: Any
+Distance: Any
+VectorParams: Any
 try:
     from qdrant_client import QdrantClient
     from qdrant_client.http.models import Distance, VectorParams
@@ -29,6 +32,7 @@ except ImportError:
     logger.warning("Qdrant not available - falling back to mock implementation")
 
 # Embedding service
+SentenceTransformer: Any
 try:
     from sentence_transformers import SentenceTransformer
     EMBEDDING_AVAILABLE = True
@@ -51,7 +55,7 @@ class QdrantMemorySystem:
         os.makedirs(data_dir, exist_ok=True)
 
         # Initialize Qdrant client with retry
-        self.qdrant_client: QdrantClient | None = None
+        self.qdrant_client: Any | None = None
         if QDRANT_AVAILABLE:
             for attempt in range(3):
                 try:
@@ -71,7 +75,7 @@ class QdrantMemorySystem:
             self.qdrant_client = None
 
         # Initialize embedding service
-        self.embedding_model: SentenceTransformer | None = None
+        self.embedding_model: Any | None = None
         if EMBEDDING_AVAILABLE:
             try:
                 self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')

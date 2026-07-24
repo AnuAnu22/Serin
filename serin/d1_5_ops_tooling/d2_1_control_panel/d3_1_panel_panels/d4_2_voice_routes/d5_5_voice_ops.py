@@ -6,7 +6,7 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from serin.d1_3_state_core.d2_5_core_logger import logger
+from serin.d1_4_config_base.d2_3_logger import logger
 from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_1_state_access import (
     bot_state,
 )
@@ -14,7 +14,7 @@ from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_5_server_web
     broadcast_event,
 )
 
-_background_tasks: set[asyncio.Task] = set()
+_background_tasks: set[asyncio.Task[None]] = set()
 
 
 def register_voice_ops_routes(app: FastAPI) -> None:
@@ -106,8 +106,8 @@ async def _run_manual_sync(crawler: Any) -> None:
                 try:
                     synced = await crawler._quick_sync_channel(channel)
                     synced_count += synced
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Channel sync failed for %s: %s", channel.name, e)
         logger.info("Manual sync complete: %d messages", synced_count)
         await broadcast_event("sync_complete", {"count": synced_count})
     except Exception as e:

@@ -6,13 +6,11 @@ from typing import Any
 
 from fastapi.responses import FileResponse, HTMLResponse
 
-from serin.d1_3_state_core.d2_5_core_logger import logger
+from serin.d1_4_config_base.d2_3_logger import logger
 from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_1_state_access import (
-    get_component,
-)
-from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state import (
     app,
     bot_state,
+    get_component,
     make_json_safe,
 )
 

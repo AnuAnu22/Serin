@@ -16,11 +16,13 @@ if TYPE_CHECKING:
 from qdrant_client.http import models
 
 from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_1_core_storage.d5_1_search_store import (
-        _update_ingestion_stats,
+    _update_ingestion_stats,
 )
-from serin.d1_3_state_core.d2_5_core_logger import logger
-from serin.d1_3_state_core.d2_5_thinking_filter import filter_for_memory
+from serin.d1_3_state_core.d2_3_model_system.d3_5_thinking_filter import (
+    filter_for_memory,
+)
 from serin.d1_4_config_base.d2_2_debug_logger import log_memory
+from serin.d1_4_config_base.d2_3_logger import logger
 
 
 def generate_memory_id(store: 'QdrantMemorySystem', source_message_id: str | None, chunk_index: int = 0) -> str:

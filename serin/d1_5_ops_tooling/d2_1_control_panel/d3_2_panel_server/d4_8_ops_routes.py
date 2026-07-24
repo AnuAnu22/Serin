@@ -5,7 +5,9 @@ import os
 import time
 from typing import Any
 
-from serin.d1_3_state_core.d2_5_core_logger import logger
+from fastapi import FastAPI
+
+from serin.d1_4_config_base.d2_3_logger import logger
 from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_1_state_access import (
     make_json_safe,
 )
@@ -13,7 +15,7 @@ from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_1_state_acce
 _background_tasks: set[asyncio.Task[Any]] = set()
 
 
-def register_ops_routes(app: Any, bot_state: dict[str, Any]) -> None:
+def register_ops_routes(app: FastAPI, bot_state: dict[str, Any]) -> None:
     @app.post("/api/crawler/trigger-sync")
     async def trigger_manual_sync() -> Any:
         crawler = bot_state.get("message_crawler")
@@ -131,8 +133,8 @@ async def _run_manual_sync(crawler: Any) -> None:
                 try:
                     synced = await crawler._quick_sync_channel(channel)
                     synced_count += synced
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Channel sync failed for %s: %s", channel.name, e)
         logger.info("Manual sync complete: %d messages", synced_count)
     except Exception as e:
         logger.error("Error in manual sync: %s", e)

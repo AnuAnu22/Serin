@@ -27,7 +27,6 @@ from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_3_correction_
     CorrectionDetector,
     MemoryCorrector,
 )
-from serin.d1_1_pipeline_flow.d2_3_flow_perceive.d3_1_active_search import ActiveSearch
 from serin.d1_1_pipeline_flow.d2_3_flow_perceive.d3_2_bot_personality import (
     BotPersonality,
 )
@@ -50,8 +49,11 @@ from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_2_response_controller import (
 from serin.d1_3_state_core.d2_3_model_system.d3_3_system_factory import (
     get_model_connector,
 )
-from serin.d1_3_state_core.d2_5_core_logger import logger
+from serin.d1_3_state_core.d2_5_state_conversation.d3_1_dynamics_engine import (
+    ConversationDynamicsEngine,
+)
 from serin.d1_4_config_base.d2_1_base_config import config
+from serin.d1_4_config_base.d2_3_logger import logger
 
 
 @dataclass
@@ -139,23 +141,15 @@ class EnhancedMessageManagerV3:
         )
         self.voice_tracker = VoiceTracker(self.memory)
 
+        # Dynamics engine for physics-based conversation state
+        self.dynamics_engine = ConversationDynamicsEngine()
+
         # Pipeline instance (set externally by discord_bot.py after building)
         self.pipeline: Any = None
 
         # Voice action decider
         self.voice_action_decider: Any = None
         self.voice_action_callback: Any = None
-
-        # Active Search
-        self.active_search: ActiveSearch | None = None
-        try:
-            model_connector = get_model_connector()
-            model_connector.load_model()
-            self.active_search = ActiveSearch(model_connector)
-            logger.info("Active Search (Thinking) enabled")
-        except Exception as e:
-            self.active_search = None
-            logger.error("Active Search disabled: %s", e)
 
         # Visual Cortex
         self.visual_memory: VisualMemorySystem | None = None
@@ -223,7 +217,9 @@ class EnhancedMessageManagerV3:
             from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator import (
                 get_response_natural,
             )
-            from serin.d1_3_state_core.d2_5_thinking_filter import get_thinking_filter
+            from serin.d1_3_state_core.d2_3_model_system.d3_5_thinking_filter import (
+                get_thinking_filter,
+            )
             self.pipeline = MessagePipeline.build(
                 response_controller=self.response_controller,
                 memory_system=self.memory,
@@ -236,6 +232,7 @@ class EnhancedMessageManagerV3:
                 mood_state=self.personality,
                 client=self.client,
                 small_llm=self.llm,
+                dynamics_engine=self.dynamics_engine,
             )
 
         # Process image attachments — store for LLM vision, fire description in background
@@ -291,7 +288,14 @@ class EnhancedMessageManagerV3:
         except Exception as e:
             logger.debug("Failed to store recent message: %s", e)
 
-        from serin.d1_3_state_core.d2_5_message_context import MessageContext
+        from serin.d1_3_state_core.d2_5_state_conversation.d3_2_message_context import (
+            MessageContext,
+        )
+
+        is_mentioned = bool(
+            message.guild and message.guild.me and message.guild.me in message.mentions
+        ) if message.guild else False
+
         ctx = MessageContext(
             message=message,
             user_id=str(message.author.id),
@@ -299,6 +303,7 @@ class EnhancedMessageManagerV3:
             channel_id=str(message.channel.id),
             guild_id=str(message.guild.id) if message.guild else None,
             raw_content=message.content,
+            is_mentioned=is_mentioned,
             metadata={
                 "pending_visual_contexts": self.pending_visual_contexts,
                 "abort_flag": self.current_state.get("abort_flag", False),
@@ -395,14 +400,16 @@ class EnhancedMessageManagerV3:
             from serin.d1_1_pipeline_flow.d2_1_flow_act.d3_1_act_runners.d4_2_runners_pipeline import (
                 MessagePipeline,
             )
-            from serin.d1_3_state_core.d2_5_message_context import MessageContext
+            from serin.d1_3_state_core.d2_5_state_conversation.d3_2_message_context import (
+                MessageContext,
+            )
 
             # Build context once if pipeline not yet built
             if self.pipeline is None:
                 from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator import (
                     get_response_natural,
                 )
-                from serin.d1_3_state_core.d2_5_thinking_filter import (
+                from serin.d1_3_state_core.d2_3_model_system.d3_5_thinking_filter import (
                     get_thinking_filter,
                 )
 
@@ -418,7 +425,13 @@ class EnhancedMessageManagerV3:
                     mood_state=self.personality,
                     client=self.client,
                     small_llm=self.llm,
+                    dynamics_engine=self.dynamics_engine,
                 )
+
+            is_mentioned = bool(
+                trigger_message.guild and trigger_message.guild.me
+                and trigger_message.guild.me in trigger_message.mentions
+            ) if trigger_message.guild else False
 
             ctx = MessageContext(
                 message=trigger_message,
@@ -427,6 +440,7 @@ class EnhancedMessageManagerV3:
                 channel_id=str(trigger_message.channel.id),
                 guild_id=str(trigger_message.guild.id) if trigger_message.guild else None,
                 raw_content=trigger_message.content,
+                is_mentioned=is_mentioned,
                 metadata={
                     "batch_size": len(batch),
                     "bot_mentioned": immediate,

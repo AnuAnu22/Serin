@@ -8,7 +8,7 @@ import secrets
 import sqlite3
 from typing import Any
 
-from serin.d1_3_state_core.d2_5_core_logger import logger
+from serin.d1_4_config_base.d2_3_logger import logger
 
 
 def _rand() -> float:
@@ -119,99 +119,6 @@ class BotPersonality:
         result = cursor.fetchone()
         return dict(result) if result else None
 
-    def express_preference(
-        self,
-        category: str,
-        item: str,
-        context: str = "general"
-    ) -> str | None:
-        """
-        Get a natural expression of bot's preference.
-
-        Args:
-            category: Preference category (e.g., 'music_genre', 'food')
-            item: Specific item (e.g., 'electronic', 'pizza')
-            context: Conversation context for tone
-
-        Returns:
-            Natural language expression of preference
-        """
-        pref = self.get_preference(category, item)
-
-        if not pref:
-            return self._express_unknown(item)
-
-        # Update expression counter
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            UPDATE bot_preferences SET
-                times_expressed = times_expressed + 1,
-                last_expressed = CURRENT_TIMESTAMP
-            WHERE category = ? AND item = ?
-        """, (category, item))
-        self.conn.commit()
-
-        stance: str = pref['stance']
-        reason: str | None = pref['reason']
-
-        # Generate natural expression based on stance and intensity
-        if stance == 'love':
-            expressions = [
-                f"honestly? {item} is great",
-                f"I'm into {item} for sure",
-                f"{item} hits different tbh",
-                f"yeah {item} is amazing"
-            ]
-            if reason and _rand() < 0.6:
-                return f"{secrets.choice(expressions)}. {reason.lower()}"
-            return secrets.choice(expressions)
-
-        elif stance == 'like':
-            expressions = [
-                f"{item} is pretty cool",
-                f"yeah I like {item}",
-                f"{item} is solid",
-                f"I'm down with {item}"
-            ]
-            if reason and _rand() < 0.4:
-                return f"{secrets.choice(expressions)}. {reason.lower()}"
-            return secrets.choice(expressions)
-
-        elif stance == 'neutral':
-            expressions = [
-                f"{item} is alright I guess",
-                f"don't feel strongly about {item}",
-                f"{item}'s fine",
-                f"I'm neutral on {item}"
-            ]
-            if reason:
-                return f"{secrets.choice(expressions)}. {reason.lower()}"
-            return secrets.choice(expressions)
-
-        elif stance == 'dislike':
-            expressions = [
-                f"{item} isn't really my thing",
-                f"not a fan of {item} tbh",
-                f"{item}'s kinda mid",
-                f"eh, not into {item}"
-            ]
-            if reason and _rand() < 0.5:
-                return f"{secrets.choice(expressions)}. {reason.lower()}"
-            return secrets.choice(expressions)
-
-        elif stance == 'hate':
-            expressions = [
-                f"yeah no, {item} sucks",
-                f"really don't like {item}",
-                f"{item} is not it",
-                f"nah {item} is trash"
-            ]
-            if reason:
-                return f"{secrets.choice(expressions)}. {reason.lower()}"
-            return secrets.choice(expressions)
-
-        return None
-
     def _express_unknown(self, item: str) -> str:
         """Express that bot doesn't have a formed opinion"""
         expressions = [
@@ -222,28 +129,6 @@ class BotPersonality:
         ]
         return secrets.choice(expressions)
 
-    def set_preference(
-        self,
-        category: str,
-        item: str,
-        stance: str,
-        intensity: float = 0.5,
-        reason: str | None = None
-    ) -> None:
-        """Set or update a preference"""
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            INSERT INTO bot_preferences (category, item, stance, intensity, reason)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(category, item) DO UPDATE SET
-                stance = excluded.stance,
-                intensity = excluded.intensity,
-                reason = excluded.reason
-        """, (category, item, stance, intensity, reason))
-        self.conn.commit()
-
-        logger.debug(f"💭 Set preference: {category}/{item} = {stance}")
-
     def get_opinion(self, topic: str) -> dict[str, Any] | None:
         """Get bot's opinion on a topic"""
         cursor = self.conn.cursor()
@@ -251,57 +136,12 @@ class BotPersonality:
         result = cursor.fetchone()
         return dict(result) if result else None
 
-    def express_opinion(self, topic: str) -> str | None:
-        """Express opinion on a topic naturally"""
-        opinion = self.get_opinion(topic)
-
-        if not opinion:
-            return None
-
-        # Update counter
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            UPDATE bot_opinions SET
-                times_expressed = times_expressed + 1,
-                last_expressed = CURRENT_TIMESTAMP
-            WHERE topic = ?
-        """, (topic,))
-        self.conn.commit()
-
-        confidence: float = opinion['confidence']
-        opinion_text: str = opinion['opinion_text']
-
-        # Add confidence modifiers
-        if confidence > 0.8:
-            return opinion_text
-        elif confidence > 0.5:
-            prefixes = ["I think ", "imo ", "I'd say "]
-            return secrets.choice(prefixes) + opinion_text
-        else:
-            prefixes = ["not sure but ", "maybe ", "I guess "]
-            return secrets.choice(prefixes) + opinion_text
-
-    def set_opinion(self, topic: str, opinion_text: str, confidence: float = 0.5) -> None:
-        """Set or update an opinion"""
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            INSERT INTO bot_opinions (topic, opinion_text, confidence)
-            VALUES (?, ?, ?)
-            ON CONFLICT(topic) DO UPDATE SET
-                opinion_text = excluded.opinion_text,
-                confidence = excluded.confidence
-        """, (topic, opinion_text, confidence))
-        self.conn.commit()
-
-        logger.debug(f"💭 Set opinion on '{topic}'")
-
-    def can_disagree(self, topic: str, user_stance: str) -> bool:
+    def can_disagree(self, topic: str) -> bool:
         """
         Check if bot should disagree with user's stance.
 
         Args:
             topic: Topic being discussed
-            user_stance: User's position ('positive', 'negative', 'neutral')
 
         Returns:
             True if bot should express disagreement
@@ -392,25 +232,6 @@ class BotPersonality:
             context_parts.append(f"Can't stand {_join_items(hates)}")
 
         return ". ".join(context_parts) + "." if context_parts else ""
-
-    def detect_topic_in_message(self, message: str) -> tuple[str, str] | None:
-        """
-        Detect if message mentions something bot has preferences about.
-
-        Returns:
-            (category, item) tuple if found, None otherwise
-        """
-        message_lower = message.lower()
-
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT category, item FROM bot_preferences")
-
-        for row in cursor.fetchall():
-            item: str = row['item'].replace('_', ' ')
-            if item in message_lower:
-                return (str(row['category']), str(row['item']))
-
-        return None
 
     def __del__(self) -> None:
         """Cleanup"""

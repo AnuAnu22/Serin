@@ -2,28 +2,26 @@
 SendStage
 ---------
 Sends the final response to Discord with typing simulation.
-Uses the channel from ctx.message.channel.
+Uses Hawkes-inspired timing from ConversationDynamicsEngine.
 Sets ctx.metadata["message_sent"] = True after successful send.
 """
 from __future__ import annotations
 
 import asyncio
-import secrets
+from typing import Any
 
 from serin.d1_1_pipeline_flow.d2_1_flow_act.d3_3_stages_base import PipelineStage
-from serin.d1_3_state_core.d2_5_core_logger import logger
-from serin.d1_3_state_core.d2_5_message_context import MessageContext
-
-
-def _uniform(a: float, b: float) -> float:
-    return a + (b - a) * secrets.randbelow(10_000_000) / 10_000_000
+from serin.d1_3_state_core.d2_5_state_conversation.d3_2_message_context import (
+    MessageContext,
+)
+from serin.d1_4_config_base.d2_3_logger import logger
 
 
 class SendStage(PipelineStage):
     """Sends the final response with realistic typing delay."""
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self, dynamics: Any | None = None) -> None:
+        self.dynamics = dynamics
 
     async def _run(self, ctx: MessageContext) -> MessageContext:
         response = ctx.final_response
@@ -39,12 +37,13 @@ class SendStage(PipelineStage):
             ctx.metadata["message_sent"] = False
             return ctx
 
-        # Simulate typing
-        typing_delay = min(len(response) * 0.01, 3.0)  # ~10ms per char, max 3s
-        typing_delay += _uniform(0.2, 0.8)
+        if self.dynamics:
+            delay = self.dynamics.sample_delay(ctx.channel_id)
+        else:
+            delay = min(len(response) * 0.01, 3.0) + 0.5
 
         async with channel.typing():
-            await asyncio.sleep(typing_delay)
+            await asyncio.sleep(delay)
 
         await channel.send(response)
 

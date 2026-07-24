@@ -18,8 +18,13 @@ import time
 from typing import Any
 
 from serin.d1_1_pipeline_flow.d2_1_flow_act.d3_3_stages_base import PipelineStage
-from serin.d1_3_state_core.d2_5_core_logger import logger
-from serin.d1_3_state_core.d2_5_message_context import MessageContext
+from serin.d1_3_state_core.d2_5_state_conversation.d3_1_dynamics_engine import (
+    ConversationDynamicsEngine,
+)
+from serin.d1_3_state_core.d2_5_state_conversation.d3_2_message_context import (
+    MessageContext,
+)
+from serin.d1_4_config_base.d2_3_logger import logger
 from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_5_server_websocket import (
     broadcast_event,
 )
@@ -44,6 +49,7 @@ class MessagePipeline:
         mood_state: Any = None,
         client: Any = None,
         small_llm: Any = None,
+        dynamics_engine: Any | None = None,
     ) -> MessagePipeline:
         """
         Factory method — wires all dependencies into stages.
@@ -78,8 +84,10 @@ class MessagePipeline:
             ResponsePlannerStage,
         )
 
+        dynamics = dynamics_engine or ConversationDynamicsEngine()
+
         return cls(stages=[
-            ResponseDecisionStage(response_controller),
+            ResponseDecisionStage(response_controller, dynamics=dynamics),
             MemoryRetrievalStage(memory_system, retrieval),
             ResponsePlannerStage(),
             TemporalStage(temporal_context),
@@ -87,7 +95,7 @@ class MessagePipeline:
             PromptAssemblyStage(mention_translator, memory_system=memory_system),
             LLMCallStage(response_generator),
             ResponseCleaningStage(thinking_filter),
-            SendStage(),
+            SendStage(dynamics=dynamics),
             MemoryWriteStage(memory_system, personality=mood_state, client=client, small_llm=small_llm),
         ])
 

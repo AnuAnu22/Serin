@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from serin.d1_3_state_core.d2_5_core_logger import logger
+from fastapi import FastAPI
+
+from serin.d1_4_config_base.d2_3_logger import logger
 from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_1_state_access import (
     MoodUpdate,
     make_json_safe,
 )
 
 
-def register_personality_routes(app: Any, bot_state: dict[str, Any]) -> None:
+def register_personality_routes(app: FastAPI, bot_state: dict[str, Any]) -> None:
     @app.get("/api/personality/state")
     async def get_personality_state() -> Any:
         manager = bot_state.get("message_manager")

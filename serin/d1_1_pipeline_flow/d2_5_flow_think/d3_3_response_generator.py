@@ -18,9 +18,9 @@ from serin.d1_3_state_core.d2_3_model_system.d3_3_system_factory import (
     get_model_connector,
 )
 from serin.d1_3_state_core.d2_3_model_system.d3_4_system_interface import ModelInterface
-from serin.d1_3_state_core.d2_5_core_logger import logger
-from serin.d1_3_state_core.d2_5_thinking_filter import filter_thinking
+from serin.d1_3_state_core.d2_3_model_system.d3_5_thinking_filter import filter_thinking
 from serin.d1_4_config_base.d2_1_base_config import config
+from serin.d1_4_config_base.d2_3_logger import logger
 
 if TYPE_CHECKING:
     import discord
@@ -77,7 +77,6 @@ def _should_use_thinking(message: str, complexity: str = "simple") -> bool:
 async def get_response_natural(
     current_messages: list[dict[str, Any]],
     context: str,
-    resolved_last_message: str | None = None,
     tone_modifier: str | None = None,
     personality_state: dict[str, Any] | None = None,
     message_complexity: str = "simple",

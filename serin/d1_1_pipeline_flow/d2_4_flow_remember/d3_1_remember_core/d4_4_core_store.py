@@ -80,10 +80,12 @@ from serin.d1_3_state_core.d2_2_core_memory.d3_2_evidence_store import FactStore
 from serin.d1_3_state_core.d2_2_core_memory.d3_3_belief_dynamics import (
     BayesianBeliefEngine,
 )
-from serin.d1_3_state_core.d2_5_bm25_index import SQLiteBM25Index
-from serin.d1_3_state_core.d2_5_core_logger import logger
+from serin.d1_3_state_core.d2_2_core_memory.d3_5_bm25_index import SQLiteBM25Index
+from serin.d1_4_config_base.d2_3_logger import logger
 
 # Qdrant imports
+Distance: Any
+VectorParams: Any
 try:
     from qdrant_client.http.models import Distance, VectorParams
     QDRANT_AVAILABLE = True
@@ -161,9 +163,6 @@ class QdrantMemorySystem:
         if self.qdrant_client:
             self._setup_collection()
 
-        # Background job queue (simplified implementation)
-        self.background_jobs: list[Any] = []
-
         logger.info(" Qdrant Memory System ready")
 
     @staticmethod
@@ -172,20 +171,6 @@ class QdrantMemorySystem:
             connect_with_retry as _run,
         )
         return _run(host, port, max_attempts)
-
-    @staticmethod
-    def _find_qdrant_container() -> str | None:
-        from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_2_connection_store import (
-            find_qdrant_container as _run,
-        )
-        return _run()
-
-    @staticmethod
-    def _ensure_qdrant_docker(host: str, port: int) -> Any | None:
-        from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_2_connection_store import (
-            ensure_qdrant_docker as _run,
-        )
-        return _run(host, port)
 
     def _init_sqlite_robust(self) -> None:
         """Initialize SQLite with corruption handling"""

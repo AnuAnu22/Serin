@@ -25,7 +25,9 @@ import discord
 from dotenv import load_dotenv
 
 from serin.d1_2_gateway_io.d2_4_io_di import get_logger, init_gateway
-from serin.d1_3_state_core.d2_5_core_logger import logger as _default_logger
+from serin.d1_4_config_base.d2_3_logger import (
+    logger as _default_logger,
+)
 
 # Initialize gateway DI immediately so module-level get_logger() calls work
 try:
@@ -175,9 +177,10 @@ def init_database_protection() -> None:
 
     # Override shutdown handler: disconnect voice BEFORE database backup
     import signal as _signal
+    from types import FrameType
     _orig_handler = _signal.getsignal(_signal.SIGINT)
 
-    def _voice_first_shutdown(signum: int, frame: object | None) -> None:
+    def _voice_first_shutdown(signum: int, frame: FrameType | None) -> None:
         global voice_listener
         if voice_listener is not None:
             try:
@@ -185,8 +188,8 @@ def init_database_protection() -> None:
                 if voice_listener._protocol is not None:
                     _asyncio.run(voice_listener._protocol.disconnect())
                 voice_listener = None
-            except Exception:
-                pass
+            except Exception as e:
+                get_logger().debug("Voice shutdown cleanup failed: %s", e)
         if callable(_orig_handler):
             _orig_handler(signum, frame)
 

@@ -6,12 +6,14 @@ import os
 import time
 from typing import Any
 
+from fastapi import FastAPI
+
 _logger = logging.getLogger("control_panel")
 
 _background_tasks: set[asyncio.Task[Any]] = set()
 
 
-def register_test_routes(app: Any, bot_state: dict[str, Any]) -> None:
+def register_test_routes(app: FastAPI, bot_state: dict[str, Any]) -> None:
     @app.post("/api/tests/run")
     async def run_tests(data: dict[str, Any]) -> Any:
         test_path = data.get("test_path", "tests/")

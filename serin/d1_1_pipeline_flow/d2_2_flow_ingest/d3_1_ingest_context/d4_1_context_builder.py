@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_5_remember_temporal import (
     TemporalFormatter,
 )
-from serin.d1_3_state_core.d2_5_core_logger import logger
+from serin.d1_4_config_base.d2_3_logger import logger
 
 if TYPE_CHECKING:
     from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_3_remember_qdrant import (
@@ -40,7 +40,6 @@ class ConversationContextBuilder:
         self,
         user_messages: list[dict[str, Any]],
         channel_id: str | None = None,
-        query_time_hint: str | None = None,
         mood_state: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """

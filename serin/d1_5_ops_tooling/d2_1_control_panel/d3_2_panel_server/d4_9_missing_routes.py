@@ -4,6 +4,8 @@ import logging
 import os
 from typing import Any
 
+from fastapi import FastAPI
+
 from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_1_state_access import (
     make_json_safe,
 )
@@ -11,12 +13,8 @@ from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_1_state_acce
 _logger = logging.getLogger("control_panel")
 
 
-def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
-    existing_paths = {r.path for r in app.routes}
-
-    # ── Mood ──
+def _register_mood_routes(app: FastAPI, bot_state: dict[str, Any], existing_paths: set[str]) -> None:
     if "/api/mood/current" not in existing_paths:
-
         @app.get("/api/mood/current")
         async def get_current_mood() -> Any:
             try:
@@ -28,8 +26,8 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 if hasattr(personality, "get_tone_modifier"):
                     try:
                         tone_modifier = personality.get_tone_modifier()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        _logger.debug("get_tone_modifier failed: %s", e)
                 result = {
                     "current_mood": getattr(personality, "current_mood", "neutral"),
                     "energy_level": getattr(personality, "energy_level", 0.5),
@@ -48,7 +46,6 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 return {"error": str(e)}
 
     if "/api/mood/set" not in existing_paths:
-
         @app.post("/api/mood/set")
         async def set_mood(data: dict[str, Any]) -> Any:
             try:
@@ -61,15 +58,7 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                     ps.set_mood_preset(mood)
                 else:
                     personality = getattr(manager, "personality", None) or manager
-                    presets = {
-                        "high_energy": {"energy_level": 0.9, "sass_level": 0.6, "engagement": 0.9},
-                        "neutral": {"energy_level": 0.5, "sass_level": 0.5, "engagement": 0.5},
-                        "sass": {"energy_level": 0.6, "sass_level": 0.9, "engagement": 0.7},
-                        "cheerful": {"energy_level": 0.8, "sass_level": 0.4, "engagement": 0.8},
-                        "calm": {"energy_level": 0.3, "sass_level": 0.3, "engagement": 0.5},
-                        "sarcastic": {"energy_level": 0.5, "sass_level": 0.9, "engagement": 0.6},
-                        "energetic": {"energy_level": 0.9, "sass_level": 0.5, "engagement": 0.9},
-                    }
+                    presets = {"high_energy": {"energy_level": 0.9, "sass_level": 0.6, "engagement": 0.9}, "neutral": {"energy_level": 0.5, "sass_level": 0.5, "engagement": 0.5}, "sass": {"energy_level": 0.6, "sass_level": 0.9, "engagement": 0.7}, "cheerful": {"energy_level": 0.8, "sass_level": 0.4, "engagement": 0.8}, "calm": {"energy_level": 0.3, "sass_level": 0.3, "engagement": 0.5}, "sarcastic": {"energy_level": 0.5, "sass_level": 0.9, "engagement": 0.6}, "energetic": {"energy_level": 0.9, "sass_level": 0.5, "engagement": 0.9}}
                     p = presets.get(mood, presets["neutral"])
                     for k, v in p.items():
                         setattr(personality, k, v)
@@ -79,7 +68,6 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 return {"success": False, "error": str(e)}
 
     if "/api/mood/history" not in existing_paths:
-
         @app.get("/api/mood/history")
         async def get_mood_history(limit: int = 50) -> Any:
             try:
@@ -94,11 +82,11 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 _logger.error("Error in /api/mood/history: %s", e)
                 return {"error": str(e), "history": []}
 
-    # ── Voice ──
-    if "/api/voice/join" not in existing_paths:
 
+def _register_voice_routes(app: FastAPI, bot_state: dict[str, Any], existing_paths: set[str]) -> None:
+    if "/api/voice/join" not in existing_paths:
         @app.post("/api/voice/join")
-        async def join_voice(data: dict[str, Any]) -> dict:
+        async def join_voice(data: dict[str, Any]) -> dict[str, Any]:
             guild_id = data.get("guild_id", "")
             channel_id = data.get("channel_id", "")
             if not guild_id or not channel_id:
@@ -114,9 +102,8 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 return {"success": False, "error": str(e)}
 
     if "/api/voice/leave" not in existing_paths:
-
         @app.post("/api/voice/leave")
-        async def leave_voice(data: dict[str, Any]) -> dict:
+        async def leave_voice(data: dict[str, Any]) -> dict[str, Any]:
             guild_id = data.get("guild_id", "")
             if not guild_id:
                 return {"success": False, "error": "guild_id required"}
@@ -131,7 +118,6 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 return {"success": False, "error": str(e)}
 
     if "/api/voice/status" not in existing_paths:
-
         @app.get("/api/voice/status")
         async def get_voice_status() -> Any:
             try:
@@ -140,18 +126,12 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                     return {"connected": False, "is_in_voice": False}
                 if hasattr(listener, "get_status"):
                     return make_json_safe(listener.get_status())
-                return {
-                    "connected": getattr(listener, "is_connected", lambda: False)(),
-                    "guild_id": getattr(listener, "guild_id", None),
-                    "channel_id": getattr(listener, "channel_id", None),
-                    "is_in_voice": getattr(listener, "is_in_voice", lambda: False)(),
-                }
+                return {"connected": getattr(listener, "is_connected", lambda: False)(), "guild_id": getattr(listener, "guild_id", None), "channel_id": getattr(listener, "channel_id", None), "is_in_voice": getattr(listener, "is_in_voice", lambda: False)()}
             except Exception as e:
                 _logger.error("Error in /api/voice/status: %s", e)
                 return {"error": str(e)}
 
     if "/api/voice/files" not in existing_paths:
-
         @app.get("/api/voice/files")
         async def get_voice_files() -> Any:
             try:
@@ -165,7 +145,6 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 return {"error": str(e), "voices": []}
 
     if "/api/voice/load" not in existing_paths:
-
         @app.post("/api/voice/load")
         async def load_voice_file(data: dict[str, Any]) -> Any:
             try:
@@ -186,7 +165,6 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 return {"success": False, "error": str(e)}
 
     if "/api/voice/clear" not in existing_paths:
-
         @app.post("/api/voice/clear")
         async def clear_voice() -> Any:
             try:
@@ -199,7 +177,6 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 return {"success": False, "error": str(e)}
 
     if "/api/voice/channels" not in existing_paths:
-
         @app.get("/api/voice/channels")
         async def get_voice_channels() -> Any:
             try:
@@ -209,20 +186,13 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 channels = []
                 for guild in client.guilds:
                     for vc in guild.voice_channels:
-                        channels.append({
-                            "guild_id": str(guild.id),
-                            "guild_name": guild.name,
-                            "channel_id": str(vc.id),
-                            "channel_name": vc.name,
-                            "member_count": len(vc.members),
-                        })
+                        channels.append({"guild_id": str(guild.id), "guild_name": guild.name, "channel_id": str(vc.id), "channel_name": vc.name, "member_count": len(vc.members)})
                 return {"channels": channels}
             except Exception as e:
                 _logger.error("Error in /api/voice/channels: %s", e)
                 return {"error": str(e), "channels": []}
 
     if "/api/voice/leave-all" not in existing_paths:
-
         @app.post("/api/voice/leave-all")
         async def leave_all_voice_channels() -> Any:
             try:
@@ -234,138 +204,7 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 _logger.error("Error in /api/voice/leave-all: %s", e)
                 return {"success": False, "error": str(e)}
 
-    # ── TTS ──
-    if "/api/tts/voice/test" not in existing_paths:
-
-        @app.post("/api/tts/voice/test")
-        async def test_tts_voice() -> Any:
-            try:
-                tts = bot_state.get("tts_engine")
-                if tts and hasattr(tts, "synthesize"):
-                    tts.synthesize("Hello, this is a test of my voice.")
-                return {"success": True}
-            except Exception as e:
-                _logger.error("Error in /api/tts/voice/test: %s", e)
-                return {"success": False, "error": str(e)}
-
-    if "/api/tts/voice/load" not in existing_paths:
-
-        @app.post("/api/tts/voice/load")
-        async def load_tts_voice(data: dict[str, Any]) -> Any:
-            try:
-                filename = data.get("filename", "")
-                tts = bot_state.get("tts_engine")
-                if tts and hasattr(tts, "set_voice_reference"):
-                    tts.set_voice_reference(filename)
-                return {"success": True}
-            except Exception as e:
-                _logger.error("Error in /api/tts/voice/load: %s", e)
-                return {"success": False, "error": str(e)}
-
-    if "/api/tts/voice/clear" not in existing_paths:
-
-        @app.post("/api/tts/voice/clear")
-        async def clear_tts_voice() -> Any:
-            try:
-                tts = bot_state.get("tts_engine")
-                if tts and hasattr(tts, "clear_voice_reference"):
-                    tts.clear_voice_reference()
-                return {"success": True}
-            except Exception as e:
-                _logger.error("Error in /api/tts/voice/clear: %s", e)
-                return {"success": False, "error": str(e)}
-
-    if "/api/tts/test" not in existing_paths:
-
-        @app.post("/api/tts/test")
-        async def test_tts() -> Any:
-            try:
-                tts = bot_state.get("tts_engine")
-                if tts and hasattr(tts, "synthesize"):
-                    tts.synthesize("Testing TTS output.")
-                return {"success": True}
-            except Exception as e:
-                _logger.error("Error in /api/tts/test: %s", e)
-                return {"success": False, "error": str(e)}
-
-    if "/api/tts/voices" not in existing_paths:
-
-        @app.get("/api/tts/voices")
-        async def get_tts_voices() -> Any:
-            try:
-                tts = bot_state.get("tts_engine")
-                voices = []
-                if tts and hasattr(tts, "get_available_speakers"):
-                    voices = tts.get_available_speakers()
-                if not voices:
-                    try:
-                        import edge_tts
-                        voices = [{"name": v["Name"], "short": v["ShortName"]} for v in await edge_tts.list_voices()]
-                    except Exception:
-                        pass
-                return {"voices": make_json_safe(voices)}
-            except Exception as e:
-                _logger.error("Error in /api/tts/voices: %s", e)
-                return {"error": str(e), "voices": []}
-
-    if "/api/tts/current" not in existing_paths:
-
-        @app.get("/api/tts/current")
-        async def get_current_tts() -> Any:
-            try:
-                tts = bot_state.get("tts_engine")
-                if not tts:
-                    return {"model": None, "device": None, "active_profile": None, "voice_reference": None, "total_generations": 0}
-                return {
-                    "model": getattr(tts, "model_name", getattr(tts, "model", None)),
-                    "device": getattr(tts, "device", getattr(tts, "device_id", None)),
-                    "active_profile": getattr(tts, "active_profile", getattr(tts, "profile_name", None)),
-                    "voice_reference": getattr(tts, "voice_reference", getattr(tts, "reference", None)),
-                    "total_generations": getattr(tts, "total_generations", getattr(tts, "generation_count", 0)),
-                }
-            except Exception as e:
-                _logger.error("Error in /api/tts/current: %s", e)
-                return {"error": str(e)}
-
-    if "/api/tts/settings/update" not in existing_paths:
-
-        @app.post("/api/tts/settings/update")
-        async def update_tts_settings(data: dict[str, Any]) -> Any:
-            try:
-                tts = bot_state.get("tts_engine")
-                if not tts:
-                    return {"success": False, "error": "TTS engine not initialized"}
-                for key in ("device", "model", "speed", "temperature"):
-                    if key in data:
-                        setattr(tts, key, data[key])
-                return {"success": True}
-            except Exception as e:
-                _logger.error("Error in /api/tts/settings/update: %s", e)
-                return {"success": False, "error": str(e)}
-
-    if "/api/tts/status" not in existing_paths:
-
-        @app.get("/api/tts/status")
-        async def get_tts_status() -> Any:
-            try:
-                tts = bot_state.get("tts_engine")
-                if not tts:
-                    return {"status": "disabled", "model": None, "voice_reference": None}
-                return {
-                    "status": "ok",
-                    "model": getattr(tts, "model_name", getattr(tts, "model", None)),
-                    "voice_reference": getattr(tts, "voice_reference", getattr(tts, "reference", None)),
-                    "active_profile": getattr(tts, "active_profile", getattr(tts, "profile_name", None)),
-                    "device": getattr(tts, "device", getattr(tts, "device_id", None)),
-                    "loaded": getattr(tts, "loaded", getattr(tts, "is_loaded", True)),
-                }
-            except Exception as e:
-                _logger.error("Error in /api/tts/status: %s", e)
-                return {"error": str(e)}
-
-    # ── Audio ──
     if "/api/audio/settings" not in existing_paths:
-
         @app.get("/api/audio/settings")
         async def get_audio_settings() -> Any:
             try:
@@ -373,17 +212,12 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 if not listener:
                     return {"vad_threshold": 0.5, "silence_threshold": 0.5, "transcription_enabled": True}
                 ap = getattr(listener, "audio_processor", None) or listener
-                return {
-                    "vad_threshold": getattr(ap, "vad_threshold", 0.5),
-                    "silence_threshold": getattr(ap, "silence_threshold", 0.5),
-                    "transcription_enabled": getattr(ap, "transcription_enabled", True),
-                }
+                return {"vad_threshold": getattr(ap, "vad_threshold", 0.5), "silence_threshold": getattr(ap, "silence_threshold", 0.5), "transcription_enabled": getattr(ap, "transcription_enabled", True)}
             except Exception as e:
                 _logger.error("Error in /api/audio/settings: %s", e)
                 return {"error": str(e)}
 
     if "/api/audio/settings/update" not in existing_paths:
-
         @app.post("/api/audio/settings/update")
         async def update_audio_settings(data: dict[str, Any]) -> Any:
             try:
@@ -400,7 +234,6 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 return {"success": False, "error": str(e)}
 
     if "/api/audio/speakers" not in existing_paths:
-
         @app.get("/api/audio/speakers")
         async def get_audio_speakers() -> Any:
             try:
@@ -413,7 +246,6 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 return {"error": str(e), "speakers": []}
 
     if "/api/audio/stats" not in existing_paths:
-
         @app.get("/api/audio/stats")
         async def get_audio_stats() -> Any:
             try:
@@ -425,9 +257,7 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 _logger.error("Error in /api/audio/stats: %s", e)
                 return {"error": str(e)}
 
-    # ── Voice Behavior ──
     if "/api/voice/behavior/settings" not in existing_paths:
-
         @app.get("/api/voice/behavior/settings")
         async def get_voice_behavior_settings() -> Any:
             try:
@@ -440,7 +270,6 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 return {"error": str(e)}
 
     if "/api/voice/behavior/settings" not in existing_paths:
-
         @app.post("/api/voice/behavior/settings")
         async def update_voice_behavior_settings(data: dict[str, Any]) -> Any:
             try:
@@ -459,7 +288,6 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 return {"success": False, "error": str(e)}
 
     if "/api/voice/behavior/stats" not in existing_paths:
-
         @app.get("/api/voice/behavior/stats")
         async def get_voice_behavior_stats() -> Any:
             try:
@@ -471,9 +299,7 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 _logger.error("Error in /api/voice/behavior/stats: %s", e)
                 return {"error": str(e)}
 
-    # ── Voice Profiles ──
     if "/api/voice-profiles/list" not in existing_paths:
-
         @app.get("/api/voice-profiles/list")
         async def list_voice_profiles() -> Any:
             try:
@@ -490,7 +316,6 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 return {"error": str(e), "profiles": []}
 
     if "/api/voice-profiles/set-active" not in existing_paths:
-
         @app.post("/api/voice-profiles/set-active")
         async def set_active_voice_profile(data: dict[str, Any]) -> Any:
             try:
@@ -502,15 +327,15 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                         set_active_profile,
                     )
                     set_active_profile(name)
-                except Exception:
-                    pass
+                except Exception as e:
+                    _logger.error("Error setting active voice profile %s: %s", name, e)
+                    return {"success": False, "error": str(e)}
                 return {"success": True}
             except Exception as e:
                 _logger.error("Error in voice-profiles set-active: %s", e)
                 return {"success": False, "error": str(e)}
 
     if "/api/voice-profiles/create" not in existing_paths:
-
         @app.post("/api/voice-profiles/create")
         async def create_voice_profile(data: dict[str, Any]) -> Any:
             try:
@@ -521,21 +346,16 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                     from serin.d1_3_state_core.voice.voice_profiles import (
                         create_voice_profile,
                     )
-                    create_voice_profile(
-                        name=name,
-                        speed=data.get("speed", 1.0),
-                        temperature=data.get("temperature", 0.7),
-                        description=data.get("description", ""),
-                    )
-                except Exception:
-                    pass
+                    create_voice_profile(name=name, speed=data.get("speed", 1.0), temperature=data.get("temperature", 0.7), description=data.get("description", ""))
+                except Exception as e:
+                    _logger.error("Error creating voice profile %s: %s", name, e)
+                    return {"success": False, "error": str(e)}
                 return {"success": True}
             except Exception as e:
                 _logger.error("Error in voice-profiles create: %s", e)
                 return {"success": False, "error": str(e)}
 
     if "/api/voice-profiles/delete" not in existing_paths:
-
         @app.post("/api/voice-profiles/delete")
         async def delete_voice_profile(data: dict[str, Any]) -> Any:
             try:
@@ -547,39 +367,140 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                         delete_voice_profile,
                     )
                     delete_voice_profile(name)
-                except Exception:
-                    pass
+                except Exception as e:
+                    _logger.error("Error deleting voice profile %s: %s", name, e)
+                    return {"success": False, "error": str(e)}
                 return {"success": True}
             except Exception as e:
                 _logger.error("Error in voice-profiles delete: %s", e)
                 return {"success": False, "error": str(e)}
 
-    # ── Enhanced / Test Connection ──
-    if "/api/enhanced/test-connection" not in existing_paths:
 
+def _register_tts_routes(app: FastAPI, bot_state: dict[str, Any], existing_paths: set[str]) -> None:
+    if "/api/tts/voice/test" not in existing_paths:
+        @app.post("/api/tts/voice/test")
+        async def test_tts_voice() -> Any:
+            try:
+                tts = bot_state.get("tts_engine")
+                if tts and hasattr(tts, "synthesize"):
+                    tts.synthesize("Hello, this is a test of my voice.")
+                return {"success": True}
+            except Exception as e:
+                _logger.error("Error in /api/tts/voice/test: %s", e)
+                return {"success": False, "error": str(e)}
+
+    if "/api/tts/voice/load" not in existing_paths:
+        @app.post("/api/tts/voice/load")
+        async def load_tts_voice(data: dict[str, Any]) -> Any:
+            try:
+                filename = data.get("filename", "")
+                tts = bot_state.get("tts_engine")
+                if tts and hasattr(tts, "set_voice_reference"):
+                    tts.set_voice_reference(filename)
+                return {"success": True}
+            except Exception as e:
+                _logger.error("Error in /api/tts/voice/load: %s", e)
+                return {"success": False, "error": str(e)}
+
+    if "/api/tts/voice/clear" not in existing_paths:
+        @app.post("/api/tts/voice/clear")
+        async def clear_tts_voice() -> Any:
+            try:
+                tts = bot_state.get("tts_engine")
+                if tts and hasattr(tts, "clear_voice_reference"):
+                    tts.clear_voice_reference()
+                return {"success": True}
+            except Exception as e:
+                _logger.error("Error in /api/tts/voice/clear: %s", e)
+                return {"success": False, "error": str(e)}
+
+    if "/api/tts/test" not in existing_paths:
+        @app.post("/api/tts/test")
+        async def test_tts() -> Any:
+            try:
+                tts = bot_state.get("tts_engine")
+                if tts and hasattr(tts, "synthesize"):
+                    tts.synthesize("Testing TTS output.")
+                return {"success": True}
+            except Exception as e:
+                _logger.error("Error in /api/tts/test: %s", e)
+                return {"success": False, "error": str(e)}
+
+    if "/api/tts/voices" not in existing_paths:
+        @app.get("/api/tts/voices")
+        async def get_tts_voices() -> Any:
+            try:
+                tts = bot_state.get("tts_engine")
+                voices = []
+                if tts and hasattr(tts, "get_available_speakers"):
+                    voices = tts.get_available_speakers()
+                if not voices:
+                    try:
+                        import edge_tts
+                        voices = [{"name": v["Name"], "short": v["ShortName"]} for v in await edge_tts.list_voices()]
+                    except Exception as e:
+                        _logger.debug("edge_tts fallback failed: %s", e)
+                return {"voices": make_json_safe(voices)}
+            except Exception as e:
+                _logger.error("Error in /api/tts/voices: %s", e)
+                return {"error": str(e), "voices": []}
+
+    if "/api/tts/current" not in existing_paths:
+        @app.get("/api/tts/current")
+        async def get_current_tts() -> Any:
+            try:
+                tts = bot_state.get("tts_engine")
+                if not tts:
+                    return {"model": None, "device": None, "active_profile": None, "voice_reference": None, "total_generations": 0}
+                return {"model": getattr(tts, "model_name", getattr(tts, "model", None)), "device": getattr(tts, "device", getattr(tts, "device_id", None)), "active_profile": getattr(tts, "active_profile", getattr(tts, "profile_name", None)), "voice_reference": getattr(tts, "voice_reference", getattr(tts, "reference", None)), "total_generations": getattr(tts, "total_generations", getattr(tts, "generation_count", 0))}
+            except Exception as e:
+                _logger.error("Error in /api/tts/current: %s", e)
+                return {"error": str(e)}
+
+    if "/api/tts/settings/update" not in existing_paths:
+        @app.post("/api/tts/settings/update")
+        async def update_tts_settings(data: dict[str, Any]) -> Any:
+            try:
+                tts = bot_state.get("tts_engine")
+                if not tts:
+                    return {"success": False, "error": "TTS engine not initialized"}
+                for key in ("device", "model", "speed", "temperature"):
+                    if key in data:
+                        setattr(tts, key, data[key])
+                return {"success": True}
+            except Exception as e:
+                _logger.error("Error in /api/tts/settings/update: %s", e)
+                return {"success": False, "error": str(e)}
+
+    if "/api/tts/status" not in existing_paths:
+        @app.get("/api/tts/status")
+        async def get_tts_status() -> Any:
+            try:
+                tts = bot_state.get("tts_engine")
+                if not tts:
+                    return {"status": "disabled", "model": None, "voice_reference": None}
+                return {"status": "ok", "model": getattr(tts, "model_name", getattr(tts, "model", None)), "voice_reference": getattr(tts, "voice_reference", getattr(tts, "reference", None)), "active_profile": getattr(tts, "active_profile", getattr(tts, "profile_name", None)), "device": getattr(tts, "device", getattr(tts, "device_id", None)), "loaded": getattr(tts, "loaded", getattr(tts, "is_loaded", True))}
+            except Exception as e:
+                _logger.error("Error in /api/tts/status: %s", e)
+                return {"error": str(e)}
+
+
+def _register_maintenance_routes(app: FastAPI, bot_state: dict[str, Any], existing_paths: set[str]) -> None:
+    if "/api/enhanced/test-connection" not in existing_paths:
         @app.post("/api/enhanced/test-connection")
-        async def test_qdrant_connection(data: dict[str, Any]) -> dict:
+        async def test_qdrant_connection(data: dict[str, Any]) -> dict[str, Any]:
             host = data.get("qdrant_host", "localhost")
             port = int(data.get("qdrant_port", 6333))
             try:
                 from qdrant_client import QdrantClient
-                client = QdrantClient(host=host, port=port, timeout=5)
-                collections = client.get_collections().collections
-                client.close()
-                return {
-                    "success": True,
-                    "message": f"Connected to Qdrant at {host}:{port}",
-                    "collections": [c.name for c in collections],
-                }
+                qclient = QdrantClient(host=host, port=port, timeout=5)
+                collections = qclient.get_collections().collections
+                qclient.close()
+                return {"success": True, "message": f"Connected to Qdrant at {host}:{port}", "collections": [c.name for c in collections]}
             except Exception as e:
-                return {
-                    "success": False,
-                    "message": f"Connection failed: {str(e)}",
-                }
+                return {"success": False, "message": f"Connection failed: {str(e)}"}
 
-    # ── Background Maintenance ──
     if "/api/background/maintenance" not in existing_paths:
-
         @app.post("/api/background/maintenance")
         async def run_background_maintenance() -> Any:
             try:
@@ -591,9 +512,7 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 _logger.error("Error in background maintenance: %s", e)
                 return {"success": False, "error": str(e)}
 
-    # ── Crawler Start/Stop ──
     if "/api/crawler/start" not in existing_paths:
-
         @app.post("/api/crawler/start")
         async def start_crawler() -> Any:
             try:
@@ -606,7 +525,6 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 return {"success": False, "error": str(e)}
 
     if "/api/crawler/stop" not in existing_paths:
-
         @app.post("/api/crawler/stop")
         async def stop_crawler() -> Any:
             try:
@@ -619,33 +537,22 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 return {"success": False, "error": str(e)}
 
     if "/api/crawler/force-backfill" not in existing_paths:
-
         @app.post("/api/crawler/force-backfill")
-        async def force_backfill(data: dict[str, Any]) -> dict:
-            """Force a full re-backfill of messages."""
+        async def force_backfill(data: dict[str, Any]) -> dict[str, Any]:
             crawler = bot_state.get("message_crawler")
             if not crawler:
                 return {"success": False, "error": "Crawler not initialized"}
             channel_ids = data.get("channel_ids")
             limit = data.get("limit", 20000)
             try:
-                results = await crawler.force_backfill(
-                    channel_ids=channel_ids,
-                    limit=limit,
-                )
+                results = await crawler.force_backfill(channel_ids=channel_ids, limit=limit)
                 total = sum(v for v in results.values() if isinstance(v, int))
-                return {
-                    "success": True,
-                    "total_backfilled": total,
-                    "channels": results,
-                }
+                return {"success": True, "total_backfilled": total, "channels": results}
             except Exception as e:
                 _logger.error("Force backfill failed: %s", e)
                 return {"success": False, "error": str(e)}
 
-    # ── Memory: Rebuild BM25 ──
     if "/api/memory/rebuild-bm25" not in existing_paths:
-
         @app.post("/api/memory/rebuild-bm25")
         async def rebuild_bm25_index() -> Any:
             try:
@@ -657,4 +564,11 @@ def register_missing_routes(app: Any, bot_state: dict[str, Any]) -> None:
                 _logger.error("Error rebuilding BM25: %s", e)
                 return {"success": False, "error": str(e)}
 
+
+def register_missing_routes(app: FastAPI, bot_state: dict[str, Any]) -> None:
+    existing_paths = {r.path for r in app.routes if hasattr(r, "path")}
+    _register_mood_routes(app, bot_state, existing_paths)
+    _register_voice_routes(app, bot_state, existing_paths)
+    _register_tts_routes(app, bot_state, existing_paths)
+    _register_maintenance_routes(app, bot_state, existing_paths)
     _logger.info("Registered: missing routes (%d registered)", len(app.routes) - len(existing_paths))

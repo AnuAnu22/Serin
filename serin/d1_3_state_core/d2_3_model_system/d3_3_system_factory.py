@@ -9,7 +9,6 @@ from .d3_4_system_interface import ModelInterface
 loaded_models: dict[str, ModelInterface] = {}
 
 def get_model_connector(
-    provider: str | None = None,
     model_name: str | None = None
 ) -> ModelInterface:
     """Return a cached LLMConnector, creating one if not yet cached for this model_name."""

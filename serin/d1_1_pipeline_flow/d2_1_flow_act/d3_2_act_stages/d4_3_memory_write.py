@@ -13,8 +13,10 @@ from datetime import datetime
 from typing import Any
 
 from serin.d1_1_pipeline_flow.d2_1_flow_act.d3_3_stages_base import PipelineStage
-from serin.d1_3_state_core.d2_5_core_logger import logger
-from serin.d1_3_state_core.d2_5_message_context import MessageContext
+from serin.d1_3_state_core.d2_5_state_conversation.d3_2_message_context import (
+    MessageContext,
+)
+from serin.d1_4_config_base.d2_3_logger import logger
 
 
 class MemoryWriteStage(PipelineStage):
@@ -46,8 +48,8 @@ class MemoryWriteStage(PipelineStage):
                     _analyzer = SentimentIntensityAnalyzer()
                     sentiment = _analyzer.polarity_scores(content)
                     compound = sentiment.get("compound", 0.0)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("nltk sentiment analysis unavailable: %s", e)
 
                 emotional_tone = "neutral"
                 if compound >= 0.5:

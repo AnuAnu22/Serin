@@ -131,7 +131,7 @@ class MoodUpdate(BaseModel):
     tone_modifier: str | None = Field(default=None, max_length=200)
 
 
-app = FastAPI(
+app: FastAPI = FastAPI(
     title="Serin Control Panel",
     version="2.0.0",
     description="Production-grade control panel for Serin AI companion",

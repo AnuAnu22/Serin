@@ -16,8 +16,10 @@ from serin.d1_1_pipeline_flow.d2_1_flow_act.d3_3_stages_base import PipelineStag
 from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator import (
     build_natural_system_prompt,
 )
-from serin.d1_3_state_core.d2_5_core_logger import logger
-from serin.d1_3_state_core.d2_5_message_context import MessageContext
+from serin.d1_3_state_core.d2_5_state_conversation.d3_2_message_context import (
+    MessageContext,
+)
+from serin.d1_4_config_base.d2_3_logger import logger
 
 
 def _time_label(ts_raw: str) -> str:
@@ -268,79 +270,77 @@ class PromptAssemblyStage(PipelineStage):
         self.memory_system = memory_system
 
     async def _run(self, ctx: MessageContext) -> MessageContext:
-        # Build system prompt
         ctx.system_prompt = build_natural_system_prompt()
         if ctx.tone_modifier:
             ctx.system_prompt += f"\n\nCurrent mood: {ctx.tone_modifier}"
 
-        # ── Binding constraints from Response Planner ────────────────────
+        self._add_response_plan_constraints(ctx)
+
+        context_parts: list[str] = []
+        self._build_facts_context(ctx, context_parts)
+        self._build_beliefs_context(ctx, context_parts)
+        self._build_relationship_context(ctx, context_parts)
+        self._build_belief_evolution_context(ctx, context_parts)
+        self._build_missed_messages_context(ctx, context_parts)
+        self._build_memory_context(ctx, context_parts)
+        self._build_personality_context(ctx, context_parts)
+        self._build_relationships_context(ctx, context_parts)
+        self._build_user_profile_context(ctx, context_parts)
+
+        ctx.context_block = "\n\n".join(context_parts)
+        ctx.built_messages = self._build_messages(ctx)
+
+        memory_text = _fuzz_memories(ctx.memories, limit=8)
+        rel_context = _relationship_context(self.memory_system, ctx)
+        belief_context = _belief_evolution_context(self.memory_system, ctx.raw_content)
+        self._store_prompt_debug(ctx, memory_text or "", rel_context or "", belief_context or "")
+
+        return ctx
+
+    def _add_response_plan_constraints(self, ctx: MessageContext) -> None:
         plan = ctx.response_plan or {}
         if plan.get("constraints"):
-            constraint_lines = []
-            for c in plan["constraints"]:
-                constraint_lines.append(f"- {c}")
+            constraint_lines = [f"- {c}" for c in plan["constraints"]]
             ctx.system_prompt += (
                 "\n\nResponse constraints (these are important — "
                 "don't ignore them):\n" + "\n".join(constraint_lines)
             )
-
         if plan.get("forbidden_moves"):
-            forbid_lines = []
-            for f in plan["forbidden_moves"]:
-                forbid_lines.append(f"- Don't {f}")
-            ctx.system_prompt += (
-                "\n\nForbidden:\n" + "\n".join(forbid_lines)
-            )
+            forbid_lines = [f"- Don't {f}" for f in plan["forbidden_moves"]]
+            ctx.system_prompt += "\n\nForbidden:\n" + "\n".join(forbid_lines)
+        stance = plan.get("stance")
+        if stance == "uncertain":
+            ctx.system_prompt += "\n\nYou're uncertain about something in this conversation. It's fine to say you're not sure."
+        elif stance == "disagree_gently":
+            ctx.system_prompt += "\n\nThe evidence supports a different conclusion than what was just said. You can disagree, but be natural about it."
+        elif stance == "disagree_firmly":
+            ctx.system_prompt += "\n\nThe evidence strongly supports a different conclusion. State what you know confidently, using the evidence you have."
+        elif stance == "agree":
+            ctx.system_prompt += "\n\nThe evidence agrees with what was just said. Affirm and add relevant details."
 
-        if plan.get("stance") == "uncertain":
-            ctx.system_prompt += (
-                "\n\nYou're uncertain about something in this conversation. "
-                "It's fine to say you're not sure."
-            )
-        elif plan.get("stance") == "disagree_gently":
-            ctx.system_prompt += (
-                "\n\nThe evidence supports a different conclusion than what "
-                "was just said. You can disagree, but be natural about it."
-            )
-        elif plan.get("stance") == "disagree_firmly":
-            ctx.system_prompt += (
-                "\n\nThe evidence strongly supports a different conclusion. "
-                "State what you know confidently, using the evidence you have."
-            )
-        elif plan.get("stance") == "agree":
-            ctx.system_prompt += (
-                "\n\nThe evidence agrees with what was just said. "
-                "Affirm and add relevant details."
-            )
-
-        # Build typed context sections
-        context_parts = []
-
-        # 0. Facts — from Bayesian engine with confidence labels
+    def _build_facts_context(self, ctx: MessageContext, context_parts: list[str]) -> None:
         fact_text = _facts_context(self.memory_system, str(ctx.user_id))
         if fact_text:
-            context_parts.append(
-                _truncate_to_budget(fact_text, CONTEXT_BUDGET["facts"])
-            )
+            context_parts.append(_truncate_to_budget(fact_text, CONTEXT_BUDGET["facts"]))
 
-        # 0b. Beliefs — what I think based on weighing facts
-        if ctx.beliefs:
-            belief_lines = []
-            for b in ctx.beliefs[:3]:
-                conf = b.get("confidence", 0.5)
-                conf_tag = _confidence_label(conf)
-                evidence_ct = b.get("evidence_count", 0)
-                claim_ct = b.get("claim_count", 0)
-                belief_lines.append(
-                    f"- {b['content']} {conf_tag} "
-                    f"(based on {evidence_ct} evidence pieces, "
-                    f"{claim_ct} counter-claims)"
-                )
-            context_parts.append(
-                _truncate_to_budget("What I think:\n" + "\n".join(belief_lines), CONTEXT_BUDGET["beliefs"])
+    def _build_beliefs_context(self, ctx: MessageContext, context_parts: list[str]) -> None:
+        if not ctx.beliefs:
+            return
+        belief_lines = []
+        for b in ctx.beliefs[:3]:
+            conf = b.get("confidence", 0.5)
+            conf_tag = _confidence_label(conf)
+            evidence_ct = b.get("evidence_count", 0)
+            claim_ct = b.get("claim_count", 0)
+            belief_lines.append(
+                f"- {b['content']} {conf_tag} "
+                f"(based on {evidence_ct} evidence pieces, {claim_ct} counter-claims)"
             )
+        context_parts.append(
+            _truncate_to_budget("What I think:\n" + "\n".join(belief_lines), CONTEXT_BUDGET["beliefs"])
+        )
 
-        # 1. Relationship context — how Serin feels about this user
+    def _build_relationship_context(self, ctx: MessageContext, context_parts: list[str]) -> None:
         rel_context = _relationship_context(self.memory_system, ctx)
         if rel_context:
             context_parts.append(
@@ -350,36 +350,40 @@ class PromptAssemblyStage(PipelineStage):
                 )
             )
 
-        # 2. Belief evolution — how Serin's opinions have changed
+    def _build_belief_evolution_context(self, ctx: MessageContext, context_parts: list[str]) -> None:
         belief_context = _belief_evolution_context(self.memory_system, ctx.raw_content)
         if belief_context:
             context_parts.append(
-                _truncate_to_budget("Your evolving opinions (reference naturally if relevant):\n" + belief_context, CONTEXT_BUDGET["belief_evolution"])
+                _truncate_to_budget(
+                    "Your evolving opinions (reference naturally if relevant):\n" + belief_context,
+                    CONTEXT_BUDGET["belief_evolution"]
+                )
             )
 
-        # 3. Missed messages — things Serin didn't notice earlier
+    def _build_missed_messages_context(self, ctx: MessageContext, context_parts: list[str]) -> None:
         try:
             from serin.d1_1_pipeline_flow.d2_1_flow_act.d3_2_act_stages.d4_1_decision_temporal import (
                 clear_missed_messages,
                 get_missed_messages,
             )
             missed = get_missed_messages(ctx.channel_id)
-            if missed:
-                missed_text = "\n".join(
-                    f"- {m['username']} asked you something earlier: \"{m['content'][:100]}\" (you missed it)"
-                    for m in missed[-3:]
+            if not missed:
+                return
+            missed_text = "\n".join(
+                f"- {m['username']} asked you something earlier: \"{m['content'][:100]}\" (you missed it)"
+                for m in missed[-3:]
+            )
+            context_parts.append(
+                _truncate_to_budget(
+                    f"Messages you missed earlier (you can bring them up naturally):\n{missed_text}",
+                    CONTEXT_BUDGET["missed"]
                 )
-                context_parts.append(
-                    _truncate_to_budget(
-                        f"Messages you missed earlier (you can bring them up naturally):\n{missed_text}",
-                        CONTEXT_BUDGET["missed"]
-                    )
-                )
-                clear_missed_messages(ctx.channel_id)
+            )
+            clear_missed_messages(ctx.channel_id)
         except Exception as exc:
             logger.debug("Failed to add missed messages context: %s", exc)
 
-        # 4. Fuzzy memories — human-like imperfect recall
+    def _build_memory_context(self, ctx: MessageContext, context_parts: list[str]) -> None:
         memory_text = _fuzz_memories(ctx.memories, limit=8)
         if memory_text:
             context_parts.append(
@@ -389,81 +393,59 @@ class PromptAssemblyStage(PipelineStage):
                 )
             )
 
-        # 5. Personality context
+    def _build_personality_context(self, ctx: MessageContext, context_parts: list[str]) -> None:
         if ctx.personality_context:
             context_parts.append(
                 _truncate_to_budget(ctx.personality_context, CONTEXT_BUDGET["personality"])
             )
 
-        # 6. Relationships
-        if ctx.relationships:
-            rel_lines = []
-            for rel in ctx.relationships[:3]:
-                other = rel.get("other_username", "someone")
-                strength = rel.get("relationship_strength", 0)
-                if strength > 0.7:
-                    rel_lines.append(f"You talk to {other} often — you're close.")
-                elif strength > 0.4:
-                    rel_lines.append(f"You know {other} — you've talked a few times.")
-            if rel_lines:
-                context_parts.append(_truncate_to_budget("Relationships: " + " ".join(rel_lines), CONTEXT_BUDGET["relationship"]))
+    def _build_relationships_context(self, ctx: MessageContext, context_parts: list[str]) -> None:
+        if not ctx.relationships:
+            return
+        rel_lines = []
+        for rel in ctx.relationships[:3]:
+            other = rel.get("other_username", "someone")
+            strength = rel.get("relationship_strength", 0)
+            if strength > 0.7:
+                rel_lines.append(f"You talk to {other} often — you're close.")
+            elif strength > 0.4:
+                rel_lines.append(f"You know {other} — you've talked a few times.")
+        if rel_lines:
+            context_parts.append(
+                _truncate_to_budget("Relationships: " + " ".join(rel_lines), CONTEXT_BUDGET["relationship"])
+            )
 
-        # 7. User profile
-        if ctx.user_profile:
-            traits = ctx.user_profile.get("personality_traits", [])[:5]
-            interests = ctx.user_profile.get("interests", [])[:5]
-            if traits or interests:
-                profile_parts = []
-                if traits:
-                    profile_parts.append(f"Traits: {', '.join(traits)}")
-                if interests:
-                    profile_parts.append(f"Interests: {', '.join(interests)}")
-                context_parts.append(_truncate_to_budget("User profile: " + "; ".join(profile_parts), CONTEXT_BUDGET["user_profile"]))
+    def _build_user_profile_context(self, ctx: MessageContext, context_parts: list[str]) -> None:
+        if not ctx.user_profile:
+            return
+        traits = ctx.user_profile.get("personality_traits", [])[:5]
+        interests = ctx.user_profile.get("interests", [])[:5]
+        if not traits and not interests:
+            return
+        profile_parts = []
+        if traits:
+            profile_parts.append(f"Traits: {', '.join(traits)}")
+        if interests:
+            profile_parts.append(f"Interests: {', '.join(interests)}")
+        context_parts.append(
+            _truncate_to_budget("User profile: " + "; ".join(profile_parts), CONTEXT_BUDGET["user_profile"])
+        )
 
-        ctx.context_block = "\n\n".join(context_parts)
-
-        # Build messages array
-        messages = []
+    def _build_messages(self, ctx: MessageContext) -> list[dict[str, Any]]:
+        messages: list[dict[str, Any]] = []
         messages.append({"role": "system", "content": ctx.system_prompt})
-
         if ctx.context_block:
             messages.append({"role": "system", "content": ctx.context_block})
 
-        # ── Filter, deduplicate, and fold conversation history ─────────
         bot_id = ""
         try:
             if ctx.message and ctx.message.guild and ctx.message.guild.me:
                 bot_id = str(ctx.message.guild.me.id)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to get bot_id for dedup: %s", e)
 
-        _system_patterns = [
-            "voice channel",
-            "started a call", "ended a call",
-            "pinned a message", "added a reaction",
-        ]
-
-        filtered_messages: list[dict[str, Any]] = []
-        for msg in ctx.recent_messages:
-            content = msg.get("content", "").strip()
-            if not content:
-                continue
-            if any(pat in content.lower() for pat in _system_patterns):
-                continue
-            if len(content) < 2:
-                continue
-            filtered_messages.append(msg)
-
-        # Collapse consecutive duplicates from same user
-        collapsed: list[dict[str, Any]] = []
-        for msg in filtered_messages:
-            if collapsed:
-                prev = collapsed[-1]
-                if (prev.get("user_id") == msg.get("user_id") and
-                        prev.get("content", "").strip().lower() == msg.get("content", "").strip().lower()):
-                    continue
-            collapsed.append(msg)
-
+        filtered_messages = self._filter_history_messages(ctx.recent_messages)
+        collapsed = self._collapse_duplicates(filtered_messages)
         collapsed = collapsed[-10:]
 
         for msg in collapsed:
@@ -475,35 +457,58 @@ class PromptAssemblyStage(PipelineStage):
             else:
                 messages.append({"role": "user", "content": f"{username}: {content}"})
 
-        # Add current message (with image if present)
         current_msg: dict[str, Any] = {"role": "user", "content": f"{ctx.username}: {ctx.raw_content}"}
-
-        # Check if this message has an image attachment
         visual_contexts = ctx.metadata.get("pending_visual_contexts", {}) if ctx.metadata else {}
         msg_id = getattr(ctx.message, "id", None) if ctx.message else None
         if msg_id and msg_id in visual_contexts:
             current_msg["image_url"] = visual_contexts[msg_id]
-            logger.debug("Added image_url to prompt for message %s", msg_id)
-
         messages.append(current_msg)
+        return messages
 
-        ctx.built_messages = messages
+    def _filter_history_messages(self, recent_messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        _system_patterns = [
+            "voice channel", "started a call", "ended a call",
+            "pinned a message", "added a reaction",
+        ]
+        filtered: list[dict[str, Any]] = []
+        for msg in recent_messages:
+            content = msg.get("content", "").strip()
+            if not content:
+                continue
+            if any(pat in content.lower() for pat in _system_patterns):
+                continue
+            if len(content) < 2:
+                continue
+            filtered.append(msg)
+        return filtered
 
+    def _collapse_duplicates(self, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        collapsed: list[dict[str, Any]] = []
+        for msg in messages:
+            if collapsed:
+                prev = collapsed[-1]
+                if (prev.get("user_id") == msg.get("user_id") and
+                        prev.get("content", "").strip().lower() == msg.get("content", "").strip().lower()):
+                    continue
+            collapsed.append(msg)
+        return collapsed
+
+    def _store_prompt_debug(self, ctx: MessageContext, memory_text: str, rel_context: str, belief_context: str) -> None:
         try:
             from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_11_debug_routes import (
                 store_prompt_debug,
             )
             full_prompt = "\n\n".join(
-                str(message.get("content", "")) for message in ctx.built_messages
+                str(m.get("content", "")) for m in ctx.built_messages
             )
             channel = getattr(getattr(ctx, "message", None), "channel", None)
             store_prompt_debug({
                 "user": getattr(ctx, "username", ""),
                 "channel": getattr(channel, "name", ""),
                 "system_prompt": ctx.system_prompt[:2000],
-                "memories": memory_text[:1000] if memory_text else "",
-                "relationship": rel_context[:500] if rel_context else "",
-                "beliefs": belief_context[:500] if belief_context else "",
+                "memories": memory_text[:1000],
+                "relationship": rel_context[:500],
+                "beliefs": belief_context[:500],
                 "time": "",
                 "energy": ctx.tone_modifier[:200] if ctx.tone_modifier else "",
                 "user_message": getattr(ctx, "raw_content", "")[:500],
@@ -511,12 +516,3 @@ class PromptAssemblyStage(PipelineStage):
             })
         except Exception as exc:
             logger.debug("Failed to store prompt debug entry: %s", exc)
-
-        logger.debug("pipeline.prompt_assembled", extra={
-            "user": ctx.username,
-            "system_prompt_len": len(ctx.system_prompt),
-            "context_block_len": len(ctx.context_block),
-            "built_messages_count": len(ctx.built_messages),
-        })
-
-        return ctx

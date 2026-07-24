@@ -196,23 +196,6 @@ def log_message(message: Any, cleaned_content: str) -> None:
     debug.log_message_received(message, cleaned_content)
 
 
-def log_context(context: dict[str, Any]) -> None:
-    """Log context built"""
-    debug.log_context_built(context)
-
-
-def log_llm_io(
-    messages: list[dict[str, Any]] | None = None,
-    raw: str | None = None,
-    cleaned: str | None = None,
-) -> None:
-    """Log LLM input/output"""
-    if messages:
-        debug.log_llm_input(messages)
-    if raw and cleaned:
-        debug.log_llm_output(raw, cleaned)
-
-
 def log_memory(content: str, metadata: dict[str, Any]) -> None:
     """Log memory stored"""
     debug.log_memory_stored(content, metadata)
@@ -228,26 +211,9 @@ def log_correction(correction: dict[str, Any], user: str) -> None:
     debug.log_correction_detected(correction, user)
 
 
-def log_response(should_respond: bool, reason: str, message: str) -> None:
-    """Log response decision"""
-    debug.log_response_decision(should_respond, reason, message)
-
-
 def log_voice(event_type: str, user: str, channel: str, duration: int | None = None) -> None:
     """Log voice event"""
     debug.log_voice_event(event_type, user, channel, duration)
 
 
-def log_api_request(endpoint: str, method: str, params: dict[str, Any] | None = None) -> None:
-    """Log API request"""
-    if not debug.debug_mode:
-        return
 
-    logger.info("=" * 80)
-    logger.info("API REQUEST")
-    logger.info("=" * 80)
-    logger.info(f"Endpoint: {endpoint}")
-    logger.info(f"Method: {method}")
-    if params:
-        logger.info(f"Params: {params}")
-    logger.info("=" * 80)

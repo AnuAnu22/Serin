@@ -18,9 +18,9 @@ from serin.d1_3_state_core.d2_3_model_system.d3_3_system_factory import (
     get_model_connector,
 )
 from serin.d1_3_state_core.d2_3_model_system.d3_4_system_interface import ModelInterface
-from serin.d1_3_state_core.d2_5_core_logger import logger
-from serin.d1_3_state_core.d2_5_thinking_filter import filter_thinking
+from serin.d1_3_state_core.d2_3_model_system.d3_5_thinking_filter import filter_thinking
 from serin.d1_4_config_base.d2_2_debug_logger import log_summary
+from serin.d1_4_config_base.d2_3_logger import logger
 
 
 class BackgroundProcessor:
@@ -52,6 +52,9 @@ class BackgroundProcessor:
 
         # Timer for idle processing
         self.last_message_time: datetime | None = None
+
+        # Dynamics engine for physics-based conversation state (set externally)
+        self.dynamics_engine: Any | None = None
 
         logger.info(" Background processor initialized")
 
@@ -479,14 +482,21 @@ Summary:"""
                 batch = [self.processing_queue.popleft() for _ in range(queue_size)]
             await self._process_batch(batch)
 
+        # Clean up stale channel state via dynamics engine
+        try:
+            if self.dynamics_engine:
+                self.dynamics_engine.allocate_attention()
+        except Exception as e:
+            logger.debug("Dynamics engine attention allocation failed: %s", e)
+
         # Decay pass — apply temporal decay to all active facts
         try:
             engine = getattr(self.memory, "belief_engine", None)
             if engine is not None:
                 engine.apply_decay_batch()
                 logger.debug("Fact decay batch applied")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Fact decay batch failed: %s", e)
 
     def get_stats(self) -> dict[str, Any]:
         """Get processing statistics"""

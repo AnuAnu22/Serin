@@ -486,15 +486,15 @@ class RustVoiceBridge:
                 if member.id not in self._ssrc_by_member_id:
                     self._ssrc_by_member_id[member.id] = user_id
                     self._usernames[user_id] = member.display_name
-                    return member.display_name
+                    return str(member.display_name)
 
             # 3. All members are already speaking — reuse the first non-bot member
             for member in members:
                 if member.id != bot_id:
                     self._usernames[user_id] = member.display_name
-                    return member.display_name
-        except Exception:
-            pass
+                    return str(member.display_name)
+        except Exception as e:
+            get_logger().debug("Failed to resolve username for %s: %s", user_id, e)
 
         return f"user_{user_id}"
 

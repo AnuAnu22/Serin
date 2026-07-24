@@ -98,8 +98,8 @@ except Exception as e:
 
 # d4_4_server_status.py is imported for its module-level side effects
 try:
-    exec(
-        "from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server import d4_4_server_status"
+    from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server import (
+        d4_4_server_status,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     )
     _logger.info("d4_4_server_status imported OK")
 except Exception as e:

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 
-def parse_board(self: Any, board_text: str) -> list[list[str]] ** None:
+def parse_board(self: Any, board_text: str) -> list[list[str]] | None:
     """Parse a pipe-delimited board into a 2D grid.
 
     Handles:

@@ -44,7 +44,7 @@ class InfoCaptureProtocol(VoiceProtocol[discord.Client]):
         self.session_id: str = ""
         self._info_gathered = False
 
-    async def connect(self, *, timeout: float, reconnect: bool) -> None:
+    async def connect(self, *, timeout: float) -> None:  # type: ignore[override]
         """Join voice channel and wait for gateway events (NO UDP/DAVE)."""
         channel = cast(discord.VoiceChannel, self.channel)
         await channel.guild.change_voice_state(channel=channel)

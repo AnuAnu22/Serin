@@ -8,8 +8,8 @@ from datetime import datetime
 from secrets import choice, randbelow
 from typing import Any
 
-from serin.d1_3_state_core.d2_5_core_logger import logger
 from serin.d1_4_config_base.d2_2_debug_logger import log_voice
+from serin.d1_4_config_base.d2_3_logger import logger
 
 
 def _rand() -> float:

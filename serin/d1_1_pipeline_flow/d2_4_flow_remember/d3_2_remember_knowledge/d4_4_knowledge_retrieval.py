@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from serin.d1_3_state_core.d2_5_core_logger import logger
+from serin.d1_4_config_base.d2_3_logger import logger
 
 if TYPE_CHECKING:
     from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_3_remember_qdrant import (
@@ -33,8 +33,7 @@ class PersonalityConsistencyAnalyzer:
 
     def __init__(self, memory_system: QdrantMemorySystem) -> None:
         self.memory: QdrantMemorySystem = memory_system
-        self.personality_weights: dict[str, float] = {}
-        self.conversation_history: dict[str, list[dict[str, Any]]] = {}
+
 
     def analyze_user_personality(self, user_id: str) -> dict[str, Any]:
         """Analyze user's personality traits and communication style"""

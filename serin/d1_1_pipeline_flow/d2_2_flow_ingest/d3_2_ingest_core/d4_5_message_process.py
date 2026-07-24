@@ -14,9 +14,9 @@ from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_3_correction_
 from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator import (
     get_response_natural,
 )
-from serin.d1_3_state_core.d2_5_core_logger import logger
 from serin.d1_4_config_base.d2_1_base_config import config
 from serin.d1_4_config_base.d2_2_debug_logger import log_correction, log_message
+from serin.d1_4_config_base.d2_3_logger import logger
 
 
 async def process_voice_input(self: Any, user_id: str, username: str, channel_id: str, transcription: str, guild_id: str | None = None) -> None:
@@ -73,7 +73,6 @@ async def process_voice_input(self: Any, user_id: str, username: str, channel_id
         response = await get_response_natural(
             current_messages=user_messages,
             context=formatted_context,
-            resolved_last_message=transcription,
             tone_modifier=self.personality.get_tone_modifier(),
             personality_state=self.personality.__dict__,
             message_complexity="simple",
@@ -114,205 +113,151 @@ async def start(self: Any) -> None:
     """Start the manager."""
     logger.info("Enhanced MessageManager started")
 
+async def _handle_correction(self: Any, message: discord.Message, cleaned_content: str, channel_id: str, user_name: str, user_id: str) -> bool:
+    """Check and handle message correction. Returns True if correction was applied (caller should return)."""
+    if not self.last_bot_response or self.last_bot_response_channel != channel_id:
+        return False
+    correction = self.correction_detector.detect_correction(
+        message=cleaned_content,
+        previous_bot_response=self.last_bot_response,
+        context=[{"content": msg.content} for msg in self.current_batch[-3:]],
+    )
+    if not correction or correction.get("confidence", 0) <= 0.7:
+        return False
+    logger.info("Correction detected!")
+    self.stats["corrections_detected"] += 1
+    log_correction(correction, user_name)
+    self.memory_corrector.apply_correction(correction, user_id, user_name, channel_id)
+    ack = get_correction_acknowledgment(correction)
+    await message.channel.send(ack)
+    self.last_bot_response = None
+    return True
+
+
+async def _handle_vision_fallback(self: Any, message: discord.Message, cleaned_content: str, user_name: str, user_id: str, channel_id: str) -> str:
+    """Process image attachments — store for LLM vision and optionally archive."""
+    main_llm_has_vision = config.LLM_SUPPORTS_VISION
+    for attachment in message.attachments:
+        if not attachment.content_type or not attachment.content_type.startswith("image/"):
+            continue
+        logger.info("Processing image from %s...", user_name)
+        image_data_url: str | None = None
+        image_bytes: bytes | None = None
+        try:
+            image_bytes = await attachment.read()
+            if image_bytes:
+                mime = attachment.content_type or "image/jpeg"
+                b64 = base64.b64encode(image_bytes).decode("utf-8")
+                image_data_url = f"data:{mime};base64,{b64}"
+        except Exception as e:
+            logger.warning("Failed to download/encode image: %s", e)
+        if image_data_url:
+            self.pending_visual_contexts[message.id] = image_data_url
+        else:
+            self.pending_visual_contexts[message.id] = attachment.url
+        cleaned_content += " [User posted an image]"
+        if self.visual_memory:
+            await _archive_image(self, attachment, image_data_url, image_bytes, user_id, user_name, channel_id, main_llm_has_vision, cleaned_content)
+    return cleaned_content
+
+
+async def _archive_image(self: Any, attachment: discord.Attachment, image_data_url: str | None, image_bytes: bytes | None, user_id: str, user_name: str, channel_id: str, main_llm_has_vision: bool, content_with_tag: str) -> None:
+    matches = self.visual_memory.recall_image(attachment.url)
+    if matches:
+        top_match = matches[0]
+        _visual_context = f"\n[Visual Memory: I recognize this image! It looks like what {top_match['username']} posted on {top_match['timestamp'][:10]}. Context: '{top_match['context']}']"
+        logger.info("Visual recognition: %s", _visual_context)
+    storage_description = ""
+    if image_data_url and main_llm_has_vision:
+        try:
+            desc_prompt = [{"role": "user", "content": [{"type": "text", "text": "Describe this image in detail for archival purposes. Include any text you can read."}, {"type": "image_url", "image_url": {"url": image_data_url}}]}]
+            storage_description = await self.llm.chat_completion(desc_prompt, max_tokens=300)
+        except Exception as e:
+            logger.warning("gemma12b vision failed for archival: %s", e)
+            storage_description = "Image (vision model error)"
+    elif image_data_url and self.vision_llm:
+        try:
+            desc_prompt = [{"role": "user", "content": [{"type": "text", "text": "Describe this image in detail for archival purposes. Include any text you can read."}, {"type": "image_url", "image_url": {"url": image_data_url}}]}]
+            storage_description = await self.vision_llm.chat_completion(desc_prompt, max_tokens=300)
+        except Exception as e:
+            logger.warning("SmolVLM not available for archival: %s", e)
+            storage_description = "Image (vision model error)"
+    elif image_data_url:
+        storage_description = "Image (vision model not loaded)"
+    else:
+        storage_description = "Image (could not download)"
+    storage_context = f"{content_with_tag}\n[Image Content: {storage_description}]" if image_data_url else content_with_tag
+    if image_bytes:
+        self.visual_memory.store_image_from_bytes(image_bytes=image_bytes, image_url=attachment.url, user_id=user_id, username=user_name, channel_id=channel_id, context_text=storage_context)
+    else:
+        self.visual_memory.store_image_memory(image_url=attachment.url, user_id=user_id, username=user_name, channel_id=channel_id, context_text=storage_context)
+
+
+async def _process_perception_and_store(self: Any, cleaned_content: str, user_id: str, user_name: str, channel_id: str, message: discord.Message, participants: list[str], emotional_tone: str) -> None:
+    perception = self._perceive_message(cleaned_content, user_id, user_name)
+    self.memory.add_memory_enhanced(
+        content=cleaned_content, user_id=user_id, username=user_name, channel_id=channel_id,
+        participants=participants, emotional_tone=emotional_tone,
+        importance=0.8 if perception.is_objective else 0.3,
+        memory_type='evidence' if perception.is_objective else 'utterance',
+        source_message_id=str(message.id), speech_act=perception.speech_act,
+        is_objective=perception.is_objective, evidence_class=perception.evidence_class,
+        extracted_facts=[f['content'] for f in perception.extracted_facts],
+    )
+    engine = getattr(self.memory, "belief_engine", None)
+    if engine is not None:
+        for fact in perception.extracted_facts:
+            try:
+                engine.store_fact(subject_id=user_id, subject_name=user_name, claim=fact['content'], category=fact['category'], source=user_name, source_type=fact.get('source_type', 'user_claim'), initial_confidence=float(fact.get('confidence', 0.4)))
+            except Exception as e:
+                logger.debug("Could not store fact via Bayesian engine: %s", e)
+
+
+def _update_user_profile(self: Any, user_id: str, user_name: str, cleaned_content: str) -> None:
+    self.memory.upsert_user(user_id, user_name, user_name)
+    self.memory.update_user_activity(user_id, len(cleaned_content))
+
+
+def _schedule_flush_batch(self: Any, message: discord.Message, cleaned_content: str, user_id: str, user_name: str, channel_id: str) -> None:
+    self.memory.store_recent_message(user_id=user_id, username=user_name, channel_id=channel_id, content=cleaned_content, message_id=str(message.id), timestamp=message.created_at)
+    self.memory.update_relationship(str(self.client.user.id), user_id)
+    self.memory.log_activity(user_id, channel_id, len(message.content), self.analyzer.polarity_scores(cleaned_content)["compound"])
+    self.current_batch.append(message)
+    self.stats["messages_processed"] += 1
+
+
 async def process_message(self: Any, message: discord.Message) -> None:
     """Process incoming message with all pre-processing, then delegate to pipeline."""
     try:
         user_id = str(message.author.id)
         user_name = message.author.display_name
-        content = message.content
         channel_id = str(message.channel.id)
 
         self.mention_translator.update_cache(message.author)
-        cleaned_content = self.mention_translator.clean_for_bot(content, message)
+        cleaned_content = self.mention_translator.clean_for_bot(message.content, message)
         cleaned_content = self.mention_translator.clean_bot_self_mention(cleaned_content)
         log_message(message, cleaned_content)
 
-        # TIER 5: Check for correction FIRST
-        if self.last_bot_response and self.last_bot_response_channel == channel_id:
-            correction = self.correction_detector.detect_correction(
-                message=cleaned_content,
-                previous_bot_response=self.last_bot_response,
-                context=[{"content": msg.content} for msg in self.current_batch[-3:]],
-            )
-            if correction and correction.get("confidence", 0) > 0.7:
-                logger.info("Correction detected!")
-                self.stats["corrections_detected"] += 1
-                log_correction(correction, user_name)
-                self.memory_corrector.apply_correction(correction, user_id, user_name, channel_id)
-                ack = get_correction_acknowledgment(correction)
-                await message.channel.send(ack)
-                self.last_bot_response = None
-                return
+        if await _handle_correction(self, message, cleaned_content, channel_id, user_name, user_id):
+            return
 
-        # TIER 6: Visual Memory Processing
-        # Always process image attachments for LLM vision, even without visual_memory
-        main_llm_has_vision = config.LLM_SUPPORTS_VISION
-        if message.attachments:
-            for attachment in message.attachments:
-                if attachment.content_type and attachment.content_type.startswith("image/"):
-                    logger.info("Processing image from %s...", user_name)
+        cleaned_content = await _handle_vision_fallback(self, message, cleaned_content, user_name, user_id, channel_id)
 
-                    image_data_url = None
-                    image_bytes = None
-                    try:
-                        image_bytes = await attachment.read()
-                        if image_bytes:
-                            mime = attachment.content_type or "image/jpeg"
-                            b64 = base64.b64encode(image_bytes).decode("utf-8")
-                            image_data_url = f"data:{mime};base64,{b64}"
-                            logger.info("Encoded image as base64 (%s bytes)", len(image_bytes))
-                    except Exception as e:
-                        logger.warning("Failed to download/encode image: %s", e)
-
-                    # Store for LLM vision (always, regardless of visual_memory)
-                    if image_data_url:
-                        self.pending_visual_contexts[message.id] = image_data_url
-                    else:
-                        self.pending_visual_contexts[message.id] = attachment.url
-                    cleaned_content += " [User posted an image]"
-
-                    # Visual memory recall + archival (only if visual_memory available)
-                    if self.visual_memory:
-                        matches = self.visual_memory.recall_image(attachment.url)
-                        if matches:
-                            top_match = matches[0]
-                            visual_context = f"\n[Visual Memory: I recognize this image! It looks like what {top_match['username']} posted on {top_match['timestamp'][:10]}. Context: '{top_match['context']}']"
-                            logger.info("Visual recognition: %s", visual_context)
-
-                        storage_description = ""
-                        if image_data_url and main_llm_has_vision:
-                            try:
-                                desc_prompt = [{
-                                    "role": "user",
-                                    "content": [
-                                        {"type": "text", "text": "Describe this image in detail for archival purposes. Include any text you can read."},
-                                        {"type": "image_url", "image_url": {"url": image_data_url}},
-                                    ],
-                                }]
-                                storage_description = await self.llm.chat_completion(desc_prompt, max_tokens=300)
-                                logger.info("Generated archival description: %s...", storage_description[:100])
-                            except Exception as e:
-                                logger.warning("gemma12b vision failed for archival: %s", e)
-                                storage_description = "Image (vision model error)"
-                        elif image_data_url and self.vision_llm:
-                            try:
-                                desc_prompt = [{
-                                    "role": "user",
-                                    "content": [
-                                        {"type": "text", "text": "Describe this image in detail for archival purposes. Include any text you can read."},
-                                        {"type": "image_url", "image_url": {"url": image_data_url}},
-                                    ],
-                                }]
-                                storage_description = await self.vision_llm.chat_completion(desc_prompt, max_tokens=300)
-                                logger.info("Generated archival description (SmolVLM): %s...", storage_description[:100])
-                            except Exception as e:
-                                logger.warning("SmolVLM not available for archival: %s", e)
-                                storage_description = "Image (vision model error)"
-                        elif image_data_url:
-                            storage_description = "Image (vision model not loaded)"
-                        else:
-                            storage_description = "Image (could not download)"
-
-                        storage_context = f"{cleaned_content}\n[Image Content: {storage_description}]"
-                        if image_bytes:
-                            self.visual_memory.store_image_from_bytes(
-                                image_bytes=image_bytes,
-                                image_url=attachment.url,
-                                user_id=user_id,
-                                username=user_name,
-                                channel_id=channel_id,
-                                context_text=storage_context,
-                            )
-                        else:
-                            self.visual_memory.store_image_memory(
-                                image_url=attachment.url,
-                                user_id=user_id,
-                                username=user_name,
-                                channel_id=channel_id,
-                                context_text=storage_context,
-                            )
-
-        # Update user profile
-        self.memory.upsert_user(user_id, user_name, user_name)
-        self.memory.update_user_activity(user_id, len(cleaned_content))
+        _update_user_profile(self, user_id, user_name, cleaned_content)
 
         sentiment = self.analyzer.polarity_scores(cleaned_content)
         emotional_tone = self._get_emotional_tone(sentiment["compound"])
         participants = list(set([str(m.author.id) for m in self.current_batch] + [user_id]))
 
-        logger.info("HAS_ADD_MEMORY_ENHANCED: %s", hasattr(self.memory, "add_memory_enhanced"))
         if hasattr(self.memory, "add_memory_enhanced"):
-            # ── Perception: analyze before storage ────────────────────
-            logger.info("ABOUT_TO_PERCEIVE: content=%s", cleaned_content[:60])
-            perception = self._perceive_message(
-                cleaned_content, user_id, user_name
-            )
-
-            self.memory.add_memory_enhanced(
-                content=cleaned_content,
-                user_id=user_id,
-                username=user_name,
-                channel_id=channel_id,
-                participants=participants,
-                emotional_tone=emotional_tone,
-                importance=0.8 if perception.is_objective else 0.3,
-                memory_type='evidence' if perception.is_objective else 'utterance',
-                source_message_id=str(message.id),
-                speech_act=perception.speech_act,
-                is_objective=perception.is_objective,
-                evidence_class=perception.evidence_class,
-                extracted_facts=[
-                    f['content'] for f in perception.extracted_facts
-                ],
-            )
-
-            # ── Store extracted facts via Bayesian engine ────────────
-            engine = getattr(self.memory, "belief_engine", None)
-            if engine is not None:
-                for fact in perception.extracted_facts:
-                    try:
-                        engine.store_fact(
-                            subject_id=user_id,
-                            subject_name=user_name,
-                            claim=fact['content'],
-                            category=fact['category'],
-                            source=user_name,
-                            source_type=fact.get('source_type', 'user_claim'),
-                            initial_confidence=float(fact.get('confidence', 0.4)),
-                        )
-                    except Exception as e:
-                        logger.debug("Could not store fact via Bayesian engine: %s", e)
+            await _process_perception_and_store(self, cleaned_content, user_id, user_name, channel_id, message, participants, emotional_tone)
         else:
             raise ValueError("Memory system does not support enhanced memory addition")
 
         detected_traits = self._analyze_personality(user_id, cleaned_content)
-        self.personality.update_from_conversation(
-            conversation_mood=emotional_tone,
-            user_traits=detected_traits,
-            time_of_day=datetime.now().hour,
-        )
+        self.personality.update_from_conversation(conversation_mood=emotional_tone, user_traits=detected_traits, time_of_day=datetime.now().hour)
 
-        try:
-            self.memory.store_recent_message(
-                user_id=user_id,
-                username=user_name,
-                channel_id=channel_id,
-                content=cleaned_content,
-                message_id=str(message.id),
-                timestamp=message.created_at,
-            )
-        except Exception as e:
-            logger.debug("Could not store recent message: %s", e)
-
-        try:
-            self.memory.update_relationship(str(self.client.user.id), user_id)
-        except Exception as e:
-            logger.debug("Could not update relationship: %s", e)
-
-        self.memory.log_activity(user_id, channel_id, len(content), sentiment["compound"])
-
-        self.current_batch.append(message)
-        self.stats["messages_processed"] += 1
+        _schedule_flush_batch(self, message, cleaned_content, user_id, user_name, channel_id)
 
         bot_mentioned = self.client.user.mentioned_in(message)
         if bot_mentioned:
@@ -324,7 +269,6 @@ async def process_message(self: Any, message: discord.Message) -> None:
             if self.flush_task and not self.flush_task.done():
                 self.flush_task.cancel()
             self.flush_task = asyncio.create_task(self._schedule_flush())
-
     except Exception as e:
         self.stats["errors"] += 1
         logger.exception("Error processing message: %s", e)

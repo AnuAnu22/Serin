@@ -26,6 +26,7 @@ class MessageContext:
     # ── Decision ──────────────────────────────────────────────────────────────
     should_respond: bool = False
     halt_reason: str = ""  # non-empty = pipeline halted early
+    is_mentioned: bool = False  # True if @mentioned or bot name in message
     intent: str = "statement"  # from PerceptionResult
     response_plan: dict[str, Any] = field(default_factory=dict)  # from ResponsePlannerStage
 
@@ -41,7 +42,6 @@ class MessageContext:
     relationships: list[dict[str, Any]] = field(default_factory=list)
 
     # ── Temporal / context ────────────────────────────────────────────────────
-    temporal_refs: list[str] = field(default_factory=list)
     personality_context: str = ""
     tone_modifier: str = ""
 

@@ -17,14 +17,20 @@ from serin.d1_2_gateway_io.d2_2_voice_system.d3_4_system_output import (
 from serin.d1_2_gateway_io.d2_4_io_di import get_logger
 
 # Try importing backends
+edge_tts: Any = None
 try:
-    import edge_tts
+    import edge_tts as _edge_tts
+    edge_tts = _edge_tts
 except ImportError:
     pass
 
+torch: Any = None
+TTS: Any = None
 try:
-    import torch
-    from TTS.api import TTS
+    import torch as _torch
+    from TTS.api import TTS as _TTS
+    torch = _torch
+    TTS = _TTS
 except ImportError:
     pass
 

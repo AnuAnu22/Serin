@@ -4,7 +4,9 @@ from __future__ import annotations
 import time
 from abc import ABC, abstractmethod
 
-from serin.d1_3_state_core.d2_5_message_context import MessageContext
+from serin.d1_3_state_core.d2_5_state_conversation.d3_2_message_context import (
+    MessageContext,
+)
 
 
 class PipelineStage(ABC):

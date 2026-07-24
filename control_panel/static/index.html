@@ -191,6 +191,7 @@ td, th { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-wid
   <button data-tab="decisions">Decisions</button>
   <button data-tab="debug">Debug</button>
   <button data-tab="relationships">Relationships</button>
+  <button data-tab="physics">Physics</button>
 </nav>
 <main>
 <div id="tab-dashboard" class="tab active">
@@ -437,6 +438,22 @@ td, th { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-wid
 <div id="tab-decisions" class="tab"><div class="card"><h3>Decision Feed <select id="decisionFilter" onchange="filterDecisions()"><option value="all">All</option><option value="RESPOND">Respond</option><option value="SKIP">Skip</option><option value="REACT">React</option><option value="MISS">Miss</option></select></h3><div id="decisionFeed" class="scroll-panel" style="max-height:500px"></div></div></div>
 <div id="tab-debug" class="tab"><div style="display:grid;grid-template-columns:300px 1fr;gap:16px"><div class="card"><h3>Recent Prompts</h3><div id="promptList" class="scroll-panel" style="max-height:500px"></div></div><div class="card"><h3>Prompt Detail</h3><div id="promptDetail"><div class="sub">Select a prompt from the list</div></div></div></div></div>
 <div id="tab-relationships" class="tab"><div class="card"><h3>Relationship Heatmap</h3><div id="relHeatmap" style="display:flex;flex-wrap:wrap;gap:6px;padding:12px 0"></div></div><div class="card"><h3>Details</h3><div id="relDetail"><div class="sub">Click a user</div></div></div></div>
+<div id="tab-physics" class="tab">
+  <div class="grid" style="grid-template-columns:1fr 1fr">
+    <div class="card">
+      <h3>Attention Allocation (Markowitz)</h3>
+      <div id="attentionBars"></div>
+    </div>
+    <div class="card">
+      <h3>Channel Momentum (Kuramoto)</h3>
+      <div id="momentumList"></div>
+    </div>
+  </div>
+  <div class="card" style="grid-column:1/-1">
+    <h3>Live State</h3>
+    <div id="physicsState" class="scroll-panel" style="max-height:300px"></div>
+  </div>
+</div>
 <div id="cmdPalette" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:1000;justify-content:center;padding-top:15vh">
   <div style="width:500px;max-width:90vw;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
     <input id="cmdInput" type="text" placeholder="Type a command..." style="width:100%;padding:14px 16px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:15px;outline:none">
@@ -1248,6 +1265,7 @@ const COMMANDS = [
   {label: "Decisions", action: () => switchTab('decisions')},
   {label: "Debug", action: () => switchTab('debug')},
   {label: "Relationships", action: () => switchTab('relationships')},
+  {label: "Physics", action: () => switchTab('physics')},
   {label: "Emergency Stop", action: () => apiPost('/api/emergency-stop')},
   {label: "Abort Generation", action: () => apiPost('/api/brain/abort')},
   {label: "Check Alerts", action: () => checkAlerts()},
@@ -1621,6 +1639,40 @@ async function forceBackfill() {
   }
 }
 
+async function loadPhysicsState() {
+  const res = await apiGet('/api/dynamics/state');
+  if (res.error) return;
+
+  const bars = document.getElementById('attentionBars');
+  const alloc = res.attention_allocation || {};
+  bars.innerHTML = Object.entries(alloc).map(([cid, w]) =>
+    `<div style="margin-bottom:6px">
+      <div style="font-size:11px;display:flex;justify-content:space-between">
+        <span>#${esc(cid.substring(0,12))}</span>
+        <span>${(w*100).toFixed(1)}%</span>
+      </div>
+      <div style="background:var(--border);height:8px;border-radius:4px">
+        <div style="background:var(--accent);height:100%;width:${w*100}%;border-radius:4px;transition:width 0.5s"></div>
+      </div>
+    </div>`
+  ).join('') || '<div class="sub">No active channels</div>';
+
+  const list = document.getElementById('momentumList');
+  const channels = res.channels || {};
+  list.innerHTML = Object.entries(channels).map(([cid, ch]) => {
+    const color = ch.momentum > 0.6 ? 'var(--green)' : ch.momentum > 0.3 ? 'var(--yellow)' : 'var(--text-dim)';
+    const actionColor = ch.last_action === 'reply' ? 'var(--green)' : ch.last_action === 'react' ? 'var(--yellow)' : 'var(--text-dim)';
+    return `<div class="kv-row">
+      <span class="kv-label">#${esc(cid.substring(0,12))} (${ch.participants} ppl)</span>
+      <span class="kv-value">
+        <span style="color:${color}">M:${ch.momentum.toFixed(2)}</span>
+        <span style="margin-left:8px">T:${ch.temperature.toFixed(1)}</span>
+        <span style="margin-left:8px;color:${actionColor}">${esc(ch.last_action)}</span>
+      </span>
+    </div>`;
+  }).join('') || '<div class="sub">No active channels</div>';
+}
+
 async function loadQdrantInfo() {
   try {
     const r = await apiGet('/api/memory/distribution');
@@ -1661,8 +1713,10 @@ try { loadPersonalityChart(); } catch(e) { console.error('personality chart init
 try { loadRelationships(); } catch(e) { console.error('relationships init failed:', e); }
 try { loadTimeline(); } catch(e) { console.error('timeline init failed:', e); }
 try { loadAlerts(); } catch(e) { console.error('alerts init failed:', e); }
+try { loadPhysicsState(); } catch(e) { console.error('physics init failed:', e); }
 connectWS();
 setInterval(() => { try { loadDashboard(); } catch(e) {} }, 10000);
+setInterval(() => { try { loadPhysicsState(); } catch(e) {} }, 2000);
 </script>
 </body>
 </html>

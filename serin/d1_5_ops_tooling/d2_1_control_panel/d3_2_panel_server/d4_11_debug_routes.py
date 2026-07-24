@@ -4,6 +4,8 @@ import logging
 import time
 from typing import Any
 
+from fastapi import FastAPI
+
 from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_1_state_access import (
     get_gpu_vram_usage,
     make_json_safe,
@@ -60,7 +62,7 @@ def _rows(cursor: Any) -> list[dict[str, Any]]:
     return [dict(row) for row in cursor.fetchall()]
 
 
-def register_debug_routes(app: Any, bot_state: dict[str, Any]) -> None:
+def register_debug_routes(app: FastAPI, bot_state: dict[str, Any]) -> None:
     """Register control-panel diagnostics, timeline, alerts, and report routes."""
 
     @app.get("/api/debug/prompts")
@@ -186,7 +188,7 @@ def register_debug_routes(app: Any, bot_state: dict[str, Any]) -> None:
             capped = max(1, min(limit, 200))
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT message_id, user_id, username, channel_id, content, timestamp FROM recent_messages"
+                "SELECT message_id, user_id, username, channel_id, content, timestamp FROM recent_messages"  # nosec B608
                 + where
                 + " ORDER BY timestamp DESC LIMIT ?",
                 (*params, capped + 1),
@@ -269,6 +271,16 @@ def register_debug_routes(app: Any, bot_state: dict[str, Any]) -> None:
         except Exception as exc:
             _logger.error("Alert check failed: %s", exc)
             return {"error": str(exc), "triggered": []}
+
+    @app.get("/api/dynamics/state")
+    async def get_dynamics_state() -> Any:
+        manager = bot_state.get("message_manager")
+        if not manager:
+            return {"error": "Manager not initialized"}
+        engine = getattr(manager, "dynamics_engine", None)
+        if not engine:
+            return {"error": "Dynamics engine not initialized"}
+        return make_json_safe(engine.get_state_for_panel())
 
     @app.get("/api/debug/report")
     async def generate_health_report() -> Any:

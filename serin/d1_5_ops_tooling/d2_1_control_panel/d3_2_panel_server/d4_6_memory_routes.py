@@ -4,9 +4,10 @@ import time
 from datetime import datetime
 from typing import Any
 
+from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
-from serin.d1_3_state_core.d2_5_core_logger import logger
+from serin.d1_4_config_base.d2_3_logger import logger
 from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_1_state_access import (
     MemoryQuery as _MemoryQuery,
 )
@@ -33,7 +34,7 @@ class BeliefSearchRequest(BaseModel):
     limit: int = Field(default=20, ge=1, le=50)
 
 
-def register_memory_routes(app: Any, bot_state: dict[str, Any]) -> None:
+def register_memory_routes(app: FastAPI, bot_state: dict[str, Any]) -> None:
     def _get_memory() -> Any:
         return bot_state.get("memory_system")
 

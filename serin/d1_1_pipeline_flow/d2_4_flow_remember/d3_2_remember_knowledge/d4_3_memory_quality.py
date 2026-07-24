@@ -4,10 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_2_remember_knowledge.d4_4_knowledge_retrieval import (
-    HumanLikeMemoryRetriever,
-)
-from serin.d1_3_state_core.d2_5_core_logger import logger
+from serin.d1_4_config_base.d2_3_logger import logger
 
 
 class MemoryQualityAssessor:
@@ -181,10 +178,4 @@ class MemoryQualityAssessor:
 
         return suggestions
 
-def create_enhanced_memory_retriever(memory_system: Any) -> HumanLikeMemoryRetriever:
-    """Create enhanced memory retriever system"""
-    return HumanLikeMemoryRetriever(memory_system)
 
-def create_memory_quality_assessor(memory_system: Any) -> MemoryQualityAssessor:
-    """Create memory quality assessor"""
-    return MemoryQualityAssessor(memory_system)

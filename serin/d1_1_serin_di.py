@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_3_remember_qdrant import (
         QdrantMemorySystem,
     )
-    from serin.d1_3_state_core.d2_5_core_logger import LoggerProtocol
+    from serin.d1_4_config_base.d2_3_logger import LoggerProtocol
 
 _logger: LoggerProtocol | None = None
 _mention_translator: MentionTranslator | None = None

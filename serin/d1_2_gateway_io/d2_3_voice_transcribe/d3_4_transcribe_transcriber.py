@@ -19,8 +19,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from serin.d1_2_gateway_io.d2_4_io_di import get_logger
 
 # Import faster-whisper (install: pip install faster-whisper)
+WhisperModel: Any = None
 try:
-    from faster_whisper import WhisperModel
+    from faster_whisper import WhisperModel as _WhisperModel
+    WhisperModel = _WhisperModel
     WHISPER_AVAILABLE = True
 except ImportError:
     get_logger().warning(" faster-whisper not installed. Run: pip install faster-whisper")
@@ -46,7 +48,7 @@ class WhisperTranscriber:
         else:
             self.compute_type = "int8"  # Best for CPU
 
-        self.model: WhisperModel | None = None
+        self.model: Any | None = None
 
         # Stats
         self.stats = {
@@ -197,22 +199,4 @@ class WhisperTranscriber:
         }
 
 
-class WhisperTranscriberFallback:
-    """
-    Fallback transcriber if faster-whisper not available.
-    Uses OpenAI Whisper API (requires API key).
-    """
 
-    def __init__(self, api_key: str | None = None) -> None:
-        self.api_key = api_key
-        get_logger().warning(" Using Whisper API fallback (requires API key)")
-
-    async def load_model(self) -> bool:
-        return bool(self.api_key)
-
-    async def transcribe(self, audio_data: bytes, language: str = "en") -> str | None:
-        get_logger().error(" Whisper API fallback not implemented")
-        return None
-
-    def get_stats(self) -> dict[str, Any]:
-        return {'error': 'Fallback transcriber not implemented'}

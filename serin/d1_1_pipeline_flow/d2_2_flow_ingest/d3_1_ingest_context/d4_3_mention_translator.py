@@ -10,7 +10,7 @@ from typing import Any
 
 import discord
 
-from serin.d1_3_state_core.d2_5_core_logger import logger
+from serin.d1_4_config_base.d2_3_logger import logger
 
 
 class MentionTranslator:
