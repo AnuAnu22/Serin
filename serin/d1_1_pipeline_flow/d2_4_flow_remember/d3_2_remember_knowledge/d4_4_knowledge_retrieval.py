@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from serin.d1_4_config_base.d2_3_logger import logger
+from serin.d1_4_config_base.d2_3_core_logger import logger
 
 if TYPE_CHECKING:
     from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_3_remember_qdrant import (

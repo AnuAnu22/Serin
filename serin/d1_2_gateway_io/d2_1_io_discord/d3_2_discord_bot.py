@@ -19,13 +19,13 @@ PRODUCTION DATABASE PROTECTION:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import discord
 from dotenv import load_dotenv
 
 from serin.d1_2_gateway_io.d2_4_io_di import get_logger, init_gateway
-from serin.d1_4_config_base.d2_3_logger import (
+from serin.d1_4_config_base.d2_3_core_logger import (
     logger as _default_logger,
 )
 
@@ -47,13 +47,13 @@ if TYPE_CHECKING:
     )
     from serin.d1_5_ops_tooling.d2_5_voice_manager import TTSVoiceManager
 
-from serin.d1_2_gateway_io.d2_2_voice_system.d3_5_tts_engine import TTSEngine
-from serin.d1_3_state_core.d2_1_db_protect import (
-    DatabaseProtector,
-    DatabaseRecoveryError,
-    DatabaseValidationError,
-    get_database_protector,
+from serin.d1_1_serin_di import (
+    create_database_protector,
+    get_database_protector_instance,
+    get_database_recovery_error_type,
+    get_database_validation_error_type,
 )
+from serin.d1_2_gateway_io.d2_2_voice_system.d3_5_tts_engine import TTSEngine
 from serin.d1_4_config_base.d2_1_base_config import config
 from serin.d1_5_ops_tooling.d2_2_tooling_background.d5_1_tooling_background import (
     BackgroundProcessor,
@@ -140,13 +140,13 @@ voice_manager: TTSVoiceManager | None = None
 voice_behavior_manager: VoiceBehaviorManager | None = None
 
 # Database Protector
-db_protector = DatabaseProtector("./bot_data")
+db_protector = create_database_protector("./bot_data")
 
 
 def init_database_protection() -> None:
     """Validate databases and set up shutdown handlers. Called from on_ready()."""
     get_logger().info("Initializing Database Protection System...")
-    database_protector: DatabaseProtector = cast(DatabaseProtector, get_database_protector())
+    database_protector = get_database_protector_instance()
 
     try:
         get_logger().info("Validating database integrity...")
@@ -157,14 +157,14 @@ def init_database_protection() -> None:
             get_logger().error("Available backups:")
             for backup in database_protector.list_backups()[:5]:
                 get_logger().error(f"  {backup['created_at']}: {backup['backup_type']}")
-            raise DatabaseValidationError("Critical database corruption detected - cannot start")
+            raise get_database_validation_error_type()("Critical database corruption detected - cannot start")
 
         elif validation_results['overall_status'] == 'recoverable':
             get_logger().warning("Recoverable database issues detected - attempting recovery...")
             recovery_success = database_protector.recover_from_corruption(validation_results)
             if not recovery_success:
                 get_logger().error("Database recovery failed!")
-                raise DatabaseRecoveryError("Database recovery failed - cannot start")
+                raise get_database_recovery_error_type()("Database recovery failed - cannot start")
             get_logger().info("Database recovery successful!")
 
         else:

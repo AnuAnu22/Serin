@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 import discord
 
-from serin.d1_4_config_base.d2_3_logger import logger
+from serin.d1_4_config_base.d2_3_core_logger import logger
 
 if TYPE_CHECKING:
     from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_1_ingest_context.d4_3_mention_translator import (

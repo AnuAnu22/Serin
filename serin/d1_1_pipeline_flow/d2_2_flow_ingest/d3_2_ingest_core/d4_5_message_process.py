@@ -16,7 +16,7 @@ from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator import (
 )
 from serin.d1_4_config_base.d2_1_base_config import config
 from serin.d1_4_config_base.d2_2_debug_logger import log_correction, log_message
-from serin.d1_4_config_base.d2_3_logger import logger
+from serin.d1_4_config_base.d2_3_core_logger import logger
 
 
 async def process_voice_input(self: Any, user_id: str, username: str, channel_id: str, transcription: str, guild_id: str | None = None) -> None:

@@ -134,10 +134,8 @@ class VoiceMemoryPipeline:
 
             # Generate voice response
             get_logger().info(f" Triggering voice response for {username}")
-            from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_5_message_process import (
-                process_voice_input as _process_voice_input,
-            )
             from serin.d1_1_serin_di import get_message_manager
+            from serin.d1_1_serin_di import process_voice_input as _process_voice_input
             _manager = get_message_manager()
             await _process_voice_input(
                 _manager,

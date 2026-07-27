@@ -13,21 +13,23 @@ from typing import cast
 import aiohttp
 import discord
 
-import serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator
+from serin.d1_1_serin_di import (
+    get_database_recovery_error_type,
+    get_database_validation_error_type,
+    set_response_generator_client,
+)
 from serin.d1_2_gateway_io.d2_1_io_discord import (
     d3_4_event_handlers,  # noqa: F401  registers event handlers
 )
 from serin.d1_2_gateway_io.d2_1_io_discord.d3_2_discord_bot import client
 from serin.d1_2_gateway_io.d2_4_io_di import get_logger
-from serin.d1_3_state_core.d2_1_db_protect import (
-    DatabaseRecoveryError,
-    DatabaseValidationError,
-)
 from serin.d1_4_config_base.d2_1_base_config import config
 
 
 async def main() -> None:
     """Main async function with database protection"""
+    database_validation_error = get_database_validation_error_type()
+    database_recovery_error = get_database_recovery_error_type()
     try:
         get_logger().info("=" * 60)
         get_logger().info("Serin Discord Bot")
@@ -51,7 +53,7 @@ async def main() -> None:
         get_logger().info("=" * 60)
 
         # Set up discord client reference
-        serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator.discord_client = client
+        set_response_generator_client(client)
         get_logger().debug("Discord client reference set")
 
         max_retries = 5
@@ -84,11 +86,11 @@ async def main() -> None:
     except KeyboardInterrupt:
         get_logger().info("Received keyboard interrupt (Ctrl+C)")
 
-    except DatabaseValidationError as e:
+    except database_validation_error as e:
         get_logger().error(f"Database validation failed: {e}")
         get_logger().error("Manual intervention required")
 
-    except DatabaseRecoveryError as e:
+    except database_recovery_error as e:
         get_logger().error(f"Database recovery failed: {e}")
         get_logger().error("Try restoring from backup manually")
 

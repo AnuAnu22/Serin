@@ -4,9 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator import (
-    build_natural_system_prompt,
-)
+from serin.d1_1_serin_di import build_voice_system_prompt
 from serin.d1_2_gateway_io.d2_4_io_di import get_logger
 
 
@@ -66,7 +64,7 @@ async def _transcribe_and_store(self: Any, item: dict[str, Any]) -> None:
                 # 1. System prompt — who Serin is
                 messages.append({
                     'role': 'system',
-                    'content': build_natural_system_prompt(),
+                    'content': build_voice_system_prompt(),
                 })
 
                 # 2. Recent voice history as clean labeled turns (no narrative monologue)

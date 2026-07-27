@@ -3,7 +3,7 @@ Extracted from store.py.
 """
 import sqlite3
 
-from serin.d1_4_config_base.d2_3_logger import logger
+from serin.d1_4_config_base.d2_3_core_logger import logger
 
 
 def init_sqlite_schema(conn: sqlite3.Connection, cursor: sqlite3.Cursor) -> None:

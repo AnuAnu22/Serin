@@ -123,7 +123,7 @@ _SELF_MAP: dict[str, dict[str, str | list[str]]] = {
         "functions": ["process_voice_input"],
     },
     "d1_2_gateway_io/d2_2_voice_system/d3_2_bridge_io/d4_2_bridge_commands.py": {
-        "class_file": "d1_2_gateway_io/d2_2_voice_system/d3_2_bridge_io/d4_4_process_watch.py",
+        "class_file": "d1_2_gateway_io/d2_2_voice_system/d3_2_bridge_io/d4_4_process_watch/d5_1_process_watch.py",
         "class_name": "RustVoiceBridge",
         "functions": ["send_tts_audio", "interrupt"],
     },

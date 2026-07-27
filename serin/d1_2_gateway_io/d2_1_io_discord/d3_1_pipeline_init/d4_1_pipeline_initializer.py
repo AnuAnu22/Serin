@@ -12,10 +12,19 @@ import time
 from datetime import datetime
 from typing import Any
 
-import serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator
 import serin.d1_2_gateway_io.d2_1_io_discord.d3_2_discord_bot as bot_module
 from serin.d1_1_serin_di import (
+    build_message_pipeline,
+    create_mention_translator,
+    create_message_crawler,
+    create_message_manager,
+    create_qdrant_memory_system,
+    create_sync_monitor,
+    get_llama_connector,
+    get_response_generator_fn,
+    get_thinking_filter_instance,
     init_root,
+    initialize_llama_connector,
     set_crawler,
     set_mention_translator,
     set_message_manager,
@@ -84,14 +93,11 @@ class PipelineInitializer:
         get_logger().success("=" * 60)
 
     async def _init_mention_translator(self) -> tuple[Any, bool]:
-        from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_1_ingest_context.d4_3_mention_translator import (
-            MentionTranslator,
-        )
         from serin.d1_2_gateway_io.d2_1_io_discord.d3_2_discord_bot import (
             voice_available,
         )
 
-        mention_translator_obj = MentionTranslator(self.client)
+        mention_translator_obj = create_mention_translator(self.client)
         set_mention_translator(mention_translator_obj)
         bot_module.mention_translator = mention_translator_obj
         init_root(get_logger())
@@ -123,12 +129,9 @@ class PipelineInitializer:
         get_logger().info("-" * 60)
 
     async def _init_memory_system(self) -> Any:
-        from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_3_remember_qdrant import (
-            QdrantMemorySystem,
-        )
         get_logger().info("Initializing memory system (Qdrant)...")
         try:
-            memory_system = QdrantMemorySystem(
+            memory_system = create_qdrant_memory_system(
                 data_dir="./bot_data",
                 qdrant_host=config.QDRANT_HOST,
                 qdrant_port=config.QDRANT_PORT,
@@ -142,8 +145,9 @@ class PipelineInitializer:
 
     async def _init_database_and_memory(self) -> Any:
         get_logger().info("Initializing LLM model...")
-        await serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator.initialize_llama()
-        if serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator.llama is not None and serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator.llama.is_connected:
+        await initialize_llama_connector()
+        llama = get_llama_connector()
+        if llama is not None and llama.is_connected:
             get_logger().success("LLM model ready!")
         else:
             get_logger().info("LLM will retry in background every 15s")
@@ -175,7 +179,7 @@ class PipelineInitializer:
                 )
                 transcriber = WhisperTranscriber()
                 voice_pipeline = VoiceMemoryPipeline(memory_system=memory_system, background_processor=self.background_processor, message_manager=self.message_manager)
-                audio_processor = AudioStreamProcessor(transcriber=transcriber, voice_pipeline=voice_pipeline, silence_threshold=1.5, llm_connector=serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator.llama)
+                audio_processor = AudioStreamProcessor(transcriber=transcriber, voice_pipeline=voice_pipeline, silence_threshold=1.5, llm_connector=get_llama_connector())
                 voice_listener = VoiceListener(self.client, audio_processor)
                 await audio_processor.start()
                 get_logger().success(f"Voice input ready! (mode: {config.VOICE_RECEIVER_MODE})")
@@ -233,20 +237,14 @@ class PipelineInitializer:
             get_logger().warning("Background processor unavailable — skipping passive monitor")
 
         get_logger().info("Initializing message crawler...")
-        from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_3_ingest_sync.d4_2_sync_crawler import (
-            MessageCrawler,
-        )
-        message_crawler = MessageCrawler(self.client, memory_system, background_processor, mention_translator_obj)
+        message_crawler = create_message_crawler(self.client, memory_system, background_processor, mention_translator_obj)
         set_crawler(message_crawler)
         await message_crawler.start()
         get_logger().success("Message crawler started!")
 
         get_logger().info("Initializing memory sync monitor...")
         try:
-            from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_4_sync_monitor import (
-                MemorySyncMonitor,
-            )
-            sync_monitor = MemorySyncMonitor(memory_system, background_processor, message_crawler)
+            sync_monitor = create_sync_monitor(memory_system, background_processor, message_crawler)
             await sync_monitor.start_monitoring()
             get_logger().success("Memory sync monitor started!")
         except Exception as e:
@@ -255,11 +253,8 @@ class PipelineInitializer:
         return background_processor, passive_monitor, message_crawler
 
     async def _init_message_manager(self, mention_translator_obj: Any, memory_system: Any, voice_pipeline: Any, voice_output_manager: Any) -> Any:
-        from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_4_core_manager import (
-            EnhancedMessageManagerV3,
-        )
         get_logger().info("Initializing message manager...")
-        message_manager = EnhancedMessageManagerV3(self.client, mention_translator_obj, memory_system, voice_output_manager=voice_output_manager)
+        message_manager = create_message_manager(self.client, mention_translator_obj, memory_system, voice_output_manager=voice_output_manager)
         set_message_manager(message_manager)
         if voice_pipeline is not None:
             voice_pipeline.message_manager = message_manager
@@ -313,26 +308,17 @@ class PipelineInitializer:
             get_logger().debug("Backfill failed (non-critical): %s", e)
 
     async def _build_pipeline(self, memory_system: Any, mention_translator_obj: Any) -> None:
-        from serin.d1_1_pipeline_flow.d2_1_flow_act.d3_1_act_runners.d4_2_runners_pipeline import (
-            MessagePipeline,
-        )
-        from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator import (
-            get_response_natural,
-        )
-        from serin.d1_3_state_core.d2_3_model_system.d3_5_model_helpers.d6_1_thinking_filter import (
-            get_thinking_filter,
-        )
         get_logger().info("Building MessagePipeline...")
         assert self.message_manager is not None
         try:
-            pipeline = MessagePipeline.build(
+            pipeline = build_message_pipeline(
                 response_controller=self.message_manager.response_controller,
                 memory_system=memory_system,
                 retrieval=self.message_manager.context_builder,
                 personality=self.message_manager.bot_personality,
                 temporal_context=self.message_manager.enhanced_context,
-                response_generator=get_response_natural,
-                thinking_filter=get_thinking_filter(),
+                response_generator=get_response_generator_fn(),
+                thinking_filter=get_thinking_filter_instance(),
                 mention_translator=mention_translator_obj,
                 mood_state=self.message_manager.personality,
                 client=self.client,

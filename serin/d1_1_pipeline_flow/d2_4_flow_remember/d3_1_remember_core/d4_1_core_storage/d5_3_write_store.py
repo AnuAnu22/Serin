@@ -22,7 +22,7 @@ from serin.d1_3_state_core.d2_3_model_system.d3_5_model_helpers.d6_1_thinking_fi
     filter_for_memory,
 )
 from serin.d1_4_config_base.d2_2_debug_logger import log_memory
-from serin.d1_4_config_base.d2_3_logger import logger
+from serin.d1_4_config_base.d2_3_core_logger import logger
 
 
 def generate_memory_id(store: 'QdrantMemorySystem', source_message_id: str | None, chunk_index: int = 0) -> str:

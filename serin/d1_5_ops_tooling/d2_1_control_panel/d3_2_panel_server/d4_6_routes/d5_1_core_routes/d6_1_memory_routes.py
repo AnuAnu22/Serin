@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
-from serin.d1_4_config_base.d2_3_logger import logger
+from serin.d1_4_config_base.d2_3_core_logger import logger
 from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_1_state_access import (
     MemoryQuery as _MemoryQuery,
 )

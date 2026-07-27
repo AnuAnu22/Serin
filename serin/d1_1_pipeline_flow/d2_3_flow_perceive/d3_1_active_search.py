@@ -9,7 +9,7 @@ import re
 from typing import Any, cast
 
 from serin.d1_3_state_core.d2_3_model_system.d3_4_system_interface import ModelInterface
-from serin.d1_4_config_base.d2_3_logger import logger
+from serin.d1_4_config_base.d2_3_core_logger import logger
 
 
 class ActiveSearch:

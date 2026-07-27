@@ -53,7 +53,7 @@ from serin.d1_3_state_core.d2_5_state_conversation.d3_1_dynamics_engine import (
     ConversationDynamicsEngine,
 )
 from serin.d1_4_config_base.d2_1_base_config import config
-from serin.d1_4_config_base.d2_3_logger import logger
+from serin.d1_4_config_base.d2_3_core_logger import logger
 
 
 @dataclass

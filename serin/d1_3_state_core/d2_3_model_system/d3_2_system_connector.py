@@ -13,7 +13,7 @@ from openai import OpenAI
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from serin.d1_4_config_base.d2_1_base_config import config
-from serin.d1_4_config_base.d2_3_logger import logger
+from serin.d1_4_config_base.d2_3_core_logger import logger
 
 from .d3_1_system_adapter import ModelAdapter
 from .d3_4_system_interface import ModelInterface

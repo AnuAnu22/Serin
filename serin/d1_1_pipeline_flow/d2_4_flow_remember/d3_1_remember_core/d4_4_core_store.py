@@ -83,7 +83,7 @@ from serin.d1_3_state_core.d2_2_core_memory.d3_3_belief_dynamics import (
 from serin.d1_3_state_core.d2_2_core_memory.d3_5_memory_helpers.d6_1_bm25_index import (
     SQLiteBM25Index,
 )
-from serin.d1_4_config_base.d2_3_logger import logger
+from serin.d1_4_config_base.d2_3_core_logger import logger
 
 # Qdrant imports
 Distance: Any

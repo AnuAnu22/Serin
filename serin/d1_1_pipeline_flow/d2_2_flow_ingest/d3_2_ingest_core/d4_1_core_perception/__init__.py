@@ -22,7 +22,7 @@ from .d5_4_perception_profile import (
     get_memory_stats,
     get_user_profile,
 )
-from .d5_5_perception_result import (
+from .d5_5_perception_helpers.d6_1_perception_result import (
     ARGUMENT_KEYWORDS,
     CLAIM_PATTERNS,
     JOKE_MARKERS,

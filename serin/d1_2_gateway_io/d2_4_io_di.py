@@ -1,5 +1,5 @@
 """Dependency injection container for gateway layer."""
-from serin.d1_4_config_base.d2_3_logger import LoggerProtocol
+from serin.d1_4_config_base.d2_3_core_logger import LoggerProtocol
 
 _logger: LoggerProtocol | None = None
 

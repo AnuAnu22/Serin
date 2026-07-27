@@ -6,7 +6,7 @@ import re
 import secrets
 from typing import Any
 
-from serin.d1_4_config_base.d2_3_logger import logger
+from serin.d1_4_config_base.d2_3_core_logger import logger
 
 
 def _rand() -> float:

@@ -6,10 +6,10 @@ import json
 import re
 from typing import Any
 
-from serin.d1_4_config_base.d2_3_logger import logger
+from serin.d1_4_config_base.d2_3_core_logger import logger
 
 from .d5_1_perception_board import derive_from_board
-from .d5_5_perception_result import (
+from .d5_5_perception_helpers.d6_1_perception_result import (
     CLAIM_PATTERNS,
     JOKE_MARKERS,
     SARCASM_MARKERS,

@@ -8,7 +8,7 @@ from typing import Any
 from serin.d1_3_state_core.d2_1_db_protect.d3_3_protect_recovery import (
     DatabaseProtectorRecovery,
 )
-from serin.d1_4_config_base.d2_3_logger import logger
+from serin.d1_4_config_base.d2_3_core_logger import logger
 
 
 class DatabaseProtectorShutdown(DatabaseProtectorRecovery):
