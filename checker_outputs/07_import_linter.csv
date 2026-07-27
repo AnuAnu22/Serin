@@ -1,2 +1,17 @@
-file,line,violation_type,detail
-No violations found (all ignored imports matched successfully)
+contract,status,detail
+,IGNORED,No matches for ignored import serin.d1_2_gateway_io.discord.bot_pipeline_init ->
+,INFO,serin.d1_5_ops_tooling.tts_voice_manager.
+,IGNORED,No matches for ignored import serin.d1_2_gateway_io.discord.bot ->
+,INFO,serin.d1_5_ops_tooling.tts_voice_manager.
+,IGNORED,No matches for ignored import serin.d1_2_gateway_io.discord.bot_pipeline_init ->
+,INFO,serin.d1_5_ops_tooling.control_panel.panel_lifecycle.
+,IGNORED,No matches for ignored import serin.d1_2_gateway_io.discord.bot_pipeline_init ->
+,INFO,serin.d1_5_ops_tooling.background.
+,IGNORED,No matches for ignored import serin.d1_2_gateway_io.discord.bot_pipeline_init ->
+,INFO,serin.d1_5_ops_tooling.control_panel.server.
+,IGNORED,No matches for ignored import serin.d1_2_gateway_io.discord.bot ->
+,INFO,serin.d1_5_ops_tooling.background.
+,IGNORED,No matches for ignored import serin.d1_2_gateway_io.discord.bot ->
+,INFO,serin.d1_5_ops_tooling.passive_monitor.
+,IGNORED,No matches for ignored import serin.d1_2_gateway_io.discord.bot_pipeline_init ->
+,INFO,serin.d1_5_ops_tooling.passive_monitor.

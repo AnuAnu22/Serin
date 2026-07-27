@@ -1,271 +1,254 @@
-file,line,description,confidence
-serin/d1_1_pipeline_flow/d2_1_flow_act/d3_1_act_runners/d4_3_prompt_assembly.py,23,unused function '_time_label',60
-serin/d1_1_pipeline_flow/d2_1_flow_act/d3_2_act_stages/d4_1_decision_temporal.py,217,unused attribute 'temporal_refs',60
-serin/d1_1_pipeline_flow/d2_1_flow_act/d3_2_act_stages/d4_1_decision_temporal.py,224,unused attribute 'temporal_refs',60
-serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_1_context_builder.py,43,unused variable 'query_time_hint',100
-serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_1_context_builder.py,153,unused method '_search_with_time_range',60
-serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_1_context_builder.py,254,unused method 'resolve_referents',60
-serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_1_context_builder.py,288,unused method 'extract_time_reference_from_query',60
-serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_2_long_message.py,94,unused method 'should_react_to_length',60
-serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_2_long_message.py,123,unused method 'get_length_reaction',60
-serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_2_long_message.py,143,unused method 'should_add_length_note_to_context',60
-serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_2_long_message.py,150,unused method 'get_context_note',60
-serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_3_mention_translator.py,108,unused method 'restore_for_discord',60
-serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_3_mention_translator.py,177,unused method 'get_user_info',60
-serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_3_mention_translator.py,189,unused method 'get_user_id',60
-serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_2_ingest_core/d4_2_core_vision/d5_1_visual_memory.py,103,unused method 'analyze_image',60
-serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_2_ingest_core/d4_2_core_vision/d5_1_visual_memory.py,188,unused method 'recall_image_from_bytes',60
-serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_2_ingest_core/d4_3_correction_handler.py,241,unused method 'get_correction_history',60
-serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_2_ingest_core/d4_4_core_manager.py,150,unused attribute 'active_search',60
-serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_2_ingest_core/d4_4_core_manager.py,154,unused attribute 'active_search',60
-serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_2_ingest_core/d4_4_core_manager.py,157,unused attribute 'active_search',60
-serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_1_active_search.py,19,unused method 'analyze_need_to_search',60
-serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_2_bot_personality.py,23,unused attribute 'row_factory',60
-serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_2_bot_personality.py,122,unused method 'express_preference',60
-serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_2_bot_personality.py,225,unused method 'set_preference',60
-serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_2_bot_personality.py,254,unused method 'express_opinion',60
-serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_2_bot_personality.py,284,unused method 'set_opinion',60
-serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_2_bot_personality.py,298,unused method 'can_disagree',60
-serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_2_bot_personality.py,298,unused variable 'user_stance',100
-serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_2_bot_personality.py,396,unused method 'detect_topic_in_message',60
-serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_3_conversation_analyzer.py,19,unused method 'analyze_conversation_flow',60
-serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_3_conversation_analyzer.py,203,unused method 'should_acknowledge_topic_change',60
-serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_4_topic_fatigue.py,25,unused attribute 'FATIGUE_MESSAGE_COUNT',60
-serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_4_topic_fatigue.py,124,unused method 'get_most_discussed_topics',60
-serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_4_topic_fatigue.py,147,unused method 'apply_fatigue_to_personality',60
-serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_4_topic_fatigue.py,188,unused method 'get_fatigue_context_note',60
-serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_4_topic_fatigue.py,220,unused function 'get_topic_fatigue',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_1_remember_core/d4_4_core_store.py,165,unused attribute 'background_jobs',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_1_remember_core/d4_4_core_store.py,176,unused method '_find_qdrant_container',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_1_remember_core/d4_4_core_store.py,183,unused method '_ensure_qdrant_docker',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_1_remember_core/d4_4_core_store.py,203,unused attribute 'row_factory',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_1_knowledge_belief/d5_1_belief_beliefs.py,42,unused method 'add_or_update_belief',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_1_knowledge_belief/d5_1_belief_beliefs.py,147,unused method 'infer_beliefs_from_facts',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_1_knowledge_belief/d5_2_belief_evidence.py,49,unused method 'add_fact',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_1_knowledge_belief/d5_2_belief_evidence.py,87,unused method 'get_active_facts',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_1_knowledge_belief/d5_2_belief_evidence.py,137,unused method 'supersede_fact',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_1_knowledge_belief/d5_2_belief_evidence.py,147,unused method 'deactivate_facts_by_message',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_2_memory_context.py,18,unused attribute 'memory_weights',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_2_memory_context.py,21,unused method 'add_context',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_2_memory_context.py,29,unused method 'get_relevant_context',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_2_memory_context.py,53,unused method 'get_personality_traits',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_3_memory_quality.py,25,unused method 'assess_memory_quality',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_3_memory_quality.py,184,unused function 'create_enhanced_memory_retriever',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_3_memory_quality.py,188,unused function 'create_memory_quality_assessor',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_4_knowledge_retrieval.py,29,unused variable 'temporal_priority',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_4_knowledge_retrieval.py,36,unused attribute 'personality_weights',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_4_knowledge_retrieval.py,37,unused attribute 'conversation_history',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_4_knowledge_retrieval.py,84,unused attribute 'retrieval_history',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_4_knowledge_retrieval.py,93,unused method 'search_memories_human_like',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_4_sync_monitor.py,29,unused attribute 'missing_messages',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_4_sync_monitor.py,34,unused attribute 'snapshot_stats',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_4_sync_monitor.py,57,unused method 'stop_monitoring',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_4_sync_monitor.py,304,unused method 'log_sync_failure',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_4_sync_monitor.py,317,unused method 'get_diagnostic_report',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_4_sync_monitor.py,339,unused method 'force_sync_check',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_5_remember_temporal.py,297,unused method 'is_recent',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_5_remember_temporal.py,326,unused function 'parse_time',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_5_remember_temporal.py,331,unused function 'format_time',60
-serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_5_remember_temporal.py,336,unused function 'get_time_range',60
-serin/d1_1_pipeline_flow/d2_5_flow_think/d3_1_think_personality/d4_1_personality_humanization.py,314,unused attribute 'max_typos_per_message',60
-serin/d1_1_pipeline_flow/d2_5_flow_think/d3_1_think_personality/d4_1_personality_humanization.py,467,unused method 'add_protected_word',60
-serin/d1_1_pipeline_flow/d2_5_flow_think/d3_2_response_controller.py,322,unused method 'update_conversation_mood',60
-serin/d1_1_pipeline_flow/d2_5_flow_think/d3_2_response_controller.py,363,unused method 'mark_response',60
-serin/d1_1_pipeline_flow/d2_5_flow_think/d3_2_response_controller.py,403,unused method 'send_with_typing',60
-serin/d1_1_pipeline_flow/d2_5_flow_think/d3_3_response_generator.py,80,unused variable 'resolved_last_message',100
-serin/d1_1_serin_di.py,46,unused function 'get_mention_translator',60
-serin/d1_1_serin_di.py,68,unused function 'get_crawler',60
-serin/d1_1_serin_di.py,79,unused function 'get_qdrant',60
-serin/d1_2_gateway_io/d2_1_io_discord/d3_2_discord_bot.py,115,unused attribute 'presences',60
-serin/d1_2_gateway_io/d2_1_io_discord/d3_2_discord_bot.py,116,unused attribute 'voice_states',60
-serin/d1_2_gateway_io/d2_1_io_discord/d3_4_event_handlers.py,12,unused function 'on_voice_state_update',60
-serin/d1_2_gateway_io/d2_1_io_discord/d3_4_event_handlers.py,41,unused function 'on_error',60
-serin/d1_2_gateway_io/d2_2_voice_system/d3_1_system_audio/d4_1_audio_process/d5_1_audio_processor.py,24,unused variable 'SILENCE_FRAMES_BEFORE_FLUSH',60
-serin/d1_2_gateway_io/d2_2_voice_system/d3_1_system_audio/d4_1_audio_process/d5_1_audio_processor.py,25,unused variable 'MIN_BUFFER_BYTES',60
-serin/d1_2_gateway_io/d2_2_voice_system/d3_1_system_audio/d4_1_audio_process/d5_1_audio_processor.py,28,unused variable 'PROCESSING_LOCK_SECONDS',60
-serin/d1_2_gateway_io/d2_2_voice_system/d3_1_system_audio/d4_1_audio_process/d5_1_audio_processor.py,29,unused variable 'VOICE_BURST_IGNORE_FRAMES',60
-serin/d1_2_gateway_io/d2_2_voice_system/d3_1_system_audio/d4_1_audio_process/d5_2_voice_behavior.py,151,unused method 'track_speech',60
-serin/d1_2_gateway_io/d2_2_voice_system/d3_2_bridge_io/d4_3_bridge_recovery.py,146,unused method 'set_reconnect_callback',60
-serin/d1_2_gateway_io/d2_2_voice_system/d3_2_bridge_io/d4_3_bridge_recovery.py,202,unused method 'set_username',60
-serin/d1_2_gateway_io/d2_2_voice_system/d3_3_system_listener.py,47,unused variable 'reconnect',100
-serin/d1_2_gateway_io/d2_2_voice_system/d3_3_system_listener.py,63,unused method 'on_voice_server_update',60
-serin/d1_2_gateway_io/d2_2_voice_system/d3_3_system_listener.py,71,unused method 'on_voice_state_update',60
-serin/d1_2_gateway_io/d2_2_voice_system/d3_3_system_listener.py,111,unused attribute 'auto_join_on_mention',60
-serin/d1_2_gateway_io/d2_2_voice_system/d3_4_system_output.py,36,unused attribute 'is_speaking',60
-serin/d1_2_gateway_io/d2_2_voice_system/d3_4_system_output.py,37,unused attribute 'current_guild_id',60
-serin/d1_2_gateway_io/d2_2_voice_system/d3_4_system_output.py,110,unused attribute 'is_speaking',60
-serin/d1_2_gateway_io/d2_2_voice_system/d3_4_system_output.py,135,unused attribute 'current_guild_id',60
-serin/d1_2_gateway_io/d2_2_voice_system/d3_4_system_output.py,136,unused attribute 'is_speaking',60
-serin/d1_2_gateway_io/d2_2_voice_system/d3_4_system_output.py,178,unused attribute 'is_speaking',60
-serin/d1_2_gateway_io/d2_2_voice_system/d3_4_system_output.py,207,unused method '_split_sentences',60
-serin/d1_2_gateway_io/d2_2_voice_system/d3_5_tts_engine.py,295,unused method 'set_profile',60
-serin/d1_2_gateway_io/d2_3_voice_transcribe/d3_1_transcribe_models/d4_1_models_profiles.py,175,unused method 'get_profile_for_mood',60
-serin/d1_2_gateway_io/d2_3_voice_transcribe/d3_1_transcribe_models/d4_2_models_tracker.py,216,unused method 'get_all_in_voice',60
-serin/d1_2_gateway_io/d2_3_voice_transcribe/d3_1_transcribe_models/d4_2_models_tracker.py,228,unused method 'get_voice_duration',60
-serin/d1_2_gateway_io/d2_3_voice_transcribe/d3_1_transcribe_models/d4_2_models_tracker.py,274,unused function 'get_voice_join_reaction',60
-serin/d1_2_gateway_io/d2_3_voice_transcribe/d3_1_transcribe_models/d4_2_models_tracker.py,284,unused function 'get_voice_duration_reaction',60
-serin/d1_2_gateway_io/d2_3_voice_transcribe/d3_3_transcribe_pipeline.py,158,unused method '_should_respond_to_voice',60
-serin/d1_2_gateway_io/d2_3_voice_transcribe/d3_4_transcribe_transcriber.py,200,unused class 'WhisperTranscriberFallback',60
-serin/d1_3_state_core/d2_1_db_protect/d3_4_protect_shutdown.py,46,unused method 'get_health_status',60
-serin/d1_3_state_core/d2_2_core_memory/d3_1_belief_store.py,43,unused method 'add_or_update_belief',60
-serin/d1_3_state_core/d2_2_core_memory/d3_1_belief_store.py,148,unused method 'infer_beliefs_from_facts',60
-serin/d1_3_state_core/d2_2_core_memory/d3_2_evidence_store.py,50,unused method 'add_fact',60
-serin/d1_3_state_core/d2_2_core_memory/d3_2_evidence_store.py,88,unused method 'get_active_facts',60
-serin/d1_3_state_core/d2_2_core_memory/d3_2_evidence_store.py,138,unused method 'supersede_fact',60
-serin/d1_3_state_core/d2_2_core_memory/d3_2_evidence_store.py,148,unused method 'deactivate_facts_by_message',60
-serin/d1_3_state_core/d2_3_model_system/d3_1_system_adapter.py,213,unused method 'get_thinking_patterns',60
-serin/d1_3_state_core/d2_3_model_system/d3_1_system_adapter.py,222,unused method 'supports_system_role',60
-serin/d1_3_state_core/d2_3_model_system/d3_3_system_factory.py,12,unused variable 'provider',100
-serin/d1_3_state_core/d2_3_model_system/d3_3_system_factory.py,21,unused function 'get_available_providers',60
-serin/d1_3_state_core/d2_3_model_system/d3_3_system_factory.py,25,unused function 'get_loaded_models',60
-serin/d1_3_state_core/d2_3_model_system/d3_3_system_factory.py,28,unused function 'load_model_if_needed',60
-serin/d1_3_state_core/d2_3_model_system/d3_3_system_factory.py,54,unused function 'unload_all_models',60
-serin/d1_3_state_core/d2_4_core_voice/d3_1_mention_translator.py,108,unused method 'restore_for_discord',60
-serin/d1_3_state_core/d2_4_core_voice/d3_1_mention_translator.py,177,unused method 'get_user_info',60
-serin/d1_3_state_core/d2_4_core_voice/d3_1_mention_translator.py,189,unused method 'get_user_id',60
-serin/d1_3_state_core/d2_4_core_voice/d3_3_voice_profiles.py,175,unused method 'get_profile_for_mood',60
-serin/d1_3_state_core/d2_4_core_voice/d3_4_voice_tracker.py,216,unused method 'get_all_in_voice',60
-serin/d1_3_state_core/d2_4_core_voice/d3_4_voice_tracker.py,228,unused method 'get_voice_duration',60
-serin/d1_3_state_core/d2_4_core_voice/d3_4_voice_tracker.py,274,unused function 'get_voice_join_reaction',60
-serin/d1_3_state_core/d2_4_core_voice/d3_4_voice_tracker.py,284,unused function 'get_voice_duration_reaction',60
-serin/d1_3_state_core/d2_5_core_logger.py,198,unused function 'get_correlation_id',60
-serin/d1_3_state_core/d2_5_memory_store.py,113,unused attribute 'background_jobs',60
-serin/d1_3_state_core/d2_5_memory_store.py,130,unused attribute 'row_factory',60
-serin/d1_3_state_core/d2_5_message_context.py,44,unused variable 'temporal_refs',60
-serin/d1_3_state_core/d2_5_thinking_filter.py,90,unused method 'has_thinking_tags',60
-serin/d1_3_state_core/d2_5_thinking_filter.py,110,unused method 'extract_thinking',60
-serin/d1_4_config_base/d2_1_base_config.py,54,unused attribute 'CONTROL_PANEL_ALLOWED_ORIGINS',60
-serin/d1_4_config_base/d2_1_base_config.py,66,unused attribute 'RUST_VOICE_RECEIVER_PATH',60
-serin/d1_4_config_base/d2_2_debug_logger.py,199,unused function 'log_context',60
-serin/d1_4_config_base/d2_2_debug_logger.py,204,unused function 'log_llm_io',60
-serin/d1_4_config_base/d2_2_debug_logger.py,231,unused function 'log_response',60
-serin/d1_4_config_base/d2_2_debug_logger.py,241,unused function 'log_api_request',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,15,unused function 'register_control_routes',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,18,unused function 'list_tts_voices',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,42,unused function 'get_current_tts',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,65,unused function 'load_tts_voice',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,83,unused function 'clear_tts_voice',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,100,unused function 'test_tts_voice',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,121,unused function 'update_tts_settings',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,142,unused function 'get_audio_settings',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,170,unused function 'update_audio_settings',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,206,unused function 'get_audio_stats',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,251,unused function 'list_voice_profiles',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,299,unused function 'set_active_voice_profile',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,333,unused function 'get_background_queue',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,350,unused function 'clear_background_queue',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,382,unused function 'get_voice_behavior_settings',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,403,unused function 'update_voice_behavior_settings',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,418,unused function 'get_voice_behavior_stats',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_1_voice_channels.py,18,unused function 'register_voice_channel_routes',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_1_voice_channels.py,20,unused function 'get_voice_channels',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_1_voice_channels.py,40,unused function 'join_voice_channel',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_1_voice_channels.py,59,unused function 'leave_voice_channel',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_1_voice_channels.py,72,unused function 'get_voice_status',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_2_voice_tts.py,14,unused function 'register_voice_tts_routes',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_2_voice_tts.py,16,unused function 'get_tts_status',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_2_voice_tts.py,29,unused function 'test_tts',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_2_voice_tts.py,42,unused function 'list_tts_voices',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_3_voice_memory.py,14,unused function 'register_voice_memory_routes',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_3_voice_memory.py,16,unused function 'get_voice_memory',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_3_voice_memory.py,33,unused function 'get_voice_memory_stats',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_4_voice_brain.py,21,unused function 'register_voice_brain_routes',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_4_voice_brain.py,23,unused function 'get_brain_state',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_4_voice_brain.py,42,unused function 'emergency_stop',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_4_voice_brain.py,46,unused function 'get_system_prompt',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_4_voice_brain.py,53,unused function 'update_system_prompt',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_4_voice_brain.py,81,unused function 'sever_context',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_5_voice_ops.py,20,unused function 'register_voice_ops_routes',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_5_voice_ops.py,22,unused function 'trigger_manual_sync',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_5_voice_ops.py,35,unused function 'get_recent_logs',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_5_voice_ops.py,48,unused function 'restart_bot',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_5_voice_ops.py,58,unused function 'get_audio_settings',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_5_voice_ops.py,70,unused function 'update_audio_settings',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_10_test_routes.py,15,unused function 'run_tests',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_10_test_routes.py,40,unused function 'list_test_files',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_10_test_routes.py,56,unused function 'run_single_test',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,66,unused function 'get_prompt_history',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,76,unused function 'get_prompt_detail',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,86,unused function 'get_conversation',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,111,unused function 'get_personality_history',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,130,unused function 'get_all_relationships',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,167,unused function 'get_memory_timeline',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,202,unused function 'get_alert_rules',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,206,unused function 'add_alert_rule',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,223,unused function 'delete_alert_rule',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,228,unused function 'get_alert_history',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,232,unused function 'check_alerts',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_11_debug_routes.py,273,unused function 'generate_health_report',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_1_state_access.py,83,unused variable 'include_scores',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_1_state_access.py,106,unused class 'FactQuery',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_1_state_access.py,117,unused class 'BeliefQuery',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_1_state_access.py,149,unused function 'security_middleware',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,40,unused function 'search_memories_advanced',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,110,unused function 'search_memories_simple',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,121,unused function 'search_facts',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,141,unused function 'get_fact_stats',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,158,unused function 'search_beliefs',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,181,unused function 'get_belief_stats',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,196,unused function 'get_memory_distribution',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,236,unused function 'add_memory_manual',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,250,unused function 'cleanup_memories',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_memory_routes.py,263,unused function 'get_all_users',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_personality_routes.py,13,unused function 'get_personality_state',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_personality_routes.py,36,unused function 'update_mood',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_personality_routes.py,63,unused function 'get_conversation_analysis',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_personality_routes.py,78,unused function 'get_topic_fatigue',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_personality_routes.py,91,unused function 'get_brain_state',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_personality_routes.py,110,unused function 'emergency_stop',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_personality_routes.py,114,unused function 'get_system_prompt',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_personality_routes.py,121,unused function 'update_system_prompt',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_personality_routes.py,132,unused function 'sever_context',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_8_ops_routes.py,17,unused function 'trigger_manual_sync',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_8_ops_routes.py,30,unused function 'get_crawler_status',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_8_ops_routes.py,40,unused function 'get_background_queue',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_8_ops_routes.py,47,unused function 'clear_background_queue',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_8_ops_routes.py,69,unused function 'get_recent_logs',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_8_ops_routes.py,82,unused function 'get_db_health',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_8_ops_routes.py,103,unused function 'restart_bot',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_8_ops_routes.py,113,unused function 'get_uptime',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,20,unused function 'get_current_mood',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,52,unused function 'set_mood',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,83,unused function 'get_mood_history',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,100,unused function 'join_voice',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,118,unused function 'leave_voice',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,135,unused function 'get_voice_status',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,155,unused function 'get_voice_files',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,169,unused function 'load_voice_file',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,203,unused function 'get_voice_channels',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,226,unused function 'leave_all_voice_channels',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,240,unused function 'test_tts_voice',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,253,unused function 'load_tts_voice',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,267,unused function 'clear_tts_voice',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,280,unused function 'test_tts',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,293,unused function 'get_tts_voices',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,313,unused function 'get_current_tts',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,332,unused function 'update_tts_settings',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,348,unused function 'get_tts_status',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,369,unused function 'get_audio_settings',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,387,unused function 'update_audio_settings',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,404,unused function 'get_audio_speakers',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,417,unused function 'get_audio_stats',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,431,unused function 'get_voice_behavior_settings',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,444,unused function 'update_voice_behavior_settings',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,463,unused function 'get_voice_behavior_stats',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,477,unused function 'list_voice_profiles',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,494,unused function 'set_active_voice_profile',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,560,unused function 'test_qdrant_connection',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,583,unused function 'run_background_maintenance',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,597,unused function 'start_crawler',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,610,unused function 'stop_crawler',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_9_missing_routes.py,649,unused function 'rebuild_bm25_index',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_3_panel_lifecycle.py,114,unused function 'register_lifecycle_routes',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_4_panel_routes.py,43,unused class 'ConfigUpdateRequest',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_4_panel_routes.py,44,unused variable 'use_qdrant',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_4_panel_routes.py,49,unused function 'register_enhanced_routes',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_4_panel_routes.py,60,unused function 'get_enhanced_status',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_4_panel_routes.py,84,unused function 'search_memories_enhanced',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_4_panel_routes.py,153,unused function 'get_user_profile_enhanced',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_4_panel_routes.py,170,unused function 'cleanup_memories_enhanced',60
-serin/d1_5_ops_tooling/d2_1_control_panel/d3_4_panel_routes.py,194,unused function 'test_connection_enhanced',60
-serin/d1_5_ops_tooling/d2_4_passive_monitor.py,38,unused attribute 'allowed_channels',60
+file,line,type,name,confidence
+serin/d1_1_pipeline_flow/d2_1_flow_act/d3_2_act_stages/d4_1_decision_temporal.py,49,unused attribute,controller,60
+serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_2_bot_personality.py,23,unused attribute,row_factory,60
+serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_4_topic_fatigue.py,25,unused attribute,FATIGUE_MESSAGE_COUNT,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_1_remember_core/d4_4_core_store.py,190,unused attribute,row_factory,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_2_memory_context.py,14,unused attribute,context_history,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_4_knowledge_retrieval.py,29,unused variable,temporal_priority,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_4_knowledge_retrieval.py,83,unused attribute,retrieval_history,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_4_sync_monitor.py,29,unused attribute,missing_messages,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_4_sync_monitor.py,34,unused attribute,snapshot_stats,60
+serin/d1_1_pipeline_flow/d2_5_flow_think/d3_1_think_personality/d4_1_personality_humanization.py,314,unused attribute,max_typos_per_message,60
+serin/d1_2_gateway_io/d2_1_io_discord/d3_2_discord_bot.py,119,unused attribute,presences,60
+serin/d1_2_gateway_io/d2_1_io_discord/d3_2_discord_bot.py,120,unused attribute,voice_states,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_1_system_audio/d4_1_audio_process/d5_1_audio_processor.py,24,unused variable,SILENCE_FRAMES_BEFORE_FLUSH,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_1_system_audio/d4_1_audio_process/d5_1_audio_processor.py,25,unused variable,MIN_BUFFER_BYTES,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_1_system_audio/d4_1_audio_process/d5_1_audio_processor.py,28,unused variable,PROCESSING_LOCK_SECONDS,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_1_system_audio/d4_1_audio_process/d5_1_audio_processor.py,29,unused variable,VOICE_BURST_IGNORE_FRAMES,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_3_system_listener.py,111,unused attribute,auto_join_on_mention,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_4_system_output.py,36,unused attribute,is_speaking,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_4_system_output.py,37,unused attribute,current_guild_id,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_4_system_output.py,110,unused attribute,is_speaking,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_4_system_output.py,135,unused attribute,current_guild_id,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_4_system_output.py,136,unused attribute,is_speaking,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_4_system_output.py,178,unused attribute,is_speaking,60
+serin/d1_3_state_core/d2_2_core_memory/d3_4_memory_store.py,119,unused attribute,background_jobs,60
+serin/d1_3_state_core/d2_2_core_memory/d3_4_memory_store.py,136,unused attribute,row_factory,60
+serin/d1_4_config_base/d2_1_base_config.py,54,unused attribute,CONTROL_PANEL_ALLOWED_ORIGINS,60
+serin/d1_4_config_base/d2_1_base_config.py,66,unused attribute,RUST_VOICE_RECEIVER_PATH,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_state/d5_1_state_access.py,83,unused variable,include_scores,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_4_panel_routes.py,44,unused variable,use_qdrant,60
+serin/d1_5_ops_tooling/d2_4_passive_monitor.py,40,unused attribute,allowed_channels,60
+serin/d1_3_state_core/d2_3_model_system/d3_3_system_factory.py,24,unused function,get_loaded_models,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_5_remember_temporal.py,326,unused function,parse_time,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_5_remember_temporal.py,331,unused function,format_time,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_5_remember_temporal.py,336,unused function,get_time_range,60
+serin/d1_1_pipeline_flow/d2_5_flow_think/d3_1_think_personality/d4_1_personality_humanization.py,467,unused method,add_protected_word,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_1_system_audio/d4_1_audio_process/d5_2_voice_behavior.py,151,unused method,track_speech,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_2_bridge_io/d4_3_bridge_recovery.py,202,unused method,set_username,60
+serin/d1_3_state_core/d2_3_model_system/d3_3_system_factory.py,20,unused function,get_available_providers,60
+serin/d1_4_config_base/d2_3_core_logger.py,198,unused function,get_correlation_id,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_4_voice_brain.py,42,unused function,emergency_stop,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_2_personality_routes.py,112,unused function,emergency_stop,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_3_debug_routes/d6_2_debug_routes.py,204,unused function,get_alert_rules,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_3_debug_routes/d6_2_debug_routes.py,230,unused function,get_alert_history,60
+serin/d1_1_pipeline_flow/d2_5_flow_think/d3_2_response_controller.py,363,unused method,mark_response,60
+serin/d1_1_serin_di.py,69,unused function,get_mention_translator,60
+serin/d1_1_serin_di.py,91,unused function,get_crawler,60
+serin/d1_1_serin_di.py,102,unused function,get_qdrant,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_3_debug_routes/d6_2_debug_routes.py,225,unused function,delete_alert_rule,60
+serin/d1_2_gateway_io/d2_1_io_discord/d3_4_event_handlers.py,41,unused function,on_error,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_2_bridge_io/d4_4_process_watch/d5_1_process_watch.py,339,unused method,_handle_process_death,60
+serin/d1_3_state_core/d2_3_model_system/d3_3_system_factory.py,53,unused function,unload_all_models,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_3_panel_lifecycle.py,115,unused function,register_lifecycle_routes,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_4_panel_routes.py,43,unused class,ConfigUpdateRequest,60
+serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_2_long_message.py,143,unused method,should_add_length_note_to_context,60
+serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_2_ingest_core/d4_2_core_vision/d5_1_visual_memory.py,103,unused method,analyze_image,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_4_sync_monitor.py,57,unused method,stop_monitoring,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_4_voice_brain.py,23,unused function,get_brain_state,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_4_voice_brain.py,46,unused function,get_system_prompt,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_2_personality_routes.py,93,unused function,get_brain_state,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_2_personality_routes.py,116,unused function,get_system_prompt,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_3_ops_routes.py,42,unused function,get_background_queue,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_3_ops_routes.py,115,unused function,get_uptime,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_3_system_listener.py,63,unused method,on_voice_server_update,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_3_system_listener.py,71,unused method,on_voice_state_update,60
+serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_4_topic_fatigue.py,220,unused function,get_topic_fatigue,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_2_bridge_io/d4_3_bridge_recovery.py,146,unused method,set_reconnect_callback,60
+serin/d1_2_gateway_io/d2_3_voice_transcribe/d3_1_transcribe_models/d4_2_models_tracker.py,274,unused function,get_voice_join_reaction,60
+serin/d1_3_state_core/d2_2_core_memory/d3_3_belief_dynamics.py,321,unused method,apply_decay_batch,60
+serin/d1_3_state_core/d2_3_model_system/d3_1_system_adapter.py,213,unused method,get_thinking_patterns,60
+serin/d1_3_state_core/d2_4_core_voice/d3_4_voice_tracker.py,274,unused function,get_voice_join_reaction,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_state/d5_1_state_access.py,117,unused class,BeliefQuery,60
+serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_2_long_message.py,150,unused method,get_context_note,60
+serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_2_bot_personality.py,122,unused method,_express_unknown,60
+serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_4_topic_fatigue.py,188,unused method,get_fatigue_context_note,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_1_knowledge_belief/d5_2_belief_evidence.py,137,unused method,supersede_fact,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_1_knowledge_belief/d5_2_belief_evidence.py,147,unused method,deactivate_facts_by_message,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_5_tts_engine.py,301,unused method,set_profile,60
+serin/d1_3_state_core/d2_2_core_memory/d3_2_evidence_store.py,138,unused method,supersede_fact,60
+serin/d1_3_state_core/d2_2_core_memory/d3_2_evidence_store.py,148,unused method,deactivate_facts_by_message,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_1_voice_channels.py,72,unused function,get_voice_status,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_5_voice_helpers/d6_1_voice_ops.py,48,unused function,restart_bot,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_3_ops_routes.py,32,unused function,get_crawler_status,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_3_ops_routes.py,105,unused function,restart_bot,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_3_debug_routes/d6_2_debug_routes.py,68,unused function,get_prompt_history,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_3_debug_routes/d6_2_debug_routes.py,78,unused function,get_prompt_detail,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_3_debug_routes/d6_2_debug_routes.py,275,unused function,get_dynamics_state,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_state/d5_1_state_access.py,106,unused class,FactQuery,60
+serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_2_bot_personality.py,111,unused method,get_preference,60
+serin/d1_3_state_core/d2_3_model_system/d3_1_system_adapter.py,222,unused method,supports_system_role,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_4_voice_brain.py,53,unused function,update_system_prompt,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_1_memory_routes.py,111,unused function,search_memories_simple,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_2_personality_routes.py,123,unused function,update_system_prompt,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_1_missing_routes.py,92,unused function,test_tts_voice,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_1_missing_routes.py,117,unused function,clear_tts_voice,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_1_missing_routes.py,129,unused function,test_tts,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_1_missing_routes.py,160,unused function,get_current_tts,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_1_missing_routes.py,187,unused function,get_tts_status,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_1_missing_routes.py,215,unused function,run_background_maintenance,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_1_missing_routes.py,227,unused function,start_crawler,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_1_missing_routes.py,239,unused function,stop_crawler,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_1_missing_routes.py,267,unused function,rebuild_bm25_index,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_2_missing_routes_voice.py,142,unused function,leave_all_voice_channels,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_2_missing_routes_voice.py,183,unused function,get_audio_speakers,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_2_missing_routes_voice.py,195,unused function,get_audio_stats,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_2_missing_routes_voice.py,207,unused function,get_voice_behavior_settings,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_2_missing_routes_voice.py,237,unused function,get_voice_behavior_stats,60
+serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_3_mention_translator.py,177,unused method,get_user_info,60
+serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_3_mention_translator.py,189,unused method,get_user_id,60
+serin/d1_2_gateway_io/d2_3_voice_transcribe/d3_1_transcribe_models/d4_2_models_tracker.py,216,unused method,get_all_in_voice,60
+serin/d1_3_state_core/d2_4_core_voice/d3_1_mention_translator.py,177,unused method,get_user_info,60
+serin/d1_3_state_core/d2_4_core_voice/d3_1_mention_translator.py,189,unused method,get_user_id,60
+serin/d1_3_state_core/d2_4_core_voice/d3_4_voice_tracker.py,216,unused method,get_all_in_voice,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_5_voice_helpers/d6_1_voice_ops.py,58,unused function,get_audio_settings,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_1_missing_routes.py,104,unused function,load_tts_voice,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_2_missing_routes_voice.py,81,unused function,get_voice_files,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_2_missing_routes_voice.py,154,unused function,get_audio_settings,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_4_sync_monitor.py,304,unused method,log_sync_failure,60
+serin/d1_2_gateway_io/d2_3_voice_transcribe/d3_3_transcribe_pipeline.py,156,unused method,_should_respond_to_voice,60
+serin/d1_4_config_base/d2_2_debug_logger.py,160,unused method,log_response_decision,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_1_voice_channels.py,59,unused function,leave_voice_channel,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_2_voice_tts.py,16,unused function,get_tts_status,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_2_voice_tts.py,29,unused function,test_tts,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_4_voice_brain.py,81,unused function,sever_context,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_5_voice_helpers/d6_1_voice_ops.py,22,unused function,trigger_manual_sync,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_5_voice_helpers/d6_1_voice_ops.py,35,unused function,get_recent_logs,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_1_memory_routes.py,251,unused function,cleanup_memories,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_1_memory_routes.py,264,unused function,get_all_users,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_2_personality_routes.py,80,unused function,get_topic_fatigue,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_2_personality_routes.py,134,unused function,sever_context,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_3_ops_routes.py,19,unused function,trigger_manual_sync,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_3_ops_routes.py,71,unused function,get_recent_logs,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_1_missing_routes.py,201,unused function,test_qdrant_connection,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_2_missing_routes_voice.py,67,unused function,get_voice_status,60
+serin/d1_3_state_core/d2_1_db_protect/d3_4_protect_shutdown.py,46,unused method,get_health_status,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,418,unused function,get_voice_behavior_stats,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_2_voice_tts.py,42,unused function,list_tts_voices,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_1_memory_routes.py,237,unused function,add_memory_manual,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_1_missing_routes.py,73,unused function,get_mood_history,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_1_missing_routes.py,172,unused function,update_tts_settings,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,299,unused function,set_active_voice_profile,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,403,unused function,update_voice_behavior_settings,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_1_memory_routes.py,182,unused function,get_belief_stats,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_2_personality_routes.py,65,unused function,get_conversation_analysis,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_2_missing_routes_voice.py,51,unused function,leave_voice,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_2_missing_routes_voice.py,126,unused function,get_voice_channels,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_2_missing_routes_voice.py,167,unused function,update_audio_settings,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_2_missing_routes_voice.py,249,unused function,list_voice_profiles,60
+serin/d1_2_gateway_io/d2_3_voice_transcribe/d3_1_transcribe_models/d4_2_models_tracker.py,228,unused method,get_voice_duration,60
+serin/d1_3_state_core/d2_3_model_system/d3_3_system_factory.py,27,unused function,load_model_if_needed,60
+serin/d1_3_state_core/d2_4_core_voice/d3_4_voice_tracker.py,228,unused method,get_voice_duration,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_2_missing_routes_voice.py,34,unused function,join_voice,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_3_debug_routes/d6_1_test_routes.py,42,unused function,list_test_files,60
+serin/d1_4_config_base/d2_2_debug_logger.py,96,unused method,log_llm_output,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,83,unused function,clear_tts_voice,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,121,unused function,update_tts_settings,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,333,unused function,get_background_queue,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_3_voice_memory.py,16,unused function,get_voice_memory,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_5_voice_helpers/d6_1_voice_ops.py,70,unused function,update_audio_settings,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_1_memory_routes.py,142,unused function,get_fact_stats,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_2_missing_routes_voice.py,219,unused function,update_voice_behavior_settings,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_3_debug_routes/d6_2_debug_routes.py,208,unused function,add_alert_rule,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_4_panel_routes.py,153,unused function,get_user_profile_enhanced,60
+serin/d1_1_pipeline_flow/d2_1_flow_act/d3_1_act_runners/d4_3_prompt_assembly/d5_2_prompt_helpers.py,39,unused function,_time_label,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,65,unused function,load_tts_voice,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_3_voice_memory.py,33,unused function,get_voice_memory_stats,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_1_missing_routes.py,141,unused function,get_tts_voices,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,142,unused function,get_audio_settings,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_1_voice_channels.py,40,unused function,join_voice_channel,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_2_missing_routes_voice.py,94,unused function,load_voice_file,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_2_missing_routes_voice.py,265,unused function,set_active_voice_profile,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_3_debug_routes/d6_2_debug_routes.py,113,unused function,get_personality_history,60
+serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_1_context_builder.py,287,unused method,extract_time_reference_from_query,60
+serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_2_long_message.py,123,unused method,get_length_reaction,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_1_knowledge_belief/d5_2_belief_evidence.py,87,unused method,get_active_facts,60
+serin/d1_3_state_core/d2_2_core_memory/d3_2_evidence_store.py,88,unused method,get_active_facts,60
+serin/d1_3_state_core/d2_3_model_system/d3_5_model_helpers/d6_1_thinking_filter.py,90,unused method,has_thinking_tags,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,100,unused function,test_tts_voice,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_1_voice_channels.py,20,unused function,get_voice_channels,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_1_memory_routes.py,122,unused function,search_facts,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,382,unused function,get_voice_behavior_settings,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_3_ops_routes.py,84,unused function,get_db_health,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_1_missing_routes.py,51,unused function,set_mood,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_4_sync_monitor.py,317,unused method,get_diagnostic_report,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_3_ops_routes.py,49,unused function,clear_background_queue,60
+serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_2_bot_personality.py,139,unused method,can_disagree,60
+serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_3_conversation_analyzer.py,203,unused method,should_acknowledge_topic_change,60
+serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_4_topic_fatigue.py,124,unused method,get_most_discussed_topics,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_5_remember_temporal.py,297,unused method,is_recent,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_4_system_output.py,207,unused method,_split_sentences,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,42,unused function,get_current_tts,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,206,unused function,get_audio_stats,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_1_memory_routes.py,159,unused function,search_beliefs,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_2_personality_routes.py,15,unused function,get_personality_state,60
+serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_2_ingest_core/d4_3_correction_handler.py,241,unused method,get_correction_history,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,18,unused function,list_tts_voices,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_4_panel_routes.py,60,unused function,get_enhanced_status,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_4_panel_routes.py,170,unused function,cleanup_memories_enhanced,60
+serin/d1_2_gateway_io/d2_3_voice_transcribe/d3_1_transcribe_models/d4_1_models_profiles.py,175,unused method,get_profile_for_mood,60
+serin/d1_3_state_core/d2_4_core_voice/d3_3_voice_profiles.py,175,unused method,get_profile_for_mood,60
+serin/d1_4_config_base/d2_2_debug_logger.py,71,unused method,log_llm_input,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,251,unused function,list_voice_profiles,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_3_debug_routes/d6_1_test_routes.py,17,unused function,run_tests,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_3_debug_routes/d6_2_debug_routes.py,88,unused function,get_conversation,60
+serin/d1_3_state_core/d2_3_model_system/d3_5_model_helpers/d6_1_thinking_filter.py,110,unused method,extract_thinking,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_2_personality_routes.py,38,unused function,update_mood,60
+serin/d1_2_gateway_io/d2_1_io_discord/d3_4_event_handlers.py,12,unused function,on_voice_state_update,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,350,unused function,clear_background_queue,60
+serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_2_long_message.py,94,unused method,should_react_to_length,60
+serin/d1_2_gateway_io/d2_3_voice_transcribe/d3_1_transcribe_models/d4_2_models_tracker.py,284,unused function,get_voice_duration_reaction,60
+serin/d1_3_state_core/d2_4_core_voice/d3_4_voice_tracker.py,284,unused function,get_voice_duration_reaction,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_3_debug_routes/d6_1_test_routes.py,58,unused function,run_single_test,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_2_voice_routes/d6_1_missing_routes.py,20,unused function,get_current_mood,60
+serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_2_ingest_core/d4_2_core_vision/d5_1_visual_memory.py,188,unused method,recall_image_from_bytes,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_4_panel_routes.py,194,unused function,test_connection_enhanced,60
+serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_1_context_builder.py,152,unused method,_search_with_time_range,60
+serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_1_context_builder.py,253,unused method,resolve_referents,60
+serin/d1_4_config_base/d2_2_debug_logger.py,36,unused method,log_context_built,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_3_debug_routes/d6_2_debug_routes.py,169,unused function,get_memory_timeline,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,170,unused function,update_audio_settings,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_3_voice_memory.py,14,unused function,register_voice_memory_routes,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_3_debug_routes/d6_2_debug_routes.py,132,unused function,get_all_relationships,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_1_knowledge_belief/d5_2_belief_evidence.py,49,unused method,add_fact,60
+serin/d1_3_state_core/d2_2_core_memory/d3_2_evidence_store.py,50,unused method,add_fact,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_4_panel_routes.py,84,unused function,search_memories_enhanced,60
+serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_1_active_search.py,19,unused method,analyze_need_to_search,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_3_memory_quality.py,22,unused method,assess_memory_quality,60
+serin/d1_2_gateway_io/d2_2_voice_system/d3_2_bridge_io/d4_3_bridge_recovery.py,22,unused method,_handle_process_death,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_7_state/d5_1_state_access.py,149,unused function,security_middleware,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_4_knowledge_retrieval.py,92,unused method,search_memories_human_like,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_1_memory_routes.py,197,unused function,get_memory_distribution,60
+serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_4_topic_fatigue.py,147,unused method,apply_fatigue_to_personality,60
+serin/d1_1_pipeline_flow/d2_5_flow_think/d3_2_response_controller.py,322,unused method,update_conversation_mood,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_3_debug_routes/d6_2_debug_routes.py,234,unused function,check_alerts,60
+serin/d1_1_pipeline_flow/d2_5_flow_think/d3_2_response_controller.py,403,unused method,send_with_typing,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_4_sync_monitor.py,339,unused method,force_sync_check,60
+serin/d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_3_mention_translator.py,108,unused method,restore_for_discord,60
+serin/d1_3_state_core/d2_4_core_voice/d3_1_mention_translator.py,108,unused method,restore_for_discord,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_2_voice_tts.py,14,unused function,register_voice_tts_routes,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_1_voice_channels.py,18,unused function,register_voice_channel_routes,60
+serin/d1_3_state_core/d2_2_core_memory/d3_1_belief_store.py,148,unused method,infer_beliefs_from_facts,60
+serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_3_conversation_analyzer.py,19,unused method,analyze_conversation_flow,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_1_core_routes/d6_1_memory_routes.py,41,unused function,search_memories_advanced,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/d4_6_routes/d5_3_debug_routes/d6_2_debug_routes.py,285,unused function,generate_health_report,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_4_voice_brain.py,21,unused function,register_voice_brain_routes,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_2_voice_routes/d5_5_voice_helpers/d6_1_voice_ops.py,20,unused function,register_voice_ops_routes,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_1_knowledge_belief/d5_1_belief_beliefs.py,42,unused method,add_or_update_belief,60
+serin/d1_3_state_core/d2_2_core_memory/d3_1_belief_store.py,43,unused method,add_or_update_belief,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_1_knowledge_belief/d5_1_belief_beliefs.py,147,unused method,infer_beliefs_from_facts,60
+serin/d1_1_pipeline_flow/d2_3_flow_perceive/d3_1_active_search.py,15,unused class,ActiveSearch,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_3_memory_quality.py,10,unused class,MemoryQualityAssessor,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_4_panel_routes.py,49,unused function,register_enhanced_routes,60
+serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_2_remember_knowledge/d4_4_knowledge_retrieval.py,77,unused class,HumanLikeMemoryRetriever,60
+serin/d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/d4_1_panel_control.py,15,unused function,register_control_routes,60

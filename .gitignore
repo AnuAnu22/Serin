@@ -180,3 +180,17 @@ test/test_vllm.py
 test/test_fixes.py
 scripts/law_migrate/migration_plan.json
 .opencode/
+
+# AI coding tool directories (auto-generated, do not commit)
+.kilocode/
+.mimocode/
+.opencode/
+.claude/
+.cursor/
+.windsurf/
+.aider/
+.codeium/
+.continue/
+
+# Session / lock files (auto-generated, do not commit)
+session-ses_*.md

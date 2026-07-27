@@ -1,1 +1,1 @@
-file,line,rule_id,message,severity
+file,line,col,check_id,message,severity
