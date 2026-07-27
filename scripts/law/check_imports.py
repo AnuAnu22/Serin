@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Enforce Rule 5 (Depth DAG) and gateway isolation.
-
-Transitional: prints warnings for violations that require subdirectory
-coordinate renaming. Hard-fails only on egregious violations.
-"""
+"""Enforce Rule 5 (Depth DAG) and gateway isolation. No exceptions."""
 from __future__ import annotations
 
 import ast
@@ -25,6 +21,32 @@ TOP_LEVEL_DEPTHS: dict[str, int] = {
 warnings: list[str] = []
 
 
+def _is_type_checking_guard(test: ast.expr) -> bool:
+    """True for `if TYPE_CHECKING:` or `if typing.TYPE_CHECKING:`. Imports
+    inside this block never execute — they exist purely for static type
+    checkers — so they are not a real Gateway Isolation violation. This
+    is the standard, safe way to reference a type across layers without
+    creating a real runtime dependency; flagging it as a violation
+    produces false positives that erode trust in the checker."""
+    if isinstance(test, ast.Name) and test.id == "TYPE_CHECKING":
+        return True
+    if isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING":
+        return True
+    return False
+
+
+def _collect_type_checking_node_ids(tree: ast.AST) -> set[int]:
+    """Every node id sitting inside an `if TYPE_CHECKING:` block's body
+    (not its orelse — an else branch DOES run at import time)."""
+    guarded: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.If) and _is_type_checking_guard(node.test):
+            for child in node.body:
+                for inner in ast.walk(child):
+                    guarded.add(id(inner))
+    return guarded
+
+
 def check_file(fp: str) -> None:
     rel = os.path.relpath(fp, PROJECT)
     try:
@@ -35,15 +57,19 @@ def check_file(fp: str) -> None:
         return
 
     is_gateway = "d1_2_gateway_io" in rel
+    type_checking_ids = _collect_type_checking_node_ids(tree)
 
     for node in ast.walk(tree):
+        if id(node) in type_checking_ids:
+            continue
+
         if isinstance(node, ast.Import):
             for alias in node.names:
                 parts = alias.name.split(".")
                 if len(parts) >= 2 and parts[1] in TOP_LEVEL_DEPTHS:
                     if is_gateway and parts[1] in ("d1_1_pipeline_flow", "d1_3_state_core"):
                         warnings.append(
-                            f"GATEWAY ISOLATION (transitional): {rel} imports "
+                            f"GATEWAY ISOLATION: {rel} imports "
                             f"from {parts[1]} ({alias.name}) — use DI"
                         )
 
@@ -54,7 +80,7 @@ def check_file(fp: str) -> None:
             if len(parts) >= 2 and parts[1] in TOP_LEVEL_DEPTHS:
                 if is_gateway and parts[1] in ("d1_1_pipeline_flow", "d1_3_state_core"):
                     warnings.append(
-                        f"GATEWAY ISOLATION (transitional): {rel} imports "
+                        f"GATEWAY ISOLATION: {rel} imports "
                         f"from {parts[1]} ({node.module}) — use DI"
                     )
 
@@ -68,7 +94,8 @@ def main() -> int:
     if warnings:
         for w in warnings:
             print(w)
-        return 0  # transitional — don't fail
+        print(f"\n{len(warnings)} violation(s). No exceptions per THE_LAW.md.")
+        return 1  # No exceptions — a violation must fail the build.
     print("All import checks pass")
     return 0
 
