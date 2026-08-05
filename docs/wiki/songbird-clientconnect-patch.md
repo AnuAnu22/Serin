@@ -56,5 +56,9 @@ The Python side ultimately consumes this via the receiver's SSRC bookkeeping
 
 ## Maintenance warning
 
-Like [[songbird-dave-offset-bug]], this dies silently on any songbird
-re-vendor. Diff to re-apply is commit `313a220`.
+This dies silently on any songbird re-vendor. Diff to re-apply is commit
+`313a220`. As of the 2026-08-05 verification, this is the **only**
+behavioral patch in the vendor tree — the DAVE offset fix shipped upstream
+in 0.6.0 (see [[songbird-dave-offset-bug]]) — so this patch alone is why
+the vendor tree exists. Upstreaming it would let Serin drop the vendor
+entirely.
