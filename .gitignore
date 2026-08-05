@@ -194,3 +194,12 @@ scripts/law_migrate/migration_plan.json
 
 # Session / lock files (auto-generated, do not commit)
 session-ses_*.md
+
+# Machine-local state and scratch (matches pre-commit BLOCKED list)
+dat/
+tmp/
+tmp.txt
+.setup_state
+.llama_swap_ready
+.restart.signal
+.openclaude/
