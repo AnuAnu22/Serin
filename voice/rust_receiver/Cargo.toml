@@ -27,17 +27,21 @@ dashmap = "6.1.0"  # Used directly in Receiver for SSRC→user mapping
 async-trait = "0.1"  # Required by songbird EventHandler trait
 flume = "0.11"  # Channel between voice event handler and main loop
 
-# PATCH: vendored songbird 0.6.0 with DAVE-offset bugfix
-# 
-# Upstream songbird 0.6.0 has a bug in StoredPacket where the DAVE
-# decryption-adjusted tail offset is computed but discarded — it uses
-# rtp_body_tail instead of adjusted_tail, causing every Opus decode
-# to fail with InvalidPacket under DAVE-encrypted audio.
-# 
-# Fix lives in: vendor/songbird/src/driver/tasks/udp_rx/mod.rs
-# Search for "adjusted_tail" to find it.
-# 
-# Remove this patch once songbird ships a fix upstream.
+# PATCH: vendored songbird 0.6.0
+#
+# HISTORY CORRECTION (2026-08-05, verified against crates.io tarball +
+# upstream git): the DAVE tail-offset bug (Opus InvalidPacket on every
+# decode) was real in pre-release songbird — upstream fixed it in
+# 653177e7 (2026-03-12) and released 0.6.0 already contains the fix.
+# Our udp_rx "adjusted_tail" edit is semantically a no-op vs 0.6.0.
+#
+# The vendor tree is kept for ONE behavioral patch: ClientConnect SSRC
+# mapping (ws.rs + events/core.rs + events/context/mod.rs). Upstream
+# ignores ClientConnect as "discontinued", but Discord still sends it and
+# the DAVE decrypt path silently drops packets from unmapped SSRCs.
+# See docs/wiki/songbird-clientconnect-patch.md.
+#
+# Remove this vendor tree once ClientConnect handling lands upstream.
 [patch.crates-io]
 songbird = { path = "vendor/songbird" }
 
