@@ -58,3 +58,5 @@ diff. The two big ones have their own articles:
    loud errors during bring-up.
 3. Wire reality beats documentation — twice ([[songbird-clientconnect-patch]],
    [[songbird-dave-offset-bug]]).
+4. A feature matrix saying "supported" means the code exists, not that anyone
+   runs it — [[dave-support-vs-receive-support]].

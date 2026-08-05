@@ -4,3 +4,6 @@
   vendored songbird tree: [[songbird-dave-offset-bug]],
   [[songbird-clientconnect-patch]], [[gateway-less-voice-driver]],
   [[python-rust-voice-protocol]], [[voice-debugging-log]].
+- 2026-08-05 — Added [[dave-support-vs-receive-support]] (the send/receive
+  distinction as the core thesis); cross-linked from the two patch articles,
+  the debugging log, and the index.

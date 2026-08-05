@@ -23,6 +23,9 @@ Discord deprecated the event in their public docs; songbird's maintainers
 followed the docs and reduced it to a debug log. The wire disagrees: the event
 still arrives, carrying exactly the `user_id` + `audio_ssrc` pair we need.
 Same theme as [[songbird-dave-offset-bug]]: **trust the wire, not the docs.**
+And like that bug, this omission is invisible to senders — only a receiver
+attributing inbound audio ever needs the mapping
+([[dave-support-vs-receive-support]]).
 
 ## The patch (3 files, 18 lines)
 
