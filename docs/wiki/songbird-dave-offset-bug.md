@@ -83,6 +83,41 @@ So "0.6.0 still didn't work" is true; the working fix was the
 narrative belongs to the pre-0.6.0 upstream code where that bug
 demonstrably existed.
 
+## Case closed (2026-08-05, third pass — OpenCode session forensics)
+
+The full debugging session survives in the OpenCode database
+(`~/.local/share/opencode/opencode.db`, session
+`ses_0f004b086ffe8h3pyR7lklts0H`, 2026-06-29). Replaying its edit history
+settles the question definitively:
+
+1. **18:54** — first-ever edit to the vendored `udp_rx/mod.rs`. Its
+   `oldString` shows the file *already* contained the offset fix inline
+   (`rtp_body_tail + (body.len() - decrypted_body.len())` in the tuple).
+   The edit extracted it into `let adjusted_tail = …` **purely so debug
+   logging could print it** (`[DBG-DAVE] … adjusted_tail={}`). That is the
+   birth of the one remembered line — diagnostic scaffolding, not a fix.
+2. **19:20** — the actual root cause of that night's deafness was found in
+   **Python**: `rust_voice_bridge.py`'s `_read_loop` used `queue.get(1.0)`
+   where `None` meant both "1s timeout" and "process died". One second of
+   silence → false EOF → bridge tears down the healthy Rust process. Fix:
+   a distinct `_EOF` sentinel object.
+3. **19:28** — verified: **0 `OPUS_FAIL` in 4215 diagnostic lines**; the
+   session's own conclusion reads "The Rust code was fine all along — DAVE
+   decrypt and Opus decode both work correctly with the vendored 0.6.0."
+4. **19:40** — debug lines removed; the `adjusted_tail` variable was left
+   behind (the surviving no-op diff).
+5. **19:50** — asked "tell me what the songbird issue was", the assistant
+   **confabulated** the "computed `adjusted_tail` but discarded it" story
+   (contradicting its own 19:28 finding), and at 19:54 enshrined it in the
+   Cargo.toml comment and the inline `BUGFIX:` comment. That
+   documentation-of-a-fix-that-never-happened is the origin of the
+   "one-line songbird fix" memory.
+
+So the ordeal's real villains, in order: the Python EOF/timeout conflation
+(June 29), and the unmapped-SSRC silent drop later killed by
+[[songbird-clientconnect-patch]] (July 23). The remembered one-line
+`udp_rx` change is real — it just was never load-bearing.
+
 ## Why respected maintainers missed it (for the weeks it existed)
 
 - This bug is unreachable from the send path — see
