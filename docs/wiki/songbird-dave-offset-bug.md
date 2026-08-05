@@ -70,12 +70,18 @@ upstream git history established:
   described the *pre-March-12* code from memory; released 0.6.0 does not
   have the bug.
 
-Open historical question: the fight predated the first vendored commit
-(2026-06-30), so whether it was fought against a pre-0.6.0 git snapshot
-(where the bug demonstrably existed) or whether the decisive fix was
-actually the ClientConnect mapping (without which packets are **silently
-dropped before decryption** — indistinguishable from decode failure from
-Python's side) is no longer recoverable from git.
+Sharpened 2026-08-05 (second pass): a full untruncated diff confirms the
+vendored `udp_rx/mod.rs` differs from the crates.io 0.6.0 tarball by
+**exactly one line** (the rename) — and the vendor base is otherwise
+byte-identical to the tarball, proving the vendor came from released 0.6.0.
+Yet plain 0.6.0 receive-under-DAVE genuinely *does* fail in Serin's setup:
+the only writer of `ssrc_user_map` in 0.6.0 is the `Speaking` handler
+(gated on `ev.user_id` being non-null), and the DAVE decrypt path silently
+drops every packet whose SSRC is unmapped — total deafness, zero errors.
+So "0.6.0 still didn't work" is true; the working fix was the
+[[songbird-clientconnect-patch]] map insertions, and the `InvalidPacket`
+narrative belongs to the pre-0.6.0 upstream code where that bug
+demonstrably existed.
 
 ## Why respected maintainers missed it (for the weeks it existed)
 
