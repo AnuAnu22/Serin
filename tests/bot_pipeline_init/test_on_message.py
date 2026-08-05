@@ -179,8 +179,8 @@ class TestOnMessage:
         self.mock_pm.process_message.assert_awaited_once_with(msg, False)
 
     async def test_skips_passive_when_monitor_is_none(self) -> None:
-        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
         import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init as bpi
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         bpi.passive_monitor = None
         msg = self._msg()
@@ -217,8 +217,8 @@ class TestOnMessage:
         self.mock_help_cmd.assert_awaited_once()
 
     async def test_stops_on_profile_command(self) -> None:
-        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
         import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init as bpi
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         bpi.handle_profile_command = AsyncMock(return_value=True)
         msg = self._msg()
@@ -229,8 +229,8 @@ class TestOnMessage:
         self.mock_mm.process_message.assert_not_awaited()
 
     async def test_stops_on_stats_command(self) -> None:
-        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
         import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init as bpi
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         bpi.handle_stats_command = AsyncMock(return_value=True)
         msg = self._msg()
@@ -241,8 +241,8 @@ class TestOnMessage:
         self.mock_mm.process_message.assert_not_awaited()
 
     async def test_stops_on_help_command(self) -> None:
-        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
         import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init as bpi
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         bpi.handle_help_command = AsyncMock(return_value=True)
         msg = self._msg()
@@ -263,8 +263,8 @@ class TestOnMessage:
         self.mock_mm.process_message.assert_awaited_once_with(msg)
 
     async def test_manager_none_errors(self) -> None:
-        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
         import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init as bpi
+        from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
         bpi.message_manager = None
         msg = self._msg()

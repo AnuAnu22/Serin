@@ -4,11 +4,13 @@ These tests ensure that the pipeline never silently drops context, debug data,
 or memory writes. They catch the exact class of bugs introduced during refactoring
 where the code compiles but runtime behavior is broken.
 """
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from serin.d1_3_state_core.d2_5_state_conversation.d3_2_message_context import MessageContext
+import pytest
 
+from serin.d1_3_state_core.d2_5_state_conversation.d3_2_message_context import (
+    MessageContext,
+)
 
 # ---------------------------------------------------------------------------
 # Mock builders

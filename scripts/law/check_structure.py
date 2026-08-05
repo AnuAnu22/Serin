@@ -39,7 +39,7 @@ def check_500() -> None:
                 continue
             fp = os.path.join(root, f)
             try:
-                with open(fp, "r") as fh:
+                with open(fp) as fh:
                     count = sum(1 for _ in fh)
                 if count > 500:
                     errors.append(f"RULE 2 FAIL: {os.path.relpath(fp, PROJECT)}: {count} lines (max 500)")

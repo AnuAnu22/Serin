@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_1_core_perception.d5_5_perception_result import (
+from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_1_core_perception.d5_5_perception_helpers.d6_1_perception_result import (
     ARGUMENT_KEYWORDS,
     CLAIM_PATTERNS,
     JOKE_MARKERS,

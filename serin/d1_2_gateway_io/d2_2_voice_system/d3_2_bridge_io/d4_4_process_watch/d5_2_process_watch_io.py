@@ -100,7 +100,8 @@ class RustVoiceBridgeIOMixin:
         get_logger().info(" Rust stdout reader loop started")
 
         try:
-            assert self.reader is not None
+            if self.reader is None:
+                raise RuntimeError("rust bridge stdout reader not initialized")
             async for event_type, event_data in self.reader:
                 if event_type == 'audio':
                     user_id = str(event_data.get('user_id', '0'))

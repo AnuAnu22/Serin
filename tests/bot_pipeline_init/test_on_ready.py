@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import asyncio
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -12,10 +10,10 @@ def _patch_deps() -> None:
     """Mock every import that on_ready() pulls in so it can run in isolation."""
     # Patch modules directly rather than via monkeypatch dotted strings
     import serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator as rg
-    import serin.d1_2_gateway_io.d2_4_io_di as gateway_di
-    import serin.d1_2_gateway_io.d2_1_io_discord.d3_2_discord_bot as bot_m
-    import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init as bpi
     import serin.d1_1_serin_di as root_di
+    import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init as bpi
+    import serin.d1_2_gateway_io.d2_1_io_discord.d3_2_discord_bot as bot_m
+    import serin.d1_2_gateway_io.d2_4_io_di as gateway_di
 
     self = _patch_deps  # type: ignore[attr-defined]
     # Use class-level storage for patches

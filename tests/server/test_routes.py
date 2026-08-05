@@ -15,7 +15,9 @@ class TestStatusRoutes:
         assert data["guilds"] == []
 
     def test_get_status_offline(self, client: TestClient) -> None:
-        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state import bot_state
+        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_2_server_state import (
+            bot_state,
+        )
         client_none = MagicMock()
         client_none.is_ready.return_value = False
         client_none.user = None

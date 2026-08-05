@@ -1,6 +1,7 @@
 """Tests for QdrantMemorySystem logic (mocking external services)."""
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
 
 
 @pytest.mark.asyncio
@@ -10,7 +11,9 @@ async def test_add_memory_skips_on_embedding_failure():
         mock_st.return_value.encode.side_effect = RuntimeError("Model not loaded")
 
         with patch("serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_1_core_storage.d5_3_write_store._is_duplicate", return_value=False):
-            from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_4_core_store import QdrantMemorySystem
+            from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_4_core_store import (
+                QdrantMemorySystem,
+            )
 
             ms = QdrantMemorySystem.__new__(QdrantMemorySystem)
             ms.data_dir = "/tmp/test_serin_mem"
@@ -33,7 +36,9 @@ async def test_add_memory_skips_on_embedding_failure():
 async def test_add_memory_skips_on_empty_content():
     """Empty content should skip write and return None."""
     with patch("serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_1_core_storage.d5_3_write_store._is_duplicate", return_value=False):
-        from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_4_core_store import QdrantMemorySystem
+        from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_4_core_store import (
+            QdrantMemorySystem,
+        )
 
         ms = QdrantMemorySystem.__new__(QdrantMemorySystem)
         ms.data_dir = "/tmp/test_serin_mem"
@@ -54,7 +59,9 @@ async def test_add_memory_skips_on_empty_content():
 
 def test_search_hybrid_handles_missing_embedding_model():
     """search_hybrid should degrade gracefully when embedding model is unavailable."""
-    from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_4_core_store import QdrantMemorySystem
+    from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_4_core_store import (
+        QdrantMemorySystem,
+    )
 
     ms = QdrantMemorySystem.__new__(QdrantMemorySystem)
     ms.data_dir = "/tmp/test_serin_mem"

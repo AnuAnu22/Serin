@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import ast
+import fnmatch
 import os
 import sys
-import fnmatch
 
 PROJECT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SERIN = os.path.join(PROJECT, "serin")
@@ -50,7 +50,7 @@ def _collect_type_checking_node_ids(tree: ast.AST) -> set[int]:
 def check_file(fp: str) -> None:
     rel = os.path.relpath(fp, PROJECT)
     try:
-        with open(fp, "r") as fh:
+        with open(fp) as fh:
             tree = ast.parse(fh.read())
     except SyntaxError:
         warnings.append(f"SYNTAX ERROR: {rel}")
