@@ -7,9 +7,16 @@ diff. The two big ones have their own articles:
 
 ## Rust / receiver side
 
-- **Every Opus decode failing under DAVE** → upstream uses `rtp_body_tail`
-  where it computed `adjusted_tail`. One line. See
-  [[songbird-dave-offset-bug]].
+- **Every Opus decode failing under DAVE** → the famous "one-line songbird
+  fix" turned out to be a myth born from an LLM mis-summary; the night's
+  real fix was the Python bridge EOF/timeout sentinel below. Full
+  archaeology in [[songbird-dave-offset-bug]].
+- **Bridge tearing down after 1s of silence** (OpenCode session,
+  2026-06-29 19:20) — `rust_voice_bridge.py` `_read_loop` used
+  `queue.get(1.0)` where `None` meant both timeout and EOF; a quiet second
+  looked like process death and killed the healthy Rust receiver. Fixed
+  with a distinct `_EOF` sentinel. This, not songbird, ended the DAVE
+  ordeal that night.
 - **Audio not attributable to users / dropped before decrypt** → upstream
   ignores `ClientConnect` as "discontinued"; Discord still sends it. Vendored
   patch `313a220`. See [[songbird-clientconnect-patch]].
