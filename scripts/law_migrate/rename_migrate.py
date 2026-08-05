@@ -53,6 +53,7 @@ import subprocess
 import sys
 from dataclasses import asdict, dataclass, field
 
+
 # --- Types ---
 @dataclass
 class RenameEntry:
@@ -158,7 +159,6 @@ def cmd_apply(plan_path: str, dry_run: bool, skip_verify: bool) -> int:
 
     rename_map = {e.old_module: e.new_module for e in plan.entries}
     segment_map = _build_segment_map(plan)
-    path_rename_map = {e.old_path: e.new_path for e in plan.entries}
 
     print(f"{'[DRY RUN] ' if dry_run else ''}Rewriting imports across the repo...")
     changed_files = rewrite_all_imports(rename_map, segment_map, dry_run=dry_run)

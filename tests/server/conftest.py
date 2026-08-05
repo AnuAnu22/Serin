@@ -42,7 +42,9 @@ def bot_state_dict(
     mock_memory_system: MagicMock,
     mock_background_processor: MagicMock,
 ) -> dict:
-    from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state import bot_state
+    from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_2_server_state import (
+        bot_state,
+    )
     bot_state.clear()
     bot_state["discord_client"] = mock_discord_client
     bot_state["memory_system"] = mock_memory_system

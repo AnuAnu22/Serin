@@ -5,7 +5,6 @@ Skips __init__.py, __pycache__, .venv/, .git/, node_modules/.
 """
 import ast
 import hashlib
-import os
 import sys
 from collections import defaultdict
 from pathlib import Path

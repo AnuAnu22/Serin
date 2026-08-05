@@ -125,9 +125,11 @@ class TestMoodHistory:
 
 class TestMoodRoutes:
     def test_set_mood_valid_preset(self, client: TestClient) -> None:
-        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state import bot_state
         from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_1_think_personality.d4_2_personality_state import (
             PersonalityState,
+        )
+        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_2_server_state import (
+            bot_state,
         )
 
         manager = MagicMock()
@@ -141,9 +143,11 @@ class TestMoodRoutes:
         assert manager.personality.sass_level == 1.0
 
     def test_set_mood_invalid_preset_returns_error_not_crash(self, client: TestClient) -> None:
-        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state import bot_state
         from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_1_think_personality.d4_2_personality_state import (
             PersonalityState,
+        )
+        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_2_server_state import (
+            bot_state,
         )
 
         manager = MagicMock()
@@ -155,9 +159,11 @@ class TestMoodRoutes:
         assert response.json()['success'] is False
 
     def test_mood_history_endpoint(self, client: TestClient) -> None:
-        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state import bot_state
         from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_1_think_personality.d4_2_personality_state import (
             PersonalityState,
+        )
+        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_2_server_state import (
+            bot_state,
         )
 
         manager = MagicMock()
@@ -231,7 +237,7 @@ class TestActiveWebsocketsLock:
     def test_lock_exists_and_is_asyncio_lock(self) -> None:
         import asyncio
 
-        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state import (
+        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_2_server_state import (
             active_websockets_lock,
         )
 
@@ -243,11 +249,11 @@ class TestActiveWebsocketsLock:
         active_websockets and a disconnect handler mutating it concurrently."""
         import asyncio
 
-        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state import (
+        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_2_server_state import (
             active_websockets,
             active_websockets_lock,
         )
-        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_5_server_websocket import (
+        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_8_server.d5_2_server_websocket import (
             broadcast_log,
         )
 

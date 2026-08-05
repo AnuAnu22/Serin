@@ -77,7 +77,7 @@ class TestGetGpuVramUsage:
         return patch.object(asyncio, "create_subprocess_exec", _exec)
 
     async def test_returns_zero_on_timeout(self) -> None:
-        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state import (
+        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_2_server_state import (
             get_gpu_vram_usage,
         )
 
@@ -91,7 +91,7 @@ class TestGetGpuVramUsage:
         mock_proc.kill.assert_called_once()
 
     async def test_parses_nvidia_smi_output(self) -> None:
-        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state import (
+        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_2_server_state import (
             get_gpu_vram_usage,
         )
 
@@ -106,7 +106,7 @@ class TestGetGpuVramUsage:
         assert result == 3.0
 
     async def test_returns_zero_on_nonzero_returncode(self) -> None:
-        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state import (
+        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_2_server_state import (
             get_gpu_vram_usage,
         )
 
@@ -119,7 +119,7 @@ class TestGetGpuVramUsage:
         assert result == 0.0
 
     async def test_returns_zero_on_exception(self) -> None:
-        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_3_server_state import (
+        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_2_server_state import (
             get_gpu_vram_usage,
         )
 

@@ -247,7 +247,6 @@ class TestMain:
 
     async def test_main_handles_database_validation_error(self) -> None:
         import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
-
         from serin.d1_3_state_core.d2_1_db_protect import DatabaseValidationError
 
         self.mock_client.start = AsyncMock(
@@ -263,7 +262,6 @@ class TestMain:
 
     async def test_main_handles_database_recovery_error(self) -> None:
         import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_main_entry as me
-
         from serin.d1_3_state_core.d2_1_db_protect import DatabaseRecoveryError
 
         self.mock_client.start = AsyncMock(

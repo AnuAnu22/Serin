@@ -264,7 +264,8 @@ class PipelineInitializer:
 
 # --- Helpers ---
     async def _backfill_recent_images(self) -> None:
-        assert self.message_manager is not None
+        if self.message_manager is None:
+            raise RuntimeError("message_manager not initialized")
         await asyncio.sleep(2)
         vision_semaphore = asyncio.Semaphore(2)
 
@@ -309,7 +310,8 @@ class PipelineInitializer:
 
     async def _build_pipeline(self, memory_system: Any, mention_translator_obj: Any) -> None:
         get_logger().info("Building MessagePipeline...")
-        assert self.message_manager is not None
+        if self.message_manager is None:
+            raise RuntimeError("message_manager not initialized")
         try:
             pipeline = build_message_pipeline(
                 response_controller=self.message_manager.response_controller,

@@ -2,15 +2,14 @@
 from unittest.mock import MagicMock, patch
 
 import numpy as np
-import pytest
 
 from serin.d1_2_gateway_io.d2_4_io_di import init_gateway
-from serin.d1_3_state_core.d2_5_core_logger import logger as _default_logger
+from serin.d1_4_config_base.d2_3_core_logger import logger as _default_logger
 
 # Initialize gateway DI so AudioStreamProcessor can call get_logger()
 init_gateway(_default_logger)
 
-from serin.d1_2_gateway_io.d2_2_voice_system.d3_1_system_audio.d4_1_audio_process.d5_1_audio_processor import (
+from serin.d1_2_gateway_io.d2_2_voice_system.d3_1_system_audio.d4_1_audio_process.d5_1_audio_processor import (  # noqa: E402
     MIN_BUFFER_BYTES,
     PROCESSING_LOCK_SECONDS,
     SILENCE_FRAMES_BEFORE_FLUSH,

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import fnmatch
 import os
-import shutil
 
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SERIN = os.path.join(PROJECT, "serin")
@@ -24,7 +23,7 @@ def write(rel: str, content: str) -> None:
 
 
 def readfile(rel: str) -> str:
-    with open(os.path.join(PROJECT, rel), "r") as f:
+    with open(os.path.join(PROJECT, rel)) as f:
         return f.read()
 
 
@@ -471,7 +470,7 @@ for root, dirs, files in os.walk(test_dir):
     for f in fnmatch.filter(files, "*.py"):
         fp = os.path.join(root, f)
         try:
-            content = open(fp, "r", encoding="utf-8").read()
+            content = open(fp, encoding="utf-8").read()
             for pat in old_patterns:
                 if pat in content:
                     print(f"  OLD IMPORT in {os.path.relpath(fp, PROJECT)}: {pat}")

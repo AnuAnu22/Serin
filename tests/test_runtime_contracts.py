@@ -245,7 +245,6 @@ def _get_dict_bracket_accesses(filepath: str, func_name: str, param_name: str = 
 
 def _build_dict_contracts() -> list[dict[str, Any]]:
     contracts: list[dict[str, Any]] = []
-    C = _DICT_CONTRACTS
 
     # build_context ↔ format_context_for_llm
     provider_keys = _get_return_dict_keys(
@@ -272,7 +271,7 @@ def _build_dict_contracts() -> list[dict[str, Any]]:
         "d1_1_pipeline_flow/d2_2_flow_ingest/d3_2_ingest_core/d4_2_core_vision/d5_1_visual_memory.py",
         "recall_image"
     )
-    consumer_accesses2 = _get_dict_bracket_accesses(
+    _get_dict_bracket_accesses(
         "d1_1_pipeline_flow/d2_2_flow_ingest/d3_2_ingest_core/d4_5_message_process.py",
         "process_voice_input",
         param_name="context"
