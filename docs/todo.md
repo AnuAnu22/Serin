@@ -1,3 +1,14 @@
+# TODO
+
+## Deferred tech debt (salvaged from the structural migration, 2026-08)
+Paths below are pre-rename; the files now live under the `d1_x` Law layers.
+- [ ] Split files still over 500 lines (worst offenders at migration time: memory store ~1500, control-panel server ~1400, ingest manager ~1050, voice bridge ~940, database protector ~920, Discord bot entry ~820, audio processor ~830). Re-measure with the Law checkers before splitting.
+- [ ] Resolve remaining cousin imports flagged at migration time (bot entry → pipeline/ops, passive monitor → ingest, control panel → gateway/pipeline/memory, ingest manager → personality/gateway). Verify current state via `import-linter`.
+- [ ] Directories that exceeded the 5-files-per-directory rule (ingest, act, remember, model_system, voice_system) — re-check under the new layout.
+- [x] `discord_bot.py` star import — already made explicit (`from serin.d1_5_ops_tooling.d2_3_hot_reloader import main`).
+
+---
+
 # Voice Architecture Plan
 
 ## Phase 1 — Fix Now (VoiceProtocol Capture)
