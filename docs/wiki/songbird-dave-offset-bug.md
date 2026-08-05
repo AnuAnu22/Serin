@@ -42,8 +42,10 @@ Location: `voice/rust_receiver/vendor/songbird/src/driver/tasks/udp_rx/mod.rs`
 
 ## Why respected maintainers missed it
 
-- The receive path is a niche feature (`receive` feature flag); the vast
-  majority of songbird users only *send* audio (music bots).
+- This bug is unreachable from the send path — see
+  [[dave-support-vs-receive-support]]. The vast majority of songbird users
+  only *send* audio (music bots), so "DAVE support" was tested for
+  transmission and the receive plumbing shipped unexercised.
 - DAVE receive is newer still — the encrypted-frame layout
   (tag + supplemental size + magic marker) is only specified at
   daveprotocol.com, not in Discord's own docs.
