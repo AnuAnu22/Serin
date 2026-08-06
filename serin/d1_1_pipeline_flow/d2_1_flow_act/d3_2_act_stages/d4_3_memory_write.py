@@ -22,11 +22,12 @@ from serin.d1_4_config_base.d2_3_core_logger import logger
 class MemoryWriteStage(PipelineStage):
     """Writes the interaction to the memory system after sending."""
 
-    def __init__(self, memory_system: Any, personality: Any = None, client: Any = None, small_llm: Any = None) -> None:
+    def __init__(self, memory_system: Any, personality: Any = None, client: Any = None, small_llm: Any = None, affect_engine: Any = None) -> None:
         self.memory = memory_system
         self.personality = personality
         self.client = client
         self.small_llm = small_llm
+        self.affect_engine = affect_engine
 
     async def _run(self, ctx: MessageContext) -> MessageContext:
         content = ctx.raw_content
@@ -60,6 +61,13 @@ class MemoryWriteStage(PipelineStage):
                     emotional_tone = "slight_positive"
                 elif compound <= -0.05:
                     emotional_tone = "slight_negative"
+
+                # 1b. Per-user affect update — feed sentiment into valence model
+                if self.affect_engine is not None:
+                    try:
+                        await self.affect_engine.record_sentiment(user_id, float(compound))
+                    except Exception as e:
+                        logger.debug("affect record_sentiment failed: %s", e)
 
                 # 2. Perception — classify message, extract facts
                 from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_1_core_perception import (

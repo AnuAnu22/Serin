@@ -140,6 +140,12 @@ class EnhancedMessageManagerV3:
         # Dynamics engine for physics-based conversation state
         self.dynamics_engine = ConversationDynamicsEngine()
 
+        # Affect engine for per-user sentiment valence and impressions
+        from serin.d1_3_state_core.d2_5_state_conversation.d3_3_affect_engine import (
+            UserAffectEngine,
+        )
+        self.affect_engine = UserAffectEngine(self.memory)
+
         # Pipeline instance (set externally by discord_bot.py after building)
         self.pipeline: Any = None
 
@@ -228,6 +234,7 @@ class EnhancedMessageManagerV3:
                 client=self.client,
                 small_llm=self.llm,
                 dynamics_engine=self.dynamics_engine,
+                affect_engine=self.affect_engine,
             )
 
         # Process image attachments — store for LLM vision, fire description in background
@@ -420,6 +427,7 @@ class EnhancedMessageManagerV3:
                     client=self.client,
                     small_llm=self.llm,
                     dynamics_engine=self.dynamics_engine,
+                    affect_engine=self.affect_engine,
                 )
 
             is_mentioned = bool(
