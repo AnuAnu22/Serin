@@ -200,10 +200,16 @@ class ConversationDynamicsEngine:
     # BOLTZMANN — action selection
     # --------------------------------------------------------
     def decide_action(self, channel_id: str, salience: float,
-                      is_addressed: bool = False) -> str:
+                      is_addressed: bool = False,
+                      user_valence: float = 0.0,
+                      user_familiarity: float = 0.0) -> str:
         """
         Choose action via Boltzmann distribution.
         Returns: "reply", "react", or "ignore"
+
+        user_valence in [-1, 1] and user_familiarity in [0, 1) bias the
+        energies toward reply when Serin likes/knows the user. Defaults
+        reproduce the pre-bias distribution exactly.
         """
         ch = self.channels[channel_id]
         attention = self.attention_allocation.get(channel_id, 0.1)
@@ -212,6 +218,12 @@ class ConversationDynamicsEngine:
         e_reply = 2.0 - (ch["momentum"] * 2.5) - (salience * 2.0) - (attention * 1.5)
         e_react = 4.0 - (salience * 3.0) - (attention * 1.0) + (ch["momentum"] * 2.0)
         e_ignore = 1.5 - (salience * 2.0) - (attention * 2.0) + (ch["momentum"] * 3.0)
+
+        # Per-user affect bias — subtle shift based on valence + familiarity.
+        # Familiarity gates all bias (strangers are unaffected).
+        e_reply  -= (0.5 * user_valence + 0.3) * user_familiarity
+        e_react  -= 0.2 * user_familiarity
+        e_ignore += 0.4 * user_valence * user_familiarity
 
         if is_addressed:
             e_reply -= 3.0
