@@ -198,6 +198,24 @@ def init_sqlite_schema(conn: sqlite3.Connection, cursor: sqlite3.Cursor) -> None
         ON beliefs(state, is_active)
     """)
 
+    # Per-user affect state — sentiment-driven valence with decay
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_affect (
+            user_id TEXT PRIMARY KEY,
+            valence REAL NOT NULL DEFAULT 0.0,
+            valence_updated REAL NOT NULL,
+            familiarity_count INTEGER NOT NULL DEFAULT 0,
+            impression_text TEXT,
+            impression_updated REAL,
+            since_impression INTEGER NOT NULL DEFAULT 0
+        )
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_user_affect_due_impression
+        ON user_affect(since_impression, familiarity_count)
+        WHERE since_impression >= 25 AND familiarity_count >= 10
+    """)
+
     # Migration: add state column if table exists without it
     import sqlite3
     for col, dtype in [
