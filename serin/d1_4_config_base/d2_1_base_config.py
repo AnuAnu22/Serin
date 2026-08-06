@@ -103,6 +103,23 @@ class BotConfig:
             except ValueError:
                 logger.warning(" Invalid ALLOWED_CHANNEL_IDS in .env")
 
+        # --- Creator Identity ---
+        # Discord user IDs whose messages always get an instant reply
+        # (the dev needs deterministic responses for live testing).
+        # Comma-separated in .env; falls back to Rin's ID when unset so
+        # existing deployments keep their behavior.
+        creator_ids_str: str = os.getenv('CREATOR_IDS', '')
+        creator_ids: set[str] = set()
+        for raw_id in creator_ids_str.split(','):
+            candidate = raw_id.strip()
+            if not candidate:
+                continue
+            if candidate.isdigit():
+                creator_ids.add(candidate)
+            else:
+                logger.warning(" Ignoring malformed CREATOR_IDS entry: %r", candidate)
+        self.CREATOR_IDS: frozenset[str] = frozenset(creator_ids) or frozenset({'1378682870876340395'})
+
         # --- Personality Settings (Runtime only for now) ---
         self.PERSONALITY: dict[str, float] = {
             'energy': 0.5,
@@ -132,6 +149,7 @@ class BotConfig:
             'DEBUG_MEMORY': self.DEBUG_MEMORY,
             'DEBUG_LLM': self.DEBUG_LLM,
             'ALLOWED_CHANNEL_IDS': list(self.ALLOWED_CHANNEL_IDS),
+            'CREATOR_IDS': sorted(self.CREATOR_IDS),
             'PERSONALITY': self.PERSONALITY
         }
 
