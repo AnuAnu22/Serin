@@ -91,7 +91,7 @@ class MessagePipeline:
             creator_ids = config.CREATOR_IDS
 
         return cls(stages=[
-            ResponseDecisionStage(dynamics=dynamics, creator_ids=creator_ids),
+            ResponseDecisionStage(dynamics=dynamics, creator_ids=creator_ids, affect_engine=affect_engine),
             MemoryRetrievalStage(memory_system, retrieval),
             ResponsePlannerStage(),
             TemporalStage(temporal_context),
