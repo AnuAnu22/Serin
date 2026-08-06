@@ -45,9 +45,11 @@ class ResponseDecisionStage(PipelineStage):
     """Decides whether to respond using Boltzmann physics engine."""
 
     def __init__(self, dynamics: Any | None = None,
-                 creator_ids: frozenset[str] | None = None) -> None:
+                 creator_ids: frozenset[str] | None = None,
+                 affect_engine: Any | None = None) -> None:
         self.dynamics = dynamics
         self.creator_ids: frozenset[str] = creator_ids or frozenset()
+        self.affect_engine = affect_engine
 
     def _pick_reaction_emoji(self, content: str) -> str:
         """Pick an emoji reaction based on content."""
@@ -88,7 +90,8 @@ class ResponseDecisionStage(PipelineStage):
             )
             self.dynamics.allocate_attention()
 
-        # Calculate salience
+        # Calculate salience — familiarity raises base interest slightly
+        snap = self.affect_engine.snapshot_cached(ctx.user_id) if self.affect_engine else None
         salience = 0.3
         if '?' in ctx.raw_content:
             salience += 0.2
@@ -99,7 +102,12 @@ class ResponseDecisionStage(PipelineStage):
             salience += 0.2
         if len(ctx.raw_content) < 5:
             salience -= 0.1
+        if snap is not None:
+            salience += 0.1 * snap.familiarity
         salience = max(0.0, min(1.0, salience))
+
+        user_valence = snap.valence if snap is not None else 0.0
+        user_familiarity = snap.familiarity if snap is not None else 0.0
 
         # Decide action
         if hard_override:
@@ -109,6 +117,8 @@ class ResponseDecisionStage(PipelineStage):
                 channel_id=ctx.channel_id,
                 salience=salience,
                 is_addressed=is_mentioned or name_in_msg,
+                user_valence=user_valence,
+                user_familiarity=user_familiarity,
             )
         else:
             action = "reply"
