@@ -24,6 +24,7 @@ from serin.d1_3_state_core.d2_5_state_conversation.d3_1_dynamics_engine import (
 from serin.d1_3_state_core.d2_5_state_conversation.d3_2_message_context import (
     MessageContext,
 )
+from serin.d1_4_config_base.d2_1_base_config import config
 from serin.d1_4_config_base.d2_3_core_logger import logger
 from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_8_server.d5_2_server_websocket import (
     broadcast_event,
@@ -49,6 +50,7 @@ class MessagePipeline:
         client: Any = None,
         small_llm: Any = None,
         dynamics_engine: Any | None = None,
+        creator_ids: frozenset[str] | None = None,
     ) -> MessagePipeline:
         """
         Factory method — wires all dependencies into stages.
@@ -84,9 +86,11 @@ class MessagePipeline:
         )
 
         dynamics = dynamics_engine or ConversationDynamicsEngine()
+        if creator_ids is None:
+            creator_ids = config.CREATOR_IDS
 
         return cls(stages=[
-            ResponseDecisionStage(dynamics=dynamics),
+            ResponseDecisionStage(dynamics=dynamics, creator_ids=creator_ids),
             MemoryRetrievalStage(memory_system, retrieval),
             ResponsePlannerStage(),
             TemporalStage(temporal_context),
