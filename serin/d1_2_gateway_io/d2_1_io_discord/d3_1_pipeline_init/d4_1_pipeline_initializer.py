@@ -325,6 +325,7 @@ class PipelineInitializer:
                 client=self.client,
                 small_llm=self.message_manager.llm,
                 dynamics_engine=self.message_manager.dynamics_engine,
+                affect_engine=getattr(self.message_manager, "affect_engine", None),
             )
             self.message_manager.pipeline = pipeline
             if self.background_processor is not None:

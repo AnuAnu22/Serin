@@ -51,6 +51,7 @@ class MessagePipeline:
         small_llm: Any = None,
         dynamics_engine: Any | None = None,
         creator_ids: frozenset[str] | None = None,
+        affect_engine: Any | None = None,
     ) -> MessagePipeline:
         """
         Factory method — wires all dependencies into stages.
@@ -99,7 +100,7 @@ class MessagePipeline:
             LLMCallStage(response_generator),
             ResponseCleaningStage(thinking_filter),
             SendStage(dynamics=dynamics),
-            MemoryWriteStage(memory_system, personality=mood_state, client=client, small_llm=small_llm),
+            MemoryWriteStage(memory_system, personality=mood_state, client=client, small_llm=small_llm, affect_engine=affect_engine),
         ])
 
     async def process(self, ctx: MessageContext) -> MessageContext:
