@@ -45,9 +45,9 @@ class ResponseDecisionStage(PipelineStage):
     """Decides whether to respond using Boltzmann physics engine."""
 
     def __init__(self, dynamics: Any | None = None,
-                 creator_id: str | None = None) -> None:
+                 creator_ids: frozenset[str] | None = None) -> None:
         self.dynamics = dynamics
-        self.creator_id = creator_id or ""
+        self.creator_ids: frozenset[str] = creator_ids or frozenset()
 
     def _pick_reaction_emoji(self, content: str) -> str:
         """Pick an emoji reaction based on content."""
@@ -70,10 +70,13 @@ class ResponseDecisionStage(PipelineStage):
         if message.guild and message.guild.me:
             is_mentioned = message.guild.me in message.mentions
 
-        is_creator = str(ctx.user_id) == str(self.creator_id) if self.creator_id else False
+        is_creator = str(ctx.user_id) in self.creator_ids
         name_in_msg = 'serin' in ctx.raw_content.lower()
 
         hard_override = is_creator or is_mentioned or name_in_msg
+        if is_creator:
+            # The dev is testing live — reply immediately, no Hawkes delay.
+            ctx.metadata["instant_reply"] = True
 
         # Update physics state
         if self.dynamics:

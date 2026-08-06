@@ -37,13 +37,17 @@ class SendStage(PipelineStage):
             ctx.metadata["message_sent"] = False
             return ctx
 
-        if self.dynamics:
+        if ctx.metadata.get("instant_reply"):
+            # Creator override — the dev is testing live, skip the Hawkes delay.
+            delay = 0.0
+        elif self.dynamics:
             delay = self.dynamics.sample_delay(ctx.channel_id)
         else:
             delay = min(len(response) * 0.01, 3.0) + 0.5
 
-        async with channel.typing():
-            await asyncio.sleep(delay)
+        if delay > 0:
+            async with channel.typing():
+                await asyncio.sleep(delay)
 
         await channel.send(response)
 
