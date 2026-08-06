@@ -43,9 +43,6 @@ from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_3_remember_qdrant import (
 from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_1_think_personality.d4_2_personality_state import (
     PersonalityState,
 )
-from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_2_response_controller import (
-    ResponseController,
-)
 from serin.d1_3_state_core.d2_3_model_system.d3_3_system_factory import (
     get_model_connector,
 )
@@ -122,7 +119,6 @@ class EnhancedMessageManagerV3:
         self.analyzer = SentimentIntensityAnalyzer()
 
         # TIER 2: Human-like behavior
-        self.response_controller = ResponseController()
         self.personality = PersonalityState()
         try:
             self.personality.load_from_db(self.memory.conn)
@@ -221,7 +217,6 @@ class EnhancedMessageManagerV3:
                 get_thinking_filter,
             )
             self.pipeline = MessagePipeline.build(
-                response_controller=self.response_controller,
                 memory_system=self.memory,
                 retrieval=self.context_builder,
                 personality=self.bot_personality,
@@ -414,7 +409,6 @@ class EnhancedMessageManagerV3:
                 )
 
                 self.pipeline = MessagePipeline.build(
-                    response_controller=self.response_controller,
                     memory_system=self.memory,
                     retrieval=self.context_builder,
                     personality=self.bot_personality,

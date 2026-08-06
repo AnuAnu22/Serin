@@ -133,14 +133,15 @@ def register_personality_routes(app: FastAPI, bot_state: dict[str, Any]) -> None
 
     @app.post("/api/context/sever")
     async def sever_context(data: dict[str, str]) -> Any:
+        """Reset a channel's conversation-physics state (momentum, phase, temp)."""
         manager = bot_state.get("message_manager")
-        if not manager or not hasattr(manager, "response_controller"):
+        if not manager:
             return {"success": False, "error": "Manager not initialized"}
         channel_id = data.get("channel_id", "")
-        rc = manager.response_controller
-        if hasattr(rc, "active_conversations") and channel_id in rc.active_conversations:
-            del rc.active_conversations[channel_id]
-            logger.info("Severed context for %s", channel_id)
+        dynamics = getattr(manager, "dynamics_engine", None)
+        if dynamics is not None and channel_id in getattr(dynamics, "channels", {}):
+            del dynamics.channels[channel_id]
+            logger.info("Severed conversation state for %s", channel_id)
             return {"success": True}
         return {"success": False, "error": "Context not found"}
 

@@ -79,12 +79,6 @@ def _mock_retrieval():
     return r
 
 
-def _mock_controller():
-    ctrl = MagicMock()
-    ctrl.should_respond.return_value = (True, "mentioned")
-    return ctrl
-
-
 def _mock_personality():
     p = MagicMock()
     p.get_tone_modifier.return_value = "friendly"
@@ -192,12 +186,11 @@ async def test_memory_write_stage_runs_on_halt():
         MessagePipeline,
     )
 
-    # Controller that tells bot to IGNORE (sets halt_reason)
-    ctrl = MagicMock()
-    ctrl.should_respond.return_value = (False, "boltzmann_ignore")
+    # Dynamics engine that tells bot to IGNORE (sets halt_reason)
+    dyn = MagicMock()
+    dyn.decide_action.return_value = "ignore"
 
     pipeline = MessagePipeline.build(
-        response_controller=ctrl,
         memory_system=_mock_memory_system(),
         retrieval=_mock_retrieval(),
         personality=_mock_personality(),
@@ -208,7 +201,7 @@ async def test_memory_write_stage_runs_on_halt():
         mood_state=MagicMock(),
         client=MagicMock(),
         small_llm=MagicMock(),
-        dynamics_engine=MagicMock(),
+        dynamics_engine=dyn,
     )
 
     ctx = _mock_message_context()

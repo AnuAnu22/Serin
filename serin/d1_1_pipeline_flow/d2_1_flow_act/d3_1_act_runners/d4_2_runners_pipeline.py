@@ -38,7 +38,6 @@ class MessagePipeline:
     def build(
         cls,
         *,
-        response_controller: Any,
         memory_system: Any,
         retrieval: Any,
         personality: Any,
@@ -87,7 +86,7 @@ class MessagePipeline:
         dynamics = dynamics_engine or ConversationDynamicsEngine()
 
         return cls(stages=[
-            ResponseDecisionStage(response_controller, dynamics=dynamics),
+            ResponseDecisionStage(dynamics=dynamics),
             MemoryRetrievalStage(memory_system, retrieval),
             ResponsePlannerStage(),
             TemporalStage(temporal_context),

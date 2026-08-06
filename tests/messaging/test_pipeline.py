@@ -11,12 +11,6 @@ from serin.d1_3_state_core.d2_5_state_conversation.d3_2_message_context import (
 )
 
 
-def _mock_controller():
-    ctrl = MagicMock()
-    ctrl.should_respond.return_value = (True, "mentioned")
-    return ctrl
-
-
 def _mock_memory_system():
     ms = MagicMock()
     ms.get_user_profile.return_value = {}
@@ -57,7 +51,6 @@ def _mock_thinking_filter():
 
 def test_build_returns_pipeline():
     pipeline = MessagePipeline.build(
-        response_controller=_mock_controller(),
         memory_system=_mock_memory_system(),
         retrieval=_mock_retrieval(),
         personality=_mock_personality(),
@@ -72,7 +65,6 @@ def test_build_returns_pipeline():
 
 def test_build_stages_in_order():
     pipeline = MessagePipeline.build(
-        response_controller=_mock_controller(),
         memory_system=_mock_memory_system(),
         retrieval=_mock_retrieval(),
         personality=_mock_personality(),
@@ -100,7 +92,6 @@ def test_build_stages_in_order():
 @pytest.mark.asyncio
 async def test_process_runs_all_stages(base_context):
     pipeline = MessagePipeline.build(
-        response_controller=_mock_controller(),
         memory_system=_mock_memory_system(),
         retrieval=_mock_retrieval(),
         personality=_mock_personality(),

@@ -44,9 +44,8 @@ def clear_missed_messages(channel_id: str) -> None:
 class ResponseDecisionStage(PipelineStage):
     """Decides whether to respond using Boltzmann physics engine."""
 
-    def __init__(self, response_controller: Any, dynamics: Any | None = None,
+    def __init__(self, dynamics: Any | None = None,
                  creator_id: str | None = None) -> None:
-        self.controller = response_controller
         self.dynamics = dynamics
         self.creator_id = creator_id or ""
 
