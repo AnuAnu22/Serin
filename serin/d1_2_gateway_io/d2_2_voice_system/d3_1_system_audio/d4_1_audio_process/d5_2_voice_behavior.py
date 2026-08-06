@@ -15,8 +15,8 @@ class VoiceBehaviorManager:
     """
     Manages autonomous voice channel join/leave decisions.
 
-    Uses PersonalityState (energy_level, engagement, sass_level) from ResponseController
-    combined with VoiceTracker awareness to decide when Serin should join or leave VC.
+    Uses PersonalityState (energy_level, engagement, sass_level) from the message
+    manager combined with VoiceTracker awareness to decide when Serin should join or leave VC.
 
     Join triggers (delayed, never instant):
     - Someone is in VC for 45-90s and energy is high -> maybe pop in
@@ -42,7 +42,7 @@ class VoiceBehaviorManager:
         Initialize voice behavior manager.
 
         Args:
-            personality: PersonalityState instance from ResponseController
+            personality: PersonalityState instance from the message manager
             voice_listener: VoiceListener instance for join/leave operations
             voice_tracker: VoiceTracker instance for tracking user voice states (optional)
             guild_text_channels: Mapping of guild_id -> text channel for social reactions

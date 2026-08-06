@@ -98,7 +98,6 @@ def _patch_deps() -> None:
 
     import serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_4_core_manager as mgr
     mock_mm = MagicMock()
-    mock_mm.response_controller = MagicMock()
     mock_mm.context_builder = MagicMock()
     mock_mm.bot_personality = MagicMock()
     mock_mm.enhanced_context = MagicMock()

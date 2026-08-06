@@ -5,7 +5,6 @@ from typing import Any
 from fastapi import FastAPI
 
 from serin.d1_4_config_base.d2_1_base_config import config
-from serin.d1_4_config_base.d2_3_core_logger import logger
 from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_1_state_access import (
     SettingsUpdate,
     bot_state,
@@ -78,15 +77,3 @@ def register_voice_brain_routes(app: FastAPI) -> None:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    @app.post("/api/context/sever")
-    async def sever_context(data: dict[str, str]) -> Any:
-        manager = bot_state.get("message_manager")
-        if not manager or not hasattr(manager, "response_controller"):
-            return {"success": False, "error": "Manager not initialized"}
-        channel_id = data.get("channel_id", "")
-        rc = manager.response_controller
-        if hasattr(rc, "active_conversations") and channel_id in rc.active_conversations:
-            del rc.active_conversations[channel_id]
-            logger.info("Severed context for %s", channel_id)
-            return {"success": True}
-        return {"success": False, "error": "Context not found"}

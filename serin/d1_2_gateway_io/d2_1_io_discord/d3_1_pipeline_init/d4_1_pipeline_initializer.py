@@ -314,7 +314,6 @@ class PipelineInitializer:
             raise RuntimeError("message_manager not initialized")
         try:
             pipeline = build_message_pipeline(
-                response_controller=self.message_manager.response_controller,
                 memory_system=memory_system,
                 retrieval=self.message_manager.context_builder,
                 personality=self.message_manager.bot_personality,
@@ -407,9 +406,6 @@ class PipelineInitializer:
             self.voice_pipeline.bg_processor = self.background_processor
 
     async def _init_control_panel(self, memory_system: Any, voice_listener: Any, tts_engine: Any, voice_manager: Any, voice_behavior_manager: Any) -> None:
-        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server import (
-            broadcast_event,
-        )
         from serin.d1_5_ops_tooling.d2_1_control_panel.d3_3_panel_lifecycle import (
             init_bot_state,
             start_server,
@@ -426,9 +422,6 @@ class PipelineInitializer:
             voice_manager=voice_manager if config.ENABLE_TTS else None,
         )
         self.bot_state['voice_behavior_manager'] = voice_behavior_manager
-        if self.message_manager and hasattr(self.message_manager, 'response_controller'):
-            self.message_manager.response_controller.set_broadcaster(broadcast_event)
-            get_logger().success("Decision broadcaster connected")
         try:
             asyncio.create_task(start_server(port=config.CONTROL_PANEL_PORT))
             get_logger().success(f"Control panel: http://127.0.0.1:{config.CONTROL_PANEL_PORT}")
