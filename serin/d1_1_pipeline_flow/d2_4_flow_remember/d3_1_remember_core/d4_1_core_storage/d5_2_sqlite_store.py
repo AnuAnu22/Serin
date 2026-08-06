@@ -167,9 +167,80 @@ def get_user_relationships(store: QdrantMemorySystem, user_id: str, min_strength
 
         return [dict(row) for row in cursor.fetchall()]
 
+
 # ========================================================================
-# Stats & Maintenance
+# User Affect Store — per-user sentiment valence and LLM impressions
 # ========================================================================
+
+
+def upsert_user_affect(
+    store: Any,
+    user_id: str,
+    valence: float,
+    valence_updated: float,
+    familiarity_count: int,
+    impression_text: str | None = None,
+    impression_updated: float | None = None,
+    since_impression: int | None = None,
+) -> None:
+    """Create or update per-user affect row (valence + familiarity + impression)."""
+    cursor: sqlite3.Cursor = store.conn.cursor()
+    try:
+        if since_impression is None:
+            # Increment since_impression on regular valence updates.
+            cursor.execute("""
+                INSERT INTO user_affect
+                    (user_id, valence, valence_updated, familiarity_count,
+                     impression_text, impression_updated, since_impression)
+                VALUES (?, ?, ?, ?, ?, ?, 0)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    valence           = excluded.valence,
+                    valence_updated   = excluded.valence_updated,
+                    familiarity_count = excluded.familiarity_count,
+                    since_impression  = since_impression + 1
+            """, (user_id, valence, valence_updated, familiarity_count,
+                  impression_text, impression_updated))
+        else:
+            cursor.execute("""
+                INSERT INTO user_affect
+                    (user_id, valence, valence_updated, familiarity_count,
+                     impression_text, impression_updated, since_impression)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    valence           = excluded.valence,
+                    valence_updated   = excluded.valence_updated,
+                    familiarity_count = excluded.familiarity_count,
+                    impression_text   = excluded.impression_text,
+                    impression_updated = excluded.impression_updated,
+                    since_impression  = excluded.since_impression
+            """, (user_id, valence, valence_updated, familiarity_count,
+                  impression_text, impression_updated, since_impression))
+        store.conn.commit()
+    except Exception as e:
+        logger.error("Error upserting user_affect for %s: %s", user_id, e)
+
+
+def get_user_affect(store: Any, user_id: str) -> dict[str, Any] | None:
+    """Return affect row for user_id, or None if not present."""
+    cursor: sqlite3.Cursor = store.conn.cursor()
+    cursor.execute("SELECT * FROM user_affect WHERE user_id = ?", (user_id,))
+    row = cursor.fetchone()
+    return dict(row) if row else None
+
+
+def get_users_due_impression(store: Any, limit: int = 3) -> list[dict[str, Any]]:
+    """Return up to `limit` users with since_impression>=25 and familiarity_count>=10."""
+    cursor: sqlite3.Cursor = store.conn.cursor()
+    cursor.execute("""
+        SELECT * FROM user_affect
+        WHERE since_impression >= 25 AND familiarity_count >= 10
+        ORDER BY since_impression DESC
+        LIMIT ?
+    """, (limit,))
+    return [dict(row) for row in cursor.fetchall()]
+
+
+
 
 
 """Recent messages cache — SQLite-backed message history.
