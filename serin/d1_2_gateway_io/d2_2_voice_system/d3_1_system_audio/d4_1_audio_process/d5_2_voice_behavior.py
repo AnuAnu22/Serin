@@ -9,6 +9,7 @@ from serin.d1_2_gateway_io.d2_2_voice_system.d3_1_system_audio.d4_1_audio_proces
     _uniform,
 )
 from serin.d1_2_gateway_io.d2_4_io_di import get_logger
+from serin.d1_4_config_base.d2_1_base_config import config
 
 
 class VoiceBehaviorManager:
@@ -56,7 +57,7 @@ class VoiceBehaviorManager:
         self.join_aggressiveness: float = 0.5
         self.leave_after_silence_seconds: int = 180
         self.max_session_minutes: int = 60
-        self.creator_user_ids: set[str] = set()
+        self.creator_user_ids: set[str] = set(config.CREATOR_IDS)
 
         # Runtime state
         self._behavior_check_task: asyncio.Task[None] | None = None

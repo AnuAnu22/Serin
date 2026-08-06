@@ -46,3 +46,20 @@ def test_malformed_entries_are_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_creator_ids_is_immutable(monkeypatch: pytest.MonkeyPatch) -> None:
     cfg = _fresh_config(monkeypatch, "111")
     assert isinstance(cfg.CREATOR_IDS, frozenset)
+
+
+def test_voice_behavior_seeds_creator_ids_from_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from unittest.mock import MagicMock
+
+    from serin.d1_2_gateway_io.d2_2_voice_system.d3_1_system_audio.d4_1_audio_process import (
+        d5_2_voice_behavior as vb_mod,
+    )
+    from serin.d1_4_config_base.d2_1_base_config import config
+
+    monkeypatch.setattr(vb_mod, "get_logger", lambda: MagicMock())
+    vbm = vb_mod.VoiceBehaviorManager(
+        personality=MagicMock(), voice_listener=MagicMock()
+    )
+    assert vbm.creator_user_ids == set(config.CREATOR_IDS)
