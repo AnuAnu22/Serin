@@ -36,12 +36,34 @@ jobs:
       - name: Run ruff linting
         run: uv run ruff check .
 
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install dependencies
+        run: uv sync
+
       - name: Security scan with bandit
         run: uv run bandit -r serin/ -ll
-        continue-on-error: true
 
-      - name: Secret detection
-        run: uv run detect-secrets scan --baseline .secrets.baseline
+      - name: Verify no new secrets
+        run: |
+          if [ -f .secrets.baseline ]; then
+            uv run detect-secrets scan --baseline .secrets.baseline . > /dev/null
+          else
+            echo "No baseline file found - skipping secret detection"
+          fi
+
+      - name: Dependency vulnerability scan
+        run: uv run pip-audit
         continue-on-error: true
 
   graphify-validation:
