@@ -13,11 +13,11 @@ from typing import Any
 
 from serin.d1_1_pipeline_flow.d2_1_flow_act.d3_1_act_runners.d4_3_prompt_assembly.d5_2_prompt_helpers import (
     CONTEXT_BUDGET,
+    _affect_context,
     _belief_evolution_context,
     _confidence_label,
     _facts_context,
     _fuzz_memories,
-    _relationship_context,
     _truncate_to_budget,
 )
 from serin.d1_1_pipeline_flow.d2_1_flow_act.d3_3_stages_base import PipelineStage
@@ -41,9 +41,11 @@ from serin.d1_4_config_base.d2_3_core_logger import logger
 class PromptAssemblyStage(PipelineStage):
     """Assembles the final messages array sent to the LLM."""
 
-    def __init__(self, mention_translator: Any, memory_system: Any = None) -> None:
+    def __init__(self, mention_translator: Any, memory_system: Any = None,
+                 affect_engine: Any = None) -> None:
         self.mention_translator = mention_translator
         self.memory_system = memory_system
+        self.affect_engine = affect_engine
 
 # --- Core ---
     async def _run(self, ctx: MessageContext) -> MessageContext:
@@ -61,14 +63,14 @@ class PromptAssemblyStage(PipelineStage):
         self._build_missed_messages_context(ctx, context_parts)
         self._build_memory_context(ctx, context_parts)
         self._build_personality_context(ctx, context_parts)
-        self._build_relationships_context(ctx, context_parts)
         self._build_user_profile_context(ctx, context_parts)
 
         ctx.context_block = "\n\n".join(context_parts)
         ctx.built_messages = self._build_messages(ctx)
 
         memory_text = _fuzz_memories(ctx.memories, limit=8)
-        rel_context = _relationship_context(self.memory_system, ctx)
+        snap = self.affect_engine.snapshot_cached(ctx.user_id) if self.affect_engine else None
+        rel_context = _affect_context(snap, ctx.username) if snap is not None else ""
         belief_context = _belief_evolution_context(self.memory_system, ctx.raw_content)
         self._store_prompt_debug(ctx, memory_text or "", rel_context or "", belief_context or "")
 
@@ -118,7 +120,8 @@ class PromptAssemblyStage(PipelineStage):
         )
 
     def _build_relationship_context(self, ctx: MessageContext, context_parts: list[str]) -> None:
-        rel_context = _relationship_context(self.memory_system, ctx)
+        snap = self.affect_engine.snapshot_cached(ctx.user_id) if self.affect_engine else None
+        rel_context = _affect_context(snap, ctx.username) if snap is not None else ""
         if rel_context:
             context_parts.append(
                 _truncate_to_budget(
@@ -174,22 +177,6 @@ class PromptAssemblyStage(PipelineStage):
         if ctx.personality_context:
             context_parts.append(
                 _truncate_to_budget(ctx.personality_context, CONTEXT_BUDGET["personality"])
-            )
-
-    def _build_relationships_context(self, ctx: MessageContext, context_parts: list[str]) -> None:
-        if not ctx.relationships:
-            return
-        rel_lines = []
-        for rel in ctx.relationships[:3]:
-            other = rel.get("other_username", "someone")
-            strength = rel.get("relationship_strength", 0)
-            if strength > 0.7:
-                rel_lines.append(f"You talk to {other} often — you're close.")
-            elif strength > 0.4:
-                rel_lines.append(f"You know {other} — you've talked a few times.")
-        if rel_lines:
-            context_parts.append(
-                _truncate_to_budget("Relationships: " + " ".join(rel_lines), CONTEXT_BUDGET["relationship"])
             )
 
     def _build_user_profile_context(self, ctx: MessageContext, context_parts: list[str]) -> None:
