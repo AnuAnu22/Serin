@@ -1,0 +1,33 @@
+# CODEOWNERS - Defines code ownership for pull request reviews
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repo
+* @AnuAnu22
+
+# Core pipeline (most critical - deepest architectural constraints)
+/serin/d1_1_pipeline_flow/ @AnuAnu22
+
+# State management and conversation dynamics
+/serin/d1_3_state_core/ @AnuAnu22
+
+# Gateway and Discord integration
+/serin/d1_2_gateway_io/ @AnuAnu22
+
+# Configuration
+/serin/d1_4_config_base/ @AnuAnu22
+
+# Operations and tooling
+/serin/d1_5_ops_tooling/ @AnuAnu22
+
+# Architecture governance
+/scripts/law/ @AnuAnu22
+/scripts/hooks/ @AnuAnu22
+THE_LAW.md @AnuAnu22
+ARCHITECTURE.md @AnuAnu22
+
+# Tests
+/tests/ @AnuAnu22
+
+# Documentation
+*.md @AnuAnu22
+/docs/ @AnuAnu22
