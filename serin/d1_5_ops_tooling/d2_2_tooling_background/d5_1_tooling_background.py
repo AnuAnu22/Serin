@@ -297,6 +297,81 @@ class BackgroundProcessor(BackgroundProcessorSummarizationMixin):
         except Exception as e:
             logger.debug(f" Dynamics engine maintenance failed: {e}")
 
+        # Generate LLM impressions for users due for one
+        await self._run_impression_batch()
+
+    async def _run_impression_batch(self) -> None:
+        """Generate LLM impressions for users who are due (≥25 messages since last, ≥10 total)."""
+        try:
+            from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_1_core_storage.d5_2_sqlite_store import (
+                get_users_due_impression,
+            )
+            affect_engine = getattr(self.memory, 'affect_engine', None)
+            if not affect_engine:
+                return
+
+            # Get up to 3 users due for an impression
+            users = get_users_due_impression(self.memory.store, limit=3)
+            if not users:
+                return
+
+            logger.info(f"🧠 Generating impressions for {len(users)} user(s)")
+
+            for user_row in users:
+                user_id = user_row['user_id']
+                try:
+                    # Get recent messages from this user
+                    recent = self.memory.store.query_messages(
+                        user_id=user_id,
+                        limit=30,
+                        order_by='timestamp DESC'
+                    )
+                    if not recent:
+                        logger.debug(f"No messages found for {user_id}, skipping impression")
+                        # Reset counter anyway so we don't keep trying
+                        await affect_engine.apply_impression(user_id, "", 0.0)
+                        continue
+
+                    # Get current affect snapshot
+                    snap = affect_engine.snapshot_cached(user_id)
+                    username = recent[0].get('username', 'User')
+                    messages = [f"{m.get('username', '?')}: {m.get('content', '')}" for m in recent]
+
+                    # Build prompt and call LLM
+                    prompt = affect_engine.build_impression_prompt(username, messages, snap.valence)
+                    if not self.extractor_llm or not self.extractor_llm.is_connected:
+                        logger.debug("Extractor LLM not connected, skipping impressions")
+                        return
+
+                    response = await asyncio.to_thread(
+                        self.extractor_llm.generate,
+                        prompt,
+                        max_tokens=200,
+                        temperature=0.7
+                    )
+
+                    # Parse and apply
+                    parsed = affect_engine.parse_impression(response)
+                    if parsed:
+                        text, delta = parsed
+                        await affect_engine.apply_impression(user_id, text, delta)
+                        logger.info(f"✓ Impression for {username}: valence Δ{delta:+.2f}")
+                    else:
+                        # Malformed JSON — reset counter to avoid retry loop
+                        await affect_engine.apply_impression(user_id, "", 0.0)
+                        logger.debug(f"Malformed impression JSON for {username}, counter reset")
+
+                except Exception as e:
+                    logger.error(f"Failed to generate impression for {user_id}: {e}")
+                    # Reset counter on error too
+                    try:
+                        await affect_engine.apply_impression(user_id, "", 0.0)
+                    except Exception as reset_err:
+                        logger.debug(f"Failed to reset impression counter for {user_id}: {reset_err}")
+
+        except Exception as e:
+            logger.debug(f"Impression batch failed: {e}")
+
     def get_stats(self) -> dict[str, Any]:
         """Return background processor statistics."""
         return {
