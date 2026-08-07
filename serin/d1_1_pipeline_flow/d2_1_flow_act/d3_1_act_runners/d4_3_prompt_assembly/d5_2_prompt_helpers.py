@@ -11,9 +11,6 @@ import secrets
 from datetime import UTC, datetime
 from typing import Any
 
-from serin.d1_3_state_core.d2_5_state_conversation.d3_2_message_context import (
-    MessageContext,
-)
 from serin.d1_4_config_base.d2_3_core_logger import logger
 
 # --- Types ---
@@ -158,61 +155,6 @@ def _affect_context(snap: Any, username: str) -> str:
         line += f" Your current impression: {snap.impression}"
 
     return line
-
-
-def _relationship_context(memory_system: Any, ctx: MessageContext) -> str:
-    """Build a natural description of how Serin feels about this user."""
-    if not memory_system or not ctx.user_id:
-        return ""
-    try:
-        bot_user_id = None
-        if ctx.message.guild and ctx.message.guild.me:
-            bot_user_id = str(ctx.message.guild.me.id)
-        else:
-            return ""
-
-        rels = memory_system.get_user_relationships(bot_user_id)
-        if not rels:
-            return ""
-
-        user_rel = None
-        for rel in rels:
-            if rel.get("other_user_id") == ctx.user_id:
-                user_rel = rel
-                break
-
-        if not user_rel:
-            return ""
-
-        strength = user_rel.get("relationship_strength", 0.0)
-        interactions = user_rel.get("interaction_count", 0)
-
-        username_rel = ctx.username
-
-        lines = []
-
-        if strength > 0.7:
-            lines.append(f"You really like {username_rel}. They're one of your favorite people to talk to.")
-        elif strength > 0.5:
-            lines.append(f"You enjoy talking to {username_rel}. You have a good rapport.")
-        elif strength > 0.3:
-            lines.append(f"You're friendly with {username_rel}.")
-        elif strength > 0.1:
-            lines.append(f"You're neutral toward {username_rel}.")
-        else:
-            lines.append(f"You don't really like {username_rel}. You're curt with them.")
-
-        if interactions > 100:
-            lines.append(f"You've talked to {username_rel} a LOT ({interactions} conversations). You know them well.")
-        elif interactions > 20:
-            lines.append(f"You've had {interactions} conversations with {username_rel}.")
-        elif interactions > 0:
-            lines.append(f"You've only talked to {username_rel} a few times ({interactions}).")
-
-        return "\n".join(lines)
-    except Exception as exc:
-        logger.debug("Failed to build relationship context: %s", exc)
-        return ""
 
 
 def _belief_evolution_context(memory_system: Any, query: str) -> str:
