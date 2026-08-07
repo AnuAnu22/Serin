@@ -142,25 +142,51 @@ def register_debug_routes(app: FastAPI, bot_state: dict[str, Any]) -> None:
             )
             result: list[dict[str, Any]] = []
             for user in _rows(cursor):
+                # Read from user_affect table instead of deprecated relationships
                 try:
-                    rel = memory.get_user_relationships(user["user_id"])
-                    if isinstance(rel, list):
-                        rel = rel[0] if rel else {}
-                    rel = rel or {}
-                except Exception:
-                    _logger.debug("Failed to get relationships for user %s", user.get("user_id", "?"))
-                    rel = {}
-                result.append(
-                    {
-                        **user,
-                        "affinity": rel.get(
-                            "affinity", rel.get("relationship_strength", 0.0)
-                        ),
-                        "interactions": rel.get(
-                            "total_interactions", rel.get("interaction_count", 0)
-                        ),
-                    }
-                )
+                    cursor.execute(
+                        "SELECT valence, familiarity_count, impression_text FROM user_affect WHERE user_id = ?",
+                        (user["user_id"],)
+                    )
+                    affect_row = cursor.fetchone()
+                    if affect_row:
+                        affect_dict = dict(affect_row)
+                        # Compute familiarity from count using the same formula as AffectEngine
+                        import math
+                        count = affect_dict.get("familiarity_count", 0)
+                        familiarity = 0.0 if count <= 0 else 1.0 - math.exp(-count / 50.0)
+
+                        result.append(
+                            {
+                                **user,
+                                "valence": affect_dict.get("valence", 0.0),
+                                "familiarity": familiarity,
+                                "familiarity_count": count,
+                                "impression": affect_dict.get("impression_text", ""),
+                            }
+                        )
+                    else:
+                        # User has no affect data yet
+                        result.append(
+                            {
+                                **user,
+                                "valence": 0.0,
+                                "familiarity": 0.0,
+                                "familiarity_count": 0,
+                                "impression": "",
+                            }
+                        )
+                except Exception as e:
+                    _logger.debug("Failed to get affect for user %s: %s", user.get("user_id", "?"), e)
+                    result.append(
+                        {
+                            **user,
+                            "valence": 0.0,
+                            "familiarity": 0.0,
+                            "familiarity_count": 0,
+                            "impression": "",
+                        }
+                    )
             return make_json_safe({"relationships": result})
         except Exception as exc:
             _logger.error("Relationships failed: %s", exc)
