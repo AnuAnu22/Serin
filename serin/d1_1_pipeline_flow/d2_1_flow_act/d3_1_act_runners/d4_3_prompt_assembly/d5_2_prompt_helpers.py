@@ -23,7 +23,7 @@ from serin.d1_4_config_base.d2_3_core_logger import logger
 CONTEXT_BUDGET: dict[str, int] = {
     "facts": 200,
     "beliefs": 100,
-    "relationship": 80,
+    "relationship": 120,
     "belief_evolution": 80,
     "missed": 80,
     "memories": 200,
@@ -131,6 +131,33 @@ def _fuzz_memories(memories: list[dict[str, Any]], limit: int = 8) -> str:
             lines[-1] += " (not sure about this)"
 
     return "\n".join(lines)
+
+
+def _affect_context(snap: Any, username: str) -> str:
+    """Build a tone directive based on how Serin feels about this user.
+
+    Returns empty string for near-strangers (familiarity < 0.1) so new users
+    do not get the old hostile 'You don't really like them' default.
+    """
+    if snap is None or snap.familiarity < 0.1:
+        return ""
+
+    v = snap.valence
+    if v > 0.5:
+        line = f"You genuinely like {username} and light up a bit when they talk."
+    elif v > 0.15:
+        line = f"You're warm toward {username}."
+    elif v < -0.5:
+        line = f"You find {username} grating. You're curt and don't go out of your way for them."
+    elif v < -0.15:
+        line = f"You're a bit wary of {username}."
+    else:
+        line = f"You feel neutral about {username}."
+
+    if snap.impression:
+        line += f" Your current impression: {snap.impression}"
+
+    return line
 
 
 def _relationship_context(memory_system: Any, ctx: MessageContext) -> str:

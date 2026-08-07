@@ -96,7 +96,7 @@ class MessagePipeline:
             ResponsePlannerStage(),
             TemporalStage(temporal_context),
             PersonalityStage(personality, mood_state=mood_state),
-            PromptAssemblyStage(mention_translator, memory_system=memory_system),
+            PromptAssemblyStage(mention_translator, memory_system=memory_system, affect_engine=affect_engine),
             LLMCallStage(response_generator),
             ResponseCleaningStage(thinking_filter),
             SendStage(dynamics=dynamics),
