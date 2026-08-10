@@ -134,9 +134,9 @@ def _determine_evidence_class(result: PerceptionResult, self_obj: Any, content: 
         result.evidence_class = 'conversation'
     else:
         sentiment_score: float = 0.0
-        if hasattr(self_obj, '_analyzer') and self_obj._analyzer is not None:
+        if hasattr(self_obj, 'analyzer') and self_obj.analyzer is not None:
             try:
-                sentiment_score = self_obj._analyzer.polarity_scores(content).get("compound", 0.0)
+                sentiment_score = self_obj.analyzer.polarity_scores(content).get("compound", 0.0)
             except Exception:
                 sentiment_score = 0.0
         if abs(sentiment_score) > 0.7:

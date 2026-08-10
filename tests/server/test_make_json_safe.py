@@ -99,9 +99,11 @@ class TestMakeJsonSafe:
         result = make_json_safe(Empty())
         assert isinstance(result, dict)
 
-    def test_no_circular_reference_handling(self) -> None:
-        data: dict = {"a": None}
+    def test_circular_reference_is_bounded(self) -> None:
+        data: dict[str, object] = {"a": None}
         data["self"] = data
-        import pytest
-        with pytest.raises(RecursionError):
-            make_json_safe(data)
+        # Depth guard converts the self-reference to a string rather than
+        # recursing indefinitely, so no RecursionError is raised.
+        result = make_json_safe(data)
+        assert result["a"] is None
+        assert isinstance(result["self"], dict)

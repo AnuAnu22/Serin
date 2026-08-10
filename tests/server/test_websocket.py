@@ -100,7 +100,10 @@ class TestBroadcastEvent:
 
         await broadcast_event("decision", data)
 
-        ws.send_json.assert_awaited_once_with(data)
+        ws.send_json.assert_awaited_once()
+        sent = ws.send_json.call_args[0][0]
+        assert sent["type"] == "decision"
+        assert sent["data"] == data
 
     @pytest.mark.asyncio
     async def test_wraps_non_decision_event(self) -> None:
@@ -156,10 +159,17 @@ class TestBroadcastEvent:
         ws2 = _mock_ws(0)
         ws3 = _mock_ws(1)
         active_websockets.extend([ws1, ws2, ws3])
+        expected = {"action": "leave"}
 
-        await broadcast_event("decision", {"action": "leave"})
+        await broadcast_event("decision", expected)
 
-        ws1.send_json.assert_awaited_once_with({"action": "leave"})
+        ws1.send_json.assert_awaited_once()
+        sent1 = ws1.send_json.call_args[0][0]
+        assert sent1["type"] == "decision"
+        assert sent1["data"] == expected
         ws2.send_json.assert_not_awaited()
-        ws3.send_json.assert_awaited_once_with({"action": "leave"})
+        ws3.send_json.assert_awaited_once()
+        sent3 = ws3.send_json.call_args[0][0]
+        assert sent3["type"] == "decision"
+        assert sent3["data"] == expected
         assert ws2 not in active_websockets

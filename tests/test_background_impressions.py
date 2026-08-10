@@ -55,7 +55,7 @@ def fake_llm():
     """Fake LLM that returns valid JSON."""
     llm = Mock()
     llm.is_connected = True
-    llm.generate = Mock(return_value='{"impression": "cool person", "valence_delta": 0.15}')
+    llm.blocking_send_input = Mock(return_value='{"impression": "cool person", "valence_delta": 0.15}')
     return llm
 
 
@@ -107,7 +107,7 @@ async def test_valid_json_applies_impression(processor_with_mocks, monkeypatch):
         return func(*args, **kwargs)
     monkeypatch.setattr("asyncio.to_thread", fake_to_thread)
 
-    processor.extractor_llm.generate = Mock(
+    processor.extractor_llm.blocking_send_input = Mock(
         return_value='{"impression": "very kind", "valence_delta": 0.15}'
     )
 
@@ -131,7 +131,7 @@ async def test_malformed_json_resets_counter(processor_with_mocks, monkeypatch):
         return func(*args, **kwargs)
     monkeypatch.setattr("asyncio.to_thread", fake_to_thread)
 
-    processor.extractor_llm.generate = Mock(return_value='not json at all')
+    processor.extractor_llm.blocking_send_input = Mock(return_value='not json at all')
 
     await processor._run_impression_batch()
 
@@ -183,7 +183,7 @@ async def test_caps_at_3_users_per_cycle(processor_with_mocks, monkeypatch):
         return func(*args, **kwargs)
     monkeypatch.setattr("asyncio.to_thread", fake_to_thread)
 
-    processor.extractor_llm.generate = Mock(
+    processor.extractor_llm.blocking_send_input = Mock(
         return_value='{"impression": "nice", "valence_delta": 0.1}'
     )
 
