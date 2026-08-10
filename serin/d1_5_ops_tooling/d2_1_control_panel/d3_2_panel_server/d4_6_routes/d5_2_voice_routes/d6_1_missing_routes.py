@@ -55,15 +55,19 @@ def _register_mood_routes(app: FastAPI, bot_state: dict[str, Any], existing_path
                 manager = bot_state.get("message_manager")
                 if not manager:
                     return {"success": False, "error": "Manager not initialized"}
-                ps = getattr(manager, "personality_state", None) or getattr(getattr(manager, "personality", None), "personality_state", None)
-                if ps and hasattr(ps, "set_mood_preset"):
-                    ps.set_mood_preset(mood)
-                else:
-                    personality = getattr(manager, "personality", None) or manager
-                    presets = {"high_energy": {"energy_level": 0.9, "sass_level": 0.6, "engagement": 0.9}, "neutral": {"energy_level": 0.5, "sass_level": 0.5, "engagement": 0.5}, "sass": {"energy_level": 0.6, "sass_level": 0.9, "engagement": 0.7}, "cheerful": {"energy_level": 0.8, "sass_level": 0.4, "engagement": 0.8}, "calm": {"energy_level": 0.3, "sass_level": 0.3, "engagement": 0.5}, "sarcastic": {"energy_level": 0.5, "sass_level": 0.9, "engagement": 0.6}, "energetic": {"energy_level": 0.9, "sass_level": 0.5, "engagement": 0.9}}
-                    p = presets.get(mood, presets["neutral"])
-                    for k, v in p.items():
-                        setattr(personality, k, v)
+                personality = getattr(manager, "personality", None)
+                ps = personality if (personality is not None and hasattr(personality, "set_mood_preset")) else getattr(manager, "personality_state", None)
+                if ps is None and personality is not None:
+                    ps = getattr(personality, "personality_state", None)
+                if ps is not None and hasattr(ps, "set_mood_preset"):
+                    if ps.set_mood_preset(mood) is False:
+                        return {"success": False, "error": f"Unknown mood preset: {mood}"}
+                    return {"success": True, "mood": mood}
+                personality = getattr(manager, "personality", None) or manager
+                presets = {"high_energy": {"energy_level": 0.9, "sass_level": 0.6, "engagement": 0.9}, "neutral": {"energy_level": 0.5, "sass_level": 0.5, "engagement": 0.5}, "sass": {"energy_level": 0.6, "sass_level": 0.9, "engagement": 0.7}, "cheerful": {"energy_level": 0.8, "sass_level": 0.4, "engagement": 0.8}, "calm": {"energy_level": 0.3, "sass_level": 0.3, "engagement": 0.5}, "sarcastic": {"energy_level": 0.5, "sass_level": 0.9, "engagement": 0.6}, "energetic": {"energy_level": 0.9, "sass_level": 0.5, "engagement": 0.9}}
+                p = presets.get(mood, presets["neutral"])
+                for k, v in p.items():
+                    setattr(personality, k, v)
                 return {"success": True, "mood": mood}
             except Exception as e:
                 _logger.error("Error in /api/mood/set: %s", e)

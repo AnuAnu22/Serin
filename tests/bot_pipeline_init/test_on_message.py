@@ -31,12 +31,16 @@ class TestOnMessage:
         self.mock_client.user.id = 99999
         monkeypatch.setattr(bpi, "client", self.mock_client)
 
-        # Patch subsystem globals
+        # Patch subsystem globals via _initializer (on_message reads _initializer.<attr>)
         self.mock_mm: Any = AsyncMock()
-        monkeypatch.setattr(bpi, "message_manager", self.mock_mm)
-
         self.mock_pm: Any = AsyncMock()
-        monkeypatch.setattr(bpi, "passive_monitor", self.mock_pm)
+
+        self.mock_initializer: Any = MagicMock()
+        self.mock_initializer.message_manager = self.mock_mm
+        self.mock_initializer.passive_monitor = self.mock_pm
+        self.mock_initializer.background_processor = AsyncMock()
+        self.mock_initializer.message_crawler = AsyncMock()
+        monkeypatch.setattr(bpi, "_initializer", self.mock_initializer)
 
         self.mock_stats: dict[str, int] = {
             "messages_received": 0,
@@ -179,10 +183,9 @@ class TestOnMessage:
         self.mock_pm.process_message.assert_awaited_once_with(msg, False)
 
     async def test_skips_passive_when_monitor_is_none(self) -> None:
-        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init as bpi
         from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
-        bpi.passive_monitor = None
+        self.mock_initializer.passive_monitor = None
         msg = self._msg()
 
         await on_message(msg)
@@ -263,10 +266,9 @@ class TestOnMessage:
         self.mock_mm.process_message.assert_awaited_once_with(msg)
 
     async def test_manager_none_errors(self) -> None:
-        import serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init as bpi
         from serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init import on_message
 
-        bpi.message_manager = None
+        self.mock_initializer.message_manager = None
         msg = self._msg()
 
         await on_message(msg)

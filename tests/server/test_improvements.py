@@ -237,11 +237,11 @@ class TestActiveWebsocketsLock:
     def test_lock_exists_and_is_asyncio_lock(self) -> None:
         import asyncio
 
-        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_2_server_state import (
-            active_websockets_lock,
+        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_1_state_access import (
+            _ws_lock,
         )
 
-        assert isinstance(active_websockets_lock, asyncio.Lock)
+        assert isinstance(_ws_lock, asyncio.Lock)
 
     @pytest.mark.asyncio
     async def test_concurrent_broadcast_and_disconnect_does_not_raise(self) -> None:
@@ -249,9 +249,9 @@ class TestActiveWebsocketsLock:
         active_websockets and a disconnect handler mutating it concurrently."""
         import asyncio
 
-        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_2_server_state import (
+        from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_1_state_access import (
+            _ws_lock,
             active_websockets,
-            active_websockets_lock,
         )
         from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_8_server.d5_2_server_websocket import (
             broadcast_log,
@@ -267,7 +267,7 @@ class TestActiveWebsocketsLock:
         active_websockets.extend(fake_sockets)
 
         async def disconnect_some() -> None:
-            async with active_websockets_lock:
+            async with _ws_lock:
                 for ws in fake_sockets[:10]:
                     if ws in active_websockets:
                         active_websockets.remove(ws)

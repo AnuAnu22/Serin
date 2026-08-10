@@ -103,8 +103,10 @@ def register_ops_routes(app: FastAPI, bot_state: dict[str, Any]) -> None:
             return {"error": str(e)}
 
     @app.post("/api/bot/restart")
-    async def restart_bot() -> Any:
+    async def restart_bot(data: dict[str, Any] | None = None) -> Any:
         try:
+            if not (data or {}).get("confirm", False):
+                return {"success": False, "message": "Confirm required"}
             from serin.d1_5_ops_tooling.d2_3_hot_reloader import SIGNAL_FILE
             open(SIGNAL_FILE, "w").close()
             logger.warning("Restart signal sent to hot-reloader")
