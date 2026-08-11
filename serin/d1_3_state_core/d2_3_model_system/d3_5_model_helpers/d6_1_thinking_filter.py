@@ -70,7 +70,7 @@ class ThinkingFilter:
             serin_core = importlib.import_module("serin_core")
             _filter_fn: Any = getattr(serin_core, "filter_thinking")
             return cast(str, _filter_fn(text))
-        except ImportError:
+        except (ImportError, AttributeError):
             original_length = len(text)
             cleaned = text
 
