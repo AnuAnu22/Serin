@@ -216,6 +216,21 @@ def init_sqlite_schema(conn: sqlite3.Connection, cursor: sqlite3.Cursor) -> None
         WHERE since_impression >= 25 AND familiarity_count >= 10
     """)
 
+    # Per-user mood state — relationship-scoped energy/sass/engagement for
+    # emotional persistence (CODING_GUIDELINES §4). Deliberately separate
+    # from user_affect (sentiment valence) and personality_state (the global
+    # default mood) so each table owns exactly one concern: this table holds
+    # one mood vector per relationship, keyed by the relationship's user.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_mood_state (
+            user_id TEXT PRIMARY KEY,
+            energy_level REAL NOT NULL DEFAULT 0.5,
+            sass_level REAL NOT NULL DEFAULT 0.5,
+            engagement REAL NOT NULL DEFAULT 0.5,
+            updated_at REAL NOT NULL
+        )
+    """)
+
     # Migration: add state column if table exists without it
     import sqlite3
     for col, dtype in [

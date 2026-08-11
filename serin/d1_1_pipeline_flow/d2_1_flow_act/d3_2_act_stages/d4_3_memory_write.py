@@ -16,6 +16,9 @@ from serin.d1_1_pipeline_flow.d2_1_flow_act.d3_3_stages_base import PipelineStag
 from serin.d1_3_state_core.d2_5_state_conversation.d3_2_message_context import (
     MessageContext,
 )
+from serin.d1_3_state_core.d2_5_state_conversation.d3_3_affect_engine import (
+    relationship_category,
+)
 from serin.d1_4_config_base.d2_3_core_logger import logger
 
 
@@ -160,10 +163,25 @@ class MemoryWriteStage(PipelineStage):
                         if emotional_tone in ("negative", "slight_negative"):
                             detected_traits.append("negative")
 
+                        # Derive the relationship bucket from this user's
+                        # affect so the mood update is biased friend vs
+                        # stranger vs enemy (emotional persistence).
+                        relationship = None
+                        if self.affect_engine is not None:
+                            try:
+                                snap = self.affect_engine.snapshot_cached(user_id)
+                                relationship = relationship_category(
+                                    snap.valence, snap.familiarity
+                                )
+                            except Exception as e:
+                                logger.debug("relationship_category failed: %s", e)
+
                         self.personality.update_from_conversation(
                             conversation_mood=emotional_tone,
                             user_traits=detected_traits,
                             time_of_day=datetime.now().hour,
+                            user_id=user_id,
+                            relationship=relationship,
                         )
                     except Exception as e:
                         logger.exception("pipeline.personality_update_failed: %s", e)
