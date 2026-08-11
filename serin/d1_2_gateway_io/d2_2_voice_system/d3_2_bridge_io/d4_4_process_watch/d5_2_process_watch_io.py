@@ -7,6 +7,7 @@ I/O handling methods for RustVoiceBridge, extracted to keep files under 500 line
 from __future__ import annotations
 
 import asyncio
+import collections
 from typing import Any
 
 from serin.d1_2_gateway_io.d2_4_io_di import get_logger
@@ -22,6 +23,19 @@ from serin.d1_2_gateway_io.d2_4_io_di import get_logger
 
 class RustVoiceBridgeIOMixin:
     """I/O handling methods for RustVoiceBridge."""
+
+    # Attributes and handlers provided by the composing host class
+    # (RustVoiceBridge); declared here so mypy knows they exist at runtime.
+    proc: asyncio.subprocess.Process | None
+    _running: bool
+    _stderr_buf: collections.deque[str]
+    reader: Any | None
+    stats: dict[str, int]
+
+    async def _handle_audio(self, user_id: str, pcm_data: bytes) -> None: ...
+    async def _handle_join(self, user_id: str) -> None: ...
+    def _handle_leave(self, user_id: str) -> None: ...
+    def _handle_tts_done(self) -> None: ...
 
 # --- Core ---
     def _start_stderr_reader(self) -> None:

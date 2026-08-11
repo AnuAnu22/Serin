@@ -46,7 +46,7 @@ class TestMain:
 
         # Mock event_handlers.run_maintenance (patched on the actual module object)
         self.mock_run_maintenance: Any = AsyncMock()
-        monkeypatch.setattr(me.event_handlers, "run_maintenance", self.mock_run_maintenance)
+        monkeypatch.setattr(me.d3_4_event_handlers, "run_maintenance", self.mock_run_maintenance)
 
         # Mock asyncio.sleep so retry backoff doesn't block tests
         monkeypatch.setattr(me.asyncio, "sleep", AsyncMock())

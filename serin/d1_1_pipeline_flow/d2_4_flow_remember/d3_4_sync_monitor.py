@@ -97,7 +97,7 @@ class MemorySyncMonitor:
 
     async def _check_api_mismatches(self) -> None:
         """Check for API interface mismatches"""
-        api_errors = []
+        api_errors: list[str] = []
 
         # Check background processor queue_message signature
         try:
@@ -105,11 +105,13 @@ class MemorySyncMonitor:
             sig = inspect.signature(self.bg_processor.queue_message)
             expected_params = set(sig.parameters.keys())
 
-            # This is the specific error from logs
-            if 'message_id' in expected_params:
-                api_errors.append("BackgroundProcessor.queue_message has 'message_id' but shouldn't")
+            # message_id is an OPTIONAL param (default None) genuinely required by the
+            # backfill `**msg` path (dicts from get_messages_around_timestamp carry it).
+            # Only a REQUIRED message_id (no default) would be a real contract break.
+            if 'message_id' in expected_params and sig.parameters['message_id'].default is inspect.Parameter.empty:
+                api_errors.append("BackgroundProcessor.queue_message has REQUIRED 'message_id' but shouldn't")
             else:
-                logger.debug(" BackgroundProcessor.queue_message signature correct")
+                logger.debug(" BackgroundProcessor.queue_message signature correct (message_id optional)")
         except Exception as e:
             api_errors.append(f"Error checking queue_message signature: {e}")
 

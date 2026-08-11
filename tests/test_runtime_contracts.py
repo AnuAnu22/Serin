@@ -76,8 +76,17 @@ def _parse_scanner_output(stderr: str) -> list[tuple[str, int, str]]:
     return issues
 
 
-_UNDEFINED_SCAN = _run_scanner()
-_UNDEFINED_ISSUES = _parse_scanner_output(_UNDEFINED_SCAN[1]) if _UNDEFINED_SCAN[0] != 0 else []
+# The Rust scanner binary is optional — CI does not build it. Guard the
+# module-level scan so a missing binary yields no parametrized cases instead
+# of a module-level pytest.skip, which newer pytest rejects during collection
+# and would abort the entire test run. test_undefined_scan_runs below still
+# skips just itself when the binary is absent.
+if not SCANNER_BIN.exists():
+    _UNDEFINED_SCAN = None
+    _UNDEFINED_ISSUES = []
+else:
+    _UNDEFINED_SCAN = _run_scanner()
+    _UNDEFINED_ISSUES = _parse_scanner_output(_UNDEFINED_SCAN[1]) if _UNDEFINED_SCAN[0] != 0 else []
 
 
 @pytest.mark.parametrize(

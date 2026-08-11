@@ -112,8 +112,9 @@ class BackgroundProcessor(BackgroundProcessorSummarizationMixin):
         username: str,
         user_id: str,
         channel_id: str,
-        message_id: str,
-        timestamp: str,
+        message_id: str | None = None,
+        server_id: str = "",
+        timestamp: str | datetime = "",
     ) -> None:
         """
         Queue a RAW message for background processing.
@@ -124,7 +125,8 @@ class BackgroundProcessor(BackgroundProcessorSummarizationMixin):
             user_id: Discord user ID
             channel_id: Discord channel ID
             message_id: Discord message ID
-            timestamp: ISO timestamp
+            server_id: Discord guild ID
+            timestamp: ISO timestamp or datetime
         """
         try:
             message = {
@@ -133,6 +135,7 @@ class BackgroundProcessor(BackgroundProcessorSummarizationMixin):
                 'user_id': user_id,
                 'channel_id': channel_id,
                 'message_id': message_id,
+                'server_id': server_id,
                 'timestamp': timestamp,
             }
 
@@ -344,7 +347,7 @@ class BackgroundProcessor(BackgroundProcessorSummarizationMixin):
                         return
 
                     response = await asyncio.to_thread(
-                        self.extractor_llm.generate,
+                        self.extractor_llm.blocking_send_input,
                         prompt,
                         max_tokens=200,
                         temperature=0.7
