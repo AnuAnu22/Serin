@@ -135,4 +135,5 @@ dev = [
     "bandit>=1.8.0",          # pre-commit security gate
     "semgrep>=1.100.0",       # pre-commit pattern gate
     "ruff>=0.14.0",           # pre-commit lint gate
+    "cosmic-ray>=8.7.0",
 ]
