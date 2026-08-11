@@ -94,14 +94,24 @@ layers = [
     "serin.d1_4_config_base",
 ]
 ignore_imports = [
-    "serin.d1_2_gateway_io.discord.bot -> serin.d1_5_ops_tooling.background",
-    "serin.d1_2_gateway_io.discord.bot -> serin.d1_5_ops_tooling.passive_monitor",
-    "serin.d1_2_gateway_io.discord.bot -> serin.d1_5_ops_tooling.tts_voice_manager",
-    "serin.d1_2_gateway_io.discord.bot_pipeline_init -> serin.d1_5_ops_tooling.background",
-    "serin.d1_2_gateway_io.discord.bot_pipeline_init -> serin.d1_5_ops_tooling.passive_monitor",
-    "serin.d1_2_gateway_io.discord.bot_pipeline_init -> serin.d1_5_ops_tooling.control_panel.panel_lifecycle",
-    "serin.d1_2_gateway_io.discord.bot_pipeline_init -> serin.d1_5_ops_tooling.control_panel.server",
-    "serin.d1_2_gateway_io.discord.bot_pipeline_init -> serin.d1_5_ops_tooling.tts_voice_manager",
+    "serin.d1_2_gateway_io.d2_1_io_discord.d3_2_discord_bot -> serin.d1_5_ops_tooling.d2_2_tooling_background.d5_1_tooling_background",
+    "serin.d1_2_gateway_io.d2_1_io_discord.d3_2_discord_bot -> serin.d1_5_ops_tooling.d2_4_passive_monitor",
+    "serin.d1_2_gateway_io.d2_1_io_discord.d3_2_discord_bot -> serin.d1_5_ops_tooling.d2_5_voice_manager",
+    "serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init -> serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server",
+    "serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_pipeline_initializer -> serin.d1_5_ops_tooling.d2_5_voice_manager",
+    "serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_pipeline_initializer -> serin.d1_5_ops_tooling.d2_2_tooling_background.d5_1_tooling_background",
+    "serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_pipeline_initializer -> serin.d1_5_ops_tooling.d2_4_passive_monitor",
+    "serin.d1_2_gateway_io.d2_1_io_discord.d3_1_pipeline_init.d4_1_pipeline_initializer -> serin.d1_5_ops_tooling.d2_1_control_panel.d3_3_panel_lifecycle",
+    # Panel observability: pipeline modules push live status / debug info to the
+    # control-panel websocket and debug routes — a core -> ops link kept out of
+    # the strict layer direction on purpose.
+    "serin.d1_1_pipeline_flow.d2_1_flow_act.d3_1_act_runners.d4_2_runners_pipeline -> serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_8_server.d5_2_server_websocket",
+    "serin.d1_1_pipeline_flow.d2_1_flow_act.d3_2_act_stages.d4_1_decision_temporal -> serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_8_server.d5_2_server_websocket",
+    "serin.d1_1_pipeline_flow.d2_1_flow_act.d3_1_act_runners.d4_3_prompt_assembly.d5_1_prompt_assembly -> serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_6_routes.d5_3_debug_routes.d6_2_debug_routes",
+    "serin.d1_1_pipeline_flow.d2_1_flow_act.d3_1_act_runners.d4_1_runners_dispatch.d5_1_llm_call -> serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_6_routes.d5_3_debug_routes.d6_2_debug_routes",
+    # Affect persistence: the affect engine stores observations through the
+    # memory-storage layer (introduced by the affect + selectivity rework).
+    "serin.d1_3_state_core.d2_5_state_conversation.d3_3_affect_engine -> serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_1_core_storage.d5_2_sqlite_store",
 ]
 
 [tool.wily]
@@ -125,4 +135,5 @@ dev = [
     "bandit>=1.8.0",          # pre-commit security gate
     "semgrep>=1.100.0",       # pre-commit pattern gate
     "ruff>=0.14.0",           # pre-commit lint gate
+    "cosmic-ray>=8.7.0",
 ]

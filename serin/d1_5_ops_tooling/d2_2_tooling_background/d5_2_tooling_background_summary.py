@@ -8,6 +8,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from serin.d1_3_state_core.d2_3_model_system.d3_4_system_interface import (
+    ModelInterface,
+)
 from serin.d1_3_state_core.d2_3_model_system.d3_5_model_helpers.d6_1_thinking_filter import (
     filter_thinking,
 )
@@ -25,6 +28,11 @@ from serin.d1_4_config_base.d2_3_core_logger import logger
 
 class BackgroundProcessorSummarizationMixin:
     """Summarization methods for BackgroundProcessor."""
+
+    # Attributes provided by the composing host class (BackgroundProcessor).
+    extractor_llm: ModelInterface | None
+    stats: dict[str, int]
+    memory: Any
 
 # --- Core ---
     async def _create_conversation_summary(self, messages: list[dict[str, Any]]) -> None:

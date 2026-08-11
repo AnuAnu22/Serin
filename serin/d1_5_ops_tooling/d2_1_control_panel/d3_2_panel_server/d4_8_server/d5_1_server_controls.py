@@ -17,6 +17,10 @@ ALLOWED_CONFIG_KEYS = {
     "ENABLE_VOICE", "ENABLE_TTS", "LLM_BASE_URL", "LLM_MODEL",
 }
 
+# Sensitive keys that redirect model traffic / credentials require an explicit
+# `confirm: True` flag rather than applying on a bare, unconfirmed POST.
+SENSITIVE_CONFIG_KEYS = {"LLM_BASE_URL", "LLM_MODEL"}
+
 
 @app.get("/api/model")
 async def get_model_info() -> Any:
@@ -105,9 +109,13 @@ async def get_full_config() -> Any:
 @app.post("/api/config")
 async def update_full_config(data: dict[str, Any]) -> Any:
     try:
+        confirm = bool(data.get("confirm", False))
         filtered = {k: v for k, v in data.items() if k in ALLOWED_CONFIG_KEYS}
         if not filtered:
             return {"success": False, "error": "No valid config keys provided"}
+        blocked_keys = [k for k in filtered if k in SENSITIVE_CONFIG_KEYS and not confirm]
+        if blocked_keys:
+            return {"success": False, "blocked_keys": blocked_keys}
         config.update_from_dict(filtered)
         return {"success": True, "updated_keys": list(filtered.keys())}
     except Exception as e:

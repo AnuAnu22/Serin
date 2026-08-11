@@ -42,7 +42,7 @@ _NEUTRAL = AffectSnapshot(valence=0.0, familiarity=0.0, impression=None)
 
 def _decayed_valence(v: float, last_ts: float, now: float) -> float:
     """Exponential decay toward 0 with half-life DECAY_HALF_LIFE_S."""
-    return v * (0.5 ** ((now - last_ts) / DECAY_HALF_LIFE_S))
+    return v * math.pow(0.5, (now - last_ts) / DECAY_HALF_LIFE_S)
 
 
 def _familiarity(count: int) -> float:
