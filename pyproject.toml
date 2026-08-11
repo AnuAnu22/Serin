@@ -72,6 +72,10 @@ fixable = ["I", "W", "UP"]
 python_version = "3.11"
 strict = true
 ignore_missing_imports = true
+# Some third-party deps are installed without type stubs (e.g. requests).
+# ignore_missing_imports only silences import-not-found; this also silences
+# the import-untyped code so strict mode stays on without requiring stubs.
+disable_error_code = ["import-untyped"]
 warn_unused_ignores = false
 follow_imports = "silent"
 exclude = [
@@ -135,5 +139,6 @@ dev = [
     "bandit>=1.8.0",          # pre-commit security gate
     "semgrep>=1.100.0",       # pre-commit pattern gate
     "ruff>=0.14.0",           # pre-commit lint gate
+    "mypy>=1.0.0",            # test_mypy_strict gate (tests/test_static_analysis.py)
     "cosmic-ray>=8.7.0",
 ]

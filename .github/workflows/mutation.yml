@@ -20,6 +20,8 @@ jobs:
         run: uv sync
       - name: Mutation test (perception)
         run: uv run bash scripts/run_cosmic_ray.sh perception
+        env:
+          DISCORD_TOKEN: test
 
   server:
     runs-on: ubuntu-latest
@@ -34,6 +36,8 @@ jobs:
         run: uv sync
       - name: Mutation test (server)
         run: uv run bash scripts/run_cosmic_ray.sh server
+        env:
+          DISCORD_TOKEN: test
 
   bot_pipeline_init:
     runs-on: ubuntu-latest
@@ -48,3 +52,5 @@ jobs:
         run: uv sync
       - name: Mutation test (bot_pipeline_init)
         run: uv run bash scripts/run_cosmic_ray.sh bot_pipeline_init
+        env:
+          DISCORD_TOKEN: test
