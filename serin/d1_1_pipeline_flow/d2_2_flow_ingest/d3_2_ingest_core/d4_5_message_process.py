@@ -73,7 +73,7 @@ async def process_voice_input(self: Any, user_id: str, username: str, channel_id
         response = await get_response_natural(
             current_messages=user_messages,
             context=formatted_context,
-            tone_modifier=self.personality.get_tone_modifier(),
+            tone_modifier=self.personality.get_tone_modifier(user_id),
             personality_state=self.personality.__dict__,
             message_complexity="simple",
             is_instruction=False,
@@ -255,7 +255,10 @@ async def process_message(self: Any, message: discord.Message) -> None:
             raise ValueError("Memory system does not support enhanced memory addition")
 
         detected_traits = self._analyze_personality(user_id, cleaned_content)
-        self.personality.update_from_conversation(conversation_mood=emotional_tone, user_traits=detected_traits, time_of_day=datetime.now().hour)
+        # user_id passed for signature consistency with the pipeline path —
+        # this process_message legacy path is bypassed at runtime by the
+        # pipeline, but keeping the call shape aligned avoids a silent drift.
+        self.personality.update_from_conversation(conversation_mood=emotional_tone, user_traits=detected_traits, time_of_day=datetime.now().hour, user_id=user_id)
 
         _schedule_flush_batch(self, message, cleaned_content, user_id, user_name, channel_id)
 
