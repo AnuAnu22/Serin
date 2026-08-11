@@ -36,6 +36,16 @@ IMPRESSION_DELTA_CAP: float = 0.20          # max single impression adjustment
 IMPRESSION_TEXT_MAX_CHARS: int = 200
 _FAMILIARITY_SCALE: float = 50.0            # count at which familiarity ≈ 0.63
 
+# Relationship buckets derived from (valence, familiarity), used to bias
+# per-user mood at write time. With steady per-message sentiment of
+# SENTIMENT_GAIN * avg_sentiment, |valence| reaches ~0.3 within a handful of
+# messages, so "enemy" is reachable quickly; "friend" requires both real
+# familiarity (>=0.5 ~ 35+ messages) and sustained positivity.
+_STRANGER_FAMILIARITY_THRESHOLD: float = 0.1
+_ENEMY_VALENCE_THRESHOLD: float = -0.3
+_FRIEND_FAMILIARITY_THRESHOLD: float = 0.5
+_FRIEND_VALENCE_THRESHOLD: float = 0.3
+
 _NEUTRAL = AffectSnapshot(valence=0.0, familiarity=0.0, impression=None)
 
 # --- Helpers ---
@@ -54,6 +64,23 @@ def _familiarity(count: int) -> float:
 
 def _clamp(v: float, lo: float = -1.0, hi: float = 1.0) -> float:
     return max(lo, min(hi, v))
+
+
+def relationship_category(valence: float, familiarity: float) -> str:
+    """Map (valence, familiarity) to a coarse relationship bucket.
+
+    Order matters: a user can be both high-familiarity and badly valenced,
+    so stranger (low familiarity) is the base case and enemy wins over
+    friend when valence is negative enough. Returns one of:
+    ``stranger`` / ``enemy`` / ``friend`` / ``acquaintance``.
+    """
+    if familiarity < _STRANGER_FAMILIARITY_THRESHOLD:
+        return "stranger"
+    if valence < _ENEMY_VALENCE_THRESHOLD:
+        return "enemy"
+    if familiarity >= _FRIEND_FAMILIARITY_THRESHOLD and valence > _FRIEND_VALENCE_THRESHOLD:
+        return "friend"
+    return "acquaintance"
 
 # --- Entry ---
 
