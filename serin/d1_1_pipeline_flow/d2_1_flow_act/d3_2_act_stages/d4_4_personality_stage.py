@@ -24,9 +24,11 @@ class PersonalityStage(PipelineStage):
         self.mood_state = mood_state
 
     async def _run(self, ctx: MessageContext) -> MessageContext:
-        # Get tone modifier from mood state (PersonalityState) if available
+        # Get tone modifier from mood state (PersonalityState) if available.
+        # Scope it to the message author so a friend vs stranger vs enemy gets
+        # a fitting tone (emotional persistence, CODING_GUIDELINES §4).
         if self.mood_state is not None and hasattr(self.mood_state, "get_tone_modifier"):
-            ctx.tone_modifier = self.mood_state.get_tone_modifier()
+            ctx.tone_modifier = self.mood_state.get_tone_modifier(ctx.user_id)
         elif hasattr(self.personality, "get_tone_modifier"):
             ctx.tone_modifier = self.personality.get_tone_modifier()
 
