@@ -76,6 +76,43 @@ def _should_use_thinking(message: str, complexity: str = "simple") -> bool:
     return any(w in msg_lower for w in think_triggers)
 
 
+def resolve_system_prompt(
+    current_messages: list[dict[str, Any]] | None = None,
+    tone_modifier: str | None = None,
+    is_instruction: bool = False,
+) -> str:
+    """Return the system-prompt content that get_response_natural SENDS to the model.
+
+    Single source of truth for the "which system prompt reaches the LLM" decision,
+    shared by the real generator and the pipeline inspector's fake LLM (so the
+    planner_constraints_survive check asserts against what is actually sent, not
+    an intermediate ctx field).
+
+    Behavior:
+    - Instructions get a dedicated instruction prompt (no personality/roleplay).
+    - Otherwise, FORWARD the upstream-assembled system prompt when one was
+      supplied (the first ``role == "system"`` message in ``current_messages``,
+      which carries the planner's response-plan constraints). This is the fix for
+      the dropped-planner-constraints bug: the constraints must reach the model.
+    - Only when no upstream system prompt exists (a defensive/legacy caller that
+      passes no ``current_messages``) do we fall back to rebuilding a default
+      natural prompt from scratch.
+    """
+    if is_instruction:
+        return build_instruction_system_prompt()
+    if current_messages:
+        for msg in current_messages:
+            if msg.get("role") == "system":
+                system_prompt = str(msg.get("content", ""))
+                if tone_modifier:
+                    system_prompt += f"\n\nCurrent mood: {tone_modifier}"
+                return system_prompt
+    system_prompt = build_natural_system_prompt()
+    if tone_modifier:
+        system_prompt += f"\n\nCurrent mood: {tone_modifier}"
+    return system_prompt
+
+
 async def get_response_natural(
     current_messages: list[dict[str, Any]],
     context: str,
@@ -101,15 +138,14 @@ async def get_response_natural(
         # Build messages
         messages: list[dict[str, Any]] = []
 
-        # System prompt
-        if is_instruction:
-            system_prompt = build_instruction_system_prompt()
-            # No tone modifier for instructions - pure obedience
-        else:
-            system_prompt = build_natural_system_prompt()
-            if tone_modifier:
-                system_prompt += f"\n\nCurrent mood: {tone_modifier}"
-
+        # System prompt — single source of truth (shared with the inspector's
+        # fake LLM so the planner_constraints_survive check can assert against
+        # what is actually sent to the model).
+        system_prompt = resolve_system_prompt(
+            current_messages=current_messages,
+            tone_modifier=tone_modifier,
+            is_instruction=is_instruction,
+        )
         messages.append({
             "role": "system",
             "content": system_prompt
