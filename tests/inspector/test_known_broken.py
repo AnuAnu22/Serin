@@ -1,12 +1,19 @@
 """Known-broken validation: the checks must catch a real bug class.
 
 Reproduces the dropped-planner-constraints bug (found in this project's
-history: constraints recorded in ``ctx.response_plan`` silently vanished from
-the assembled ``system_prompt`` before reaching the LLM) WITHOUT modifying any
-real stage. The real PromptAssemblyStage faithfully re-adds constraints, so the
-test uses the inspector's mutate-and-continue hook to simulate the offending
-*downstream* rebuild that discarded the upstream work — the exact defect the
-inspector exists to surface.
+history: constraints recorded in ``ctx.response_plan`` silently vanished before
+reaching the LLM). The inspector's check now asserts against the ACTUAL model
+payload (``ctx.metadata['inspector_model_payload_system']``), not the
+intermediate ``ctx.system_prompt`` field — so a downstream rebuild that
+discards the upstream work is caught.
+
+After Fix 3, the production ``get_response_natural`` forwards the
+upstream-assembled system prompt (``current_messages`` first ``role == "system"``
+message, which carries the planner's response-plan constraints) instead of
+rebuilding from scratch. So a healthy run now records a payload WITH the
+constraints and the check must PASS. The regression anchor is now
+``test_known_broken_records_payload_with_constraints``; the manual-discard test
+still proves the check catches a downstream drop.
 """
 from __future__ import annotations
 
@@ -15,7 +22,10 @@ import asyncio
 from serin.d1_3_state_core.d2_5_state_conversation.d3_2_message_context import (
     MessageContext,
 )
-from tools.pipeline_inspector.checks import planner_constraints_survive
+from tools.pipeline_inspector.checks import (
+    MODEL_PAYLOAD_KEY,
+    planner_constraints_survive,
+)
 from tools.pipeline_inspector.inspector import PipelineInspector
 from tools.pipeline_inspector.scenario import Scenario
 
@@ -42,23 +52,35 @@ def _materialized_ctx() -> MessageContext:
     return _run(inspector.run_until(scenario.build_context()))
 
 
-def test_healthy_run_passes_check():
-    """A clean run keeps constraints in system_prompt; the check must pass."""
+def test_known_broken_records_payload_with_constraints():
+    """After Fix 3 the real pipeline assembles constraints into ctx.system_prompt
+    AND forwards that exact prompt to the model, so the check must PASS (green).
+    Regression anchor: if get_response_natural ever drops current_messages[0]
+    again, this flips red."""
     ctx = _materialized_ctx()
-    assert ctx.halt_reason == ""
-    assert planner_constraints_survive(ctx) is None
+    constraints = (ctx.response_plan or {}).get("constraints") or []
+    assert constraints, "planner produced no constraints for this scenario"
+    # Both the intermediate field and the ACTUAL payload must carry them:
+    assert all(c in (ctx.system_prompt or "") for c in constraints)
+    payload = (ctx.metadata or {}).get(MODEL_PAYLOAD_KEY) or ""
+    assert all(c in payload for c in constraints), (
+        f"constraints not in model payload: {constraints}"
+    )
+    err = planner_constraints_survive(ctx)
+    assert err is None, f"check should pass on fixed code, got: {err}"
 
 
 def test_downstream_rebuild_discarding_constraints_is_caught():
-    """A fresh system_prompt dropping recorded constraints must trip the check."""
+    """A fresh payload dropping recorded constraints must trip the check, even
+    when the intermediate ctx.system_prompt still contains them."""
     ctx = _materialized_ctx()
     constraints = (ctx.response_plan or {}).get("constraints") or []
     assert constraints, "planner produced no constraints for this scenario"
 
-    # Simulate the old bug: a downstream builder rewrites system_prompt from
+    # Simulate the old bug: a downstream builder rewrites the payload from
     # scratch, silently discarding what ResponsePlannerStage recorded upstream.
-    ctx.system_prompt = "You are Serin. Keep it natural."  # constraints absent
+    ctx.metadata[MODEL_PAYLOAD_KEY] = "You are Serin. Keep it natural."
     err = planner_constraints_survive(ctx)
     assert err is not None
-    assert "dropped" in err
+    assert "dropped from model payload" in err
     assert constraints[0] in err
