@@ -39,11 +39,15 @@ def _docker_available() -> bool:
 def _qdrant_running(port: int = 6333) -> bool:
     import urllib.request
 
-    try:
-        urllib.request.urlopen(f"http://localhost:{port}/health", timeout=2)
-        return True
-    except Exception:
-        return False
+    # Qdrant 1.13+ serves /healthz (200); older versions serve /health.
+    # Probe /healthz first, fall back to /health for older images.
+    for path in ("/healthz", "/health"):
+        try:
+            urllib.request.urlopen(f"http://localhost:{port}{path}", timeout=2)
+            return True
+        except Exception:
+            continue  # nosec B112 — probe failed; try the next path
+    return False
 
 
 async def auto_start_qdrant() -> None:
