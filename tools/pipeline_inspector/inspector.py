@@ -26,6 +26,7 @@ from serin.d1_1_pipeline_flow.d2_1_flow_act.d3_1_act_runners.d4_2_runners_pipeli
 from serin.d1_3_state_core.d2_5_state_conversation.d3_2_message_context import (
     MessageContext,
 )
+from tools.pipeline_inspector.checks import MODEL_PAYLOAD_KEY
 from tools.pipeline_inspector.fakes import build_pipeline
 from tools.pipeline_inspector.scenario import Scenario
 
@@ -128,6 +129,7 @@ class PipelineInspector:
                 self.snapshots.append(snapshot_ctx(ctx))
                 self._pos = stage_index + 1
                 break
+            self._capture_model_payload(ctx, stage)
             self.events.append({
                 "index": stage_index,
                 "stage": stage.name,
@@ -159,6 +161,21 @@ class PipelineInspector:
                 })
             self.snapshots.append(snapshot_ctx(ctx))
         return ctx
+
+    def _capture_model_payload(self, ctx: MessageContext, stage: Any) -> None:
+        """Record what the LLM stage actually forwarded to the model.
+
+        The inspector's fake generator keeps ``last_payload_system`` - the
+        system prompt it would send (via the same ``resolve_system_prompt`` the
+        real ``get_response_natural`` uses). We copy it into ``ctx.metadata``
+        so ``planner_constraints_survive`` asserts against the real payload,
+        not an intermediate field a downstream rebuild may discard.
+        """
+        if stage.__class__.__name__ != "LLMCallStage":
+            return
+        recorded = getattr(getattr(stage, "generator", None), "last_payload_system", None)
+        if recorded:
+            ctx.metadata[MODEL_PAYLOAD_KEY] = recorded
 
 
 __all__ = ["PipelineInspector", "snapshot_ctx"]
