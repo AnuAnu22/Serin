@@ -26,10 +26,18 @@ DEFAULT_LLM_RESPONSE = "lol yeah that tracks honestly"
 
 
 class CannedLLM:
-    """Scripted async generator — replaces the real llama connector."""
+    """Scripted async generator — replaces the real llama connector.
+
+    Faithfully records the system prompt it would forward to the model (via the
+    SAME ``resolve_system_prompt`` the real ``get_response_natural`` uses), so
+    the ``planner_constraints_survive`` check can assert against what is
+    ACTUALLY sent — not an intermediate ``ctx.system_prompt`` field that a
+    downstream rebuild may discard.
+    """
 
     def __init__(self, response: str = DEFAULT_LLM_RESPONSE) -> None:
         self.response = response
+        self.last_payload_system: str = ""
 
     async def __call__(
         self,
@@ -38,6 +46,13 @@ class CannedLLM:
         context: str = "",
         tone_modifier: str = "",
     ) -> str:
+        from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_3_response_generator import (
+            resolve_system_prompt,
+        )
+        self.last_payload_system = resolve_system_prompt(
+            current_messages=current_messages or [],
+            tone_modifier=tone_modifier,
+        )
         return self.response
 
 
