@@ -208,7 +208,7 @@ class PromptAssemblyStage(PipelineStage):
         except Exception as e:
             logger.debug("Failed to get bot_id for dedup: %s", e)
 
-        filtered_messages = self._filter_history_messages(ctx.recent_messages, bot_id)
+        filtered_messages = self._filter_history_messages(ctx.recent_messages)
         collapsed = self._collapse_duplicates(filtered_messages)
         collapsed = collapsed[-10:]
 
@@ -229,14 +229,21 @@ class PromptAssemblyStage(PipelineStage):
         return messages
 
 # --- Helpers ---
-    def _filter_history_messages(self, recent_messages: list[dict[str, Any]], bot_id: str) -> list[dict[str, Any]]:
+    def _filter_history_messages(self, recent_messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        # NOTE (Cause 2 fix): previously this dropped any message whose
+        # ``role == "assistant"`` and ``author_id == bot_id``. That guard was
+        # both ineffective on real data (production recent_messages rows carry
+        # only ``user_id``/``username``/``content``/``timestamp`` — never
+        # ``role`` or ``author_id``) and wrong in intent: it would hide the
+        # bot's own prior turns from the model, so Serin appeared to forget
+        # what it had just said. We now keep the bot's turns as ordinary
+        # conversational context (they are mapped to the ``assistant`` role by
+        # the caller when the author id matches bot_id). The only filtering
+        # retained is dropping empty content.
         filtered = []
         for msg in recent_messages:
-            role = msg.get("role", "")
             content = msg.get("content", "")
             if not content:
-                continue
-            if role == "assistant" and msg.get("author_id") == bot_id:
                 continue
             filtered.append(msg)
         return filtered
