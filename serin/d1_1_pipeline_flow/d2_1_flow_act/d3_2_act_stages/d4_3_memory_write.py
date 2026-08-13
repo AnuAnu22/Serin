@@ -9,6 +9,7 @@ state updates — all of which were previously done in the old
 """
 from __future__ import annotations
 
+import time
 from datetime import datetime
 from typing import Any
 
@@ -222,6 +223,35 @@ class MemoryWriteStage(PipelineStage):
                     importance=0.1,
                     memory_type="bot_response",
                 )
+
+                # Cause 1 fix: the user's incoming message is persisted to the
+                # SQLite recent_messages table by the ingest path, but the bot's
+                # own reply was only ever written to Qdrant (memory_type=
+                # "bot_response"). That made the table one-sided and hid the
+                # bot's turns from the next turn's context. Mirror the user's
+                # write here so recent_messages carries both sides of the
+                # conversation. No-op when the pipeline halted without a reply
+                # (halt_reason set, final_response empty) — guarded above by the
+                # `if ctx.final_response` check.
+                bot_user_id = "serin"
+                try:
+                    bot_user_id = str(self.client.user.id)
+                except Exception:
+                    logger.debug("pipeline.memory_write_bot_id_fallback")
+                try:
+                    self.memory.store_recent_message(
+                        user_id=bot_user_id,
+                        username="Serin",
+                        channel_id=ctx.channel_id,
+                        content=ctx.final_response,
+                        message_id=f"bot_{int(time.time() * 1000)}",
+                        timestamp=datetime.now(),
+                    )
+                except Exception as e:
+                    logger.warning("pipeline.bot_recent_message_write_failed", extra={
+                        "user": username,
+                        "error": str(e),
+                    })
 
                 logger.debug("pipeline.memory_written", extra={
                     "user": username,
