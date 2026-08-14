@@ -93,7 +93,7 @@ class MessagePipeline:
         return cls(stages=[
             ResponseDecisionStage(dynamics=dynamics, creator_ids=creator_ids, affect_engine=affect_engine),
             MemoryRetrievalStage(memory_system, retrieval),
-            ResponsePlannerStage(),
+            ResponsePlannerStage(personality=personality),
             TemporalStage(temporal_context),
             PersonalityStage(personality, mood_state=mood_state),
             PromptAssemblyStage(mention_translator, memory_system=memory_system, affect_engine=affect_engine),

@@ -104,10 +104,17 @@ in serin/ or tests imports it — the pipeline's retrieval is driven elsewhere.
 
 ### d3_2_bot_personality.py — LIVE
 `BotPersonality(db_path="./bot_data/bot_data.db")` — a SEPARATE SQLite personality DB
-(`bot_preferences` + `bot_opinions` tables) with hardcoded defaults (music/games/food/activities/
-topics with love/like/neutral/dislike/hate + intensity + reason). `get_preference`, `get_opinion`,
-`can_disagree`, `get_personality_context` (renders top loves/likes/dislikes/hates as a natural
-sentence block for the prompt). Used by the act `personality_stage` and ingest `core_manager`.
+(`bot_preferences` + `bot_opinions` tables). `bot_preferences` holds hardcoded defaults
+(music/games/food/activities/topics with love/like/neutral/dislike/hate + intensity + reason).
+`bot_opinions` holds Serin's opinionated *stances* ("upbringing") seeded at init and writable via
+`set_opinion` so opinions evolve (vision: Serin grows). `get_preference`, `get_opinion`,
+`detect_topic_stance`, `can_disagree(topic, user_stance)` (REAL comparison of persistent stances,
+scaled by confidence — not a random roll), `set_opinion`, and `get_personality_context` (renders top
+loves/likes/dislikes/hates AND a few strong opinionated stances as a natural sentence block for the
+prompt). Used by the act `personality_stage` and ingest `core_manager`. `ResponsePlannerStage` (act
+pipeline) also takes the `BotPersonality` instance and consults `detect_topic_stance` + `can_disagree`
+to set a genuine disagree/agree `stance` + binding constraint when the user states a stance on a topic
+Serin holds a confident opinion about — this is the "Serin is not neutral" behavior.
 NOTE: this uses its own `bot_data/bot_data.db` path — separate from the core memory `bot_data.db`.
 
 ### d3_3_conversation_analyzer.py — LIVE
