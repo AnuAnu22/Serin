@@ -11,7 +11,7 @@ but it cannot ignore high-confidence beliefs or direct evidence.
 """
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
 from serin.d1_1_pipeline_flow.d2_1_flow_act.d3_3_stages_base import PipelineStage
 from serin.d1_3_state_core.d2_5_state_conversation.d3_2_message_context import (
@@ -54,7 +54,16 @@ def _detect_user_claim(raw_content: str) -> str:
 
 
 class ResponsePlannerStage(PipelineStage):
-    """Produces a structured decision object from beliefs + facts + intent."""
+    """Produces a structured decision object from beliefs + facts + intent.
+
+    Optionally consults the bot's own opinions (BotPersonality) so Serin is
+    genuinely biased per SERIN_VISION.md: when the user states a stance on a
+    topic the bot holds a confident opinion about, the planner sets a real
+    disagree/agree stance and a binding constraint (not a random roll).
+    """
+
+    def __init__(self, personality: Any = None) -> None:
+        self.personality = personality
 
     async def _run(self, ctx: MessageContext) -> MessageContext:
         logger.debug("pipeline.response_planner_start", extra={
@@ -69,7 +78,7 @@ class ResponsePlannerStage(PipelineStage):
         # ── 2. Determine stance ──────────────────────────────────────────
         stance = "neutral"
         confidence = 0.5
-        constraints = []
+        constraints: list[str] = []
         contradiction_flags = []
         forbidden_moves = []
         allowed_tones = ["natural", "conversational"]
@@ -151,6 +160,36 @@ class ResponsePlannerStage(PipelineStage):
         base_stance = cast(str, strategy["base_stance"])
         if stance == "neutral" and base_stance != "neutral":
             stance = base_stance
+
+        # ── 2b. Consult the bot's own opinions (genuine bias) ─────────────
+        # If the user states a stance on a topic the bot holds a confident
+        # opinion about, let that persistent state drive the stance — not the
+        # intent alone. This is the "Serin is not neutral" behavior.
+        if self.personality is not None and hasattr(self.personality, "detect_topic_stance"):
+            detected: tuple[str, str] | None = self.personality.detect_topic_stance(ctx.raw_content)
+            # Guard against mocks/non-tuple returns so we only handle real
+            # (topic, stance) detections.
+            if detected is not None and isinstance(detected, tuple) and len(detected) == 2:
+                topic, user_stance = detected
+                opinion: dict[str, Any] | None = self.personality.get_opinion(topic)
+                if opinion is not None:
+                    opinion_text: str = str(opinion.get("opinion_text", ""))
+                    should_disagree: bool = self.personality.can_disagree(topic, user_stance)
+                    if should_disagree:
+                        stance = "disagree_gently"
+                        constraints.append(
+                            f"You have a real opinion on {topic.replace('_', ' ')}: "
+                            f"{opinion_text} The user feels differently — you can push back."
+                        )
+                    elif user_stance == str(opinion.get("stance")):
+                        stance = "agree"
+                        constraints.append(
+                            f"You're on the same page as the user about "
+                            f"{topic.replace('_', ' ')}: {opinion_text}"
+                        )
+                    else:
+                        # No direct conflict (e.g. one side neutral) — don't force a stance.
+                        pass
 
         # ── 3. Build response plan ───────────────────────────────────────
         ctx.response_plan = {
