@@ -203,3 +203,12 @@ tmp.txt
 .llama_swap_ready
 .restart.signal
 .openclaude/
+
+# Local scratch / agent / tooling artifacts (not part of the project)
+_arch_progress/
+docs/superpowers/
+.reasonix/
+.tmp_tasks/
+protection.json
+package.json
+package-lock.json
