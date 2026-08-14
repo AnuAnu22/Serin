@@ -195,7 +195,7 @@ These are full, working functions never invoked. Most are in the control panel r
 | File | Variable | Confidence | Severity |
 |---|---|---|---|
 | `d4_1_context_builder.py:43` | `query_time_hint` | 100% | MINOR — unused parameter, should be removed from signature |
-| `d3_2_bot_personality.py:298` | `user_stance` | 100% | **BUG** — param documented but never read in `can_disagree`; method always falls through to random fallback |
+| `d3_2_bot_personality.py:298` | `user_stance` | 100% | **RESOLVED** — `can_disagree(topic, user_stance)` now performs a real directional comparison of persistent stances (scaled by confidence); the old random-fallback path and unused-`user_stance` bug no longer exist. |
 | `d3_3_response_generator.py:80` | `resolved_last_message` | 100% | MINOR — unused parameter |
 | `d3_3_system_listener.py:47` | `reconnect` | 100% | MINOR — param accepted but never used in `connect()` body |
 | `d3_3_system_factory.py:12` | `provider` | 100% | MINOR — unused parameter |
@@ -205,7 +205,7 @@ These are full, working functions never invoked. Most are in the control panel r
 
 **Recommendation Category D:**
 - Remove `query_time_hint` param from `build_context()` if no longer supported.
-- Fix `can_disagree` in `bot_personality.py` — `user_stance` param is documented but ignored; either use it or remove it.
+- ~~Fix `can_disagree` in `bot_personality.py` — `user_stance` param is documented but ignored; either use it or remove it.~~ RESOLVED: `can_disagree` now takes and uses `user_stance` (real stance comparison).
 - Remove `resolved_last_message` param from `get_response_natural()`.
 - Remove `reconnect` param from `VoiceConnector.connect()` if the caller hardcodes `False` (already happening at call site).
 

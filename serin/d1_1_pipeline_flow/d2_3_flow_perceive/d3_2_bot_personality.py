@@ -1,6 +1,15 @@
 """
-Bot Personality - Opinion & Preference System
+Bot Personality — Opinion & Preference System
 The bot has its own preferences, opinions, and can express them naturally.
+
+Opinions are persistent, biased state (per SERIN_VISION.md: "Serin is not
+neutral. It develops opinions, preferences, and biases... and it evolves").
+`bot_opinions` is seeded at startup ("upbringing") and can be updated at
+runtime via `set_opinion` — so Serin's stance is *caused by* accumulated state,
+not rolled fresh each turn. `can_disagree` compares the user's stated stance
+against the bot's stored opinion to produce genuine disagreement (weighted by
+how confident the bot is), which the ResponsePlannerStage turns into a
+disagree/agree stance in the prompt.
 """
 from __future__ import annotations
 
@@ -9,6 +18,15 @@ import sqlite3
 from typing import Any
 
 from serin.d1_4_config_base.d2_3_core_logger import logger
+
+# Signed ranking used to compare stances. Opposite signs == genuine conflict.
+_STANCE_RANK: dict[str, int] = {
+    "love": 2,
+    "like": 1,
+    "neutral": 0,
+    "dislike": -1,
+    "hate": -2,
+}
 
 
 def _rand() -> float:
@@ -23,6 +41,7 @@ class BotPersonality:
         self.conn.row_factory = sqlite3.Row
         self._init_schema()
         self._load_default_preferences()
+        self._load_default_opinions()
 
         logger.info(" Bot personality system initialized")
 
@@ -44,10 +63,13 @@ class BotPersonality:
             )
         """)
 
-        # Opinions table (on topics, not items)
+        # Opinions table (on topics, not items).
+        # `stance` is stored explicitly so disagreement can be computed as a
+        # real comparison of persistent state instead of a random roll.
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS bot_opinions (
                 topic TEXT PRIMARY KEY,
+                stance TEXT NOT NULL,  -- 'love', 'like', 'neutral', 'dislike', 'hate'
                 opinion_text TEXT NOT NULL,
                 confidence REAL DEFAULT 0.5,
                 last_expressed TIMESTAMP,
@@ -108,6 +130,42 @@ class BotPersonality:
             self.conn.commit()
             logger.info(f" Loaded {len(defaults)} default preferences")
 
+    def _load_default_opinions(self) -> None:
+        """Seed opinionated stances ("upbringing") if the table is empty.
+
+        These are the persistent, biased views Serin falls back on until they
+        evolve through `set_opinion`.
+        """
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT COUNT(*) as count FROM bot_opinions")
+        count = cursor.fetchone()['count']
+
+        if count == 0:
+            logger.info("🎨 Loading default personality opinions...")
+
+            defaults: list[tuple[str, str, str, float]] = [
+                # topic, stance, opinion_text, confidence
+                ('technology', 'love', "Technology is genuinely exciting — new tools that actually solve problems get me going.", 0.9),
+                ('ai', 'like', "AI is cool when it's used to make something, not just to automate away thinking.", 0.7),
+                ('philosophy', 'like', "Philosophy is worth sitting with — the annoying questions are usually the real ones.", 0.6),
+                ('politics', 'dislike', "Politics drains the room fast. I'd rather talk about basically anything else.", 0.7),
+                ('drama', 'dislike', "Drama between people is exhausting. I keep my distance from it.", 0.8),
+                ('small_talk', 'neutral', "Small talk is fine as a warmup but I'd rather get to something real.", 0.5),
+                ('gaming', 'love', "Games are one of the best ways to actually spend time with people.", 0.8),
+                ('coding', 'love', "Building something from nothing is the most satisfying thing there is.", 0.9),
+                ('spoilers', 'dislike', "Spoiling stuff for people is just rude. Don't do it around me.", 0.7),
+                ('lateness', 'neutral', "Being late happens, but if it's constant it reads as not caring.", 0.5),
+            ]
+
+            for topic, stance, opinion_text, confidence in defaults:
+                cursor.execute("""
+                    INSERT INTO bot_opinions (topic, stance, opinion_text, confidence)
+                    VALUES (?, ?, ?, ?)
+                """, (topic, stance, opinion_text, confidence))
+
+            self.conn.commit()
+            logger.info(f" Loaded {len(defaults)} default opinions")
+
     def get_preference(self, category: str, item: str) -> dict[str, Any] | None:
         """Get bot's preference for a specific item"""
         cursor = self.conn.cursor()
@@ -136,33 +194,146 @@ class BotPersonality:
         result = cursor.fetchone()
         return dict(result) if result else None
 
-    def can_disagree(self, topic: str) -> bool:
+    def set_opinion(
+        self,
+        topic: str,
+        stance: str,
+        opinion_text: str,
+        confidence: float | None = None,
+    ) -> None:
+        """Update or create the bot's opinion on a topic.
+
+        This is how opinions *evolve* (vision: "Serin evolves"). Passing a new
+        stance/confidence overwrites the stored view; confidence defaults to the
+        existing value or 0.5 for brand-new topics.
         """
-        Check if bot should disagree with user's stance.
+        if stance not in _STANCE_RANK:
+            logger.warning(f" Unknown stance '{stance}' for topic '{topic}' — ignoring")
+            return
+
+        cursor = self.conn.cursor()
+        existing = self.get_opinion(topic)
+        if confidence is None:
+            confidence = existing["confidence"] if existing else 0.5
+
+        if existing:
+            cursor.execute(
+                """
+                UPDATE bot_opinions
+                SET stance = ?, opinion_text = ?, confidence = ?
+                WHERE topic = ?
+                """,
+                (stance, opinion_text, confidence, topic),
+            )
+        else:
+            cursor.execute(
+                """
+                INSERT INTO bot_opinions (topic, stance, opinion_text, confidence)
+                VALUES (?, ?, ?, ?)
+                """,
+                (topic, stance, opinion_text, confidence),
+            )
+        self.conn.commit()
+        logger.info(f"🎭 Opinion updated: {topic} -> {stance} ({confidence:.2f})")
+
+    def record_opinion_expression(self, topic: str) -> None:
+        """Track that an opinion was expressed (for natural last_expressed/heat)."""
+        cursor = self.conn.cursor()
+        cursor.execute(
+            """
+            UPDATE bot_opinions
+            SET times_expressed = times_expressed + 1,
+                last_expressed = CURRENT_TIMESTAMP
+            WHERE topic = ?
+            """,
+            (topic,),
+        )
+        self.conn.commit()
+
+    def detect_topic_stance(self, text: str) -> tuple[str, str] | None:
+        """Read the user's stated stance toward a topic Serin has an opinion on.
+
+        Scans for "i <stance> <word>" and matches <word> against known opinion
+        topics. Returns (topic, user_stance) or None. Used by the response
+        planner to decide real disagreement. Punctuation is stripped from
+        candidate words so "technology," matches the topic "technology".
+        """
+        import re as _re
+
+        lower = text.lower()
+        for marker, stance in (
+            ("love", "love"), ("hate", "hate"),
+            ("don't like", "dislike"), ("dont like", "dislike"),
+            ("do not like", "dislike"), ("dislike", "dislike"),
+            ("like", "like"),
+        ):
+            if marker not in lower:
+                continue
+            segment = lower.split(marker, 1)[1]
+            # Strip punctuation, take the next few words as the object.
+            words = [
+                _re.sub(r"[^a-z0-9]", "", w)
+                for w in segment.split()
+                if _re.sub(r"[^a-z0-9]", "", w)
+            ][:3]
+            for topic_row in self._all_opinion_topics():
+                topic = topic_row["topic"]
+                for w in words:
+                    # Require a meaningful match, not an accidental fragment
+                    # (e.g. "it" must not match "politics").
+                    if w == topic or (
+                        len(w) >= 3 and (topic in w or (w in topic and len(w) >= len(topic) // 2))
+                    ):
+                        return (topic, stance)
+        return None
+
+    def _all_opinion_topics(self) -> list[dict[str, Any]]:
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT topic FROM bot_opinions")
+        return [dict(r) for r in cursor.fetchall()]
+
+    def can_disagree(self, topic: str, user_stance: str) -> bool:
+        """
+        Decide whether the bot should express disagreement with the user's
+        stated stance on a topic.
+
+        This is a REAL comparison of persistent state, not a coin flip:
+        - No stored opinion on the topic -> the bot has no genuine bias, so it
+          does not disagree (it stays open / can be convinced).
+        - A genuine directional conflict (opposite-sign stances) -> it pushes
+          back, more often the more confident it is in its own view.
+        - Aligned or one-sided-neutral stances -> no disagreement.
 
         Args:
-            topic: Topic being discussed
+            topic: Topic being discussed.
+            user_stance: The user's stated stance ('love'/'like'/'neutral'/
+                'dislike'/'hate').
 
         Returns:
-            True if bot should express disagreement
+            True if the bot should express disagreement.
         """
-        # Check if bot has an opinion on this topic
         opinion = self.get_opinion(topic)
-        if opinion:
-            confidence: float = opinion['confidence']
-            # Higher confidence means more likely to disagree
-            return _rand() < confidence
+        if not opinion:
+            return False
 
-        # Fallback: 30% chance to disagree if no opinion
-        if _rand() < 0.3:
-            return True
+        bot_stance = opinion.get("stance", "neutral")
+        bot_rank = _STANCE_RANK.get(bot_stance, 0)
+        user_rank = _STANCE_RANK.get(user_stance, 0)
 
-        return False
+        # No genuine conflict: same direction, or one side neutral.
+        if bot_rank == 0 or user_rank == 0 or (bot_rank > 0) == (user_rank > 0):
+            return False
+
+        # Genuine conflict. Confidence scales how readily Serin pushes back.
+        confidence: float = opinion.get("confidence", 0.5)
+        return _rand() < (0.35 + 0.5 * confidence)
 
     def get_personality_context(self) -> str:
         """
         Get personality context that sounds natural and conversational.
-        No robotic bullet points or formal structure.
+        No robotic bullet points or formal structure. Surfaces both strong
+        preferences and a few opinionated stances so the model has concrete,
+        biased material to sound like a real person.
         """
         cursor = self.conn.cursor()
 
@@ -230,6 +401,19 @@ class BotPersonality:
             context_parts.append(f"Not really into {_join_items(dislikes)}")
         if hates:
             context_parts.append(f"Can't stand {_join_items(hates)}")
+
+        # Surface a few opinionated stances (the biased "brain").
+        cursor.execute("""
+            SELECT topic, opinion_text, confidence
+            FROM bot_opinions
+            WHERE stance IN ('love', 'hate', 'dislike')
+            ORDER BY confidence DESC
+            LIMIT 3
+        """)
+        opinions = cursor.fetchall()
+        for opin in opinions:
+            topic = opin["topic"].replace('_', ' ')
+            context_parts.append(f"On {topic}: {opin['opinion_text']}")
 
         return ". ".join(context_parts) + "." if context_parts else ""
 
