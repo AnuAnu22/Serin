@@ -1,205 +1,324 @@
-# Serin — AI Discord Bot with Voice & Memory
+# Serin — AI Discord Bot with Voice, Memory & Personality
 
-Advanced Discord AI bot featuring real-time voice conversation, Qdrant vector memory, multi-modal LLM support (text, vision, audio), and a Web control panel.
+> *"It's not a bot. It's Serin."*
+
+Serin is an advanced Discord AI companion that processes **text and voice** through a
+10-stage message pipeline, backed by **Qdrant vector memory + SQLite**, a **Bayesian
+belief/evidence system**, an **affect & conversation-dynamics engine**, and an
+OpenAI-compatible LLM backend (llama-swap / vLLM / Ollama / LM Studio / …). Voice transport
+uses a **Rust subprocess** for DAVE-compatible Discord voice decryption + playback, and an
+**optional Rust PyO3 module** (`serin_core`) that accelerates hot loops but degrades
+gracefully to pure Python when absent. A **FastAPI control panel** exposes live pipeline
+telemetry over WebSockets.
+
+See [`docs/SERIN_VISION.md`](docs/SERIN_VISION.md) for the design philosophy.
 
 ## Features
 
-- **Voice Chat** — Real-time speech detection with DAVE-compatible Rust receiver, VAD-based silence detection (configurable threshold), noise burst filtering, Whisper transcription, and Edge-TTS speech synthesis
-- **Memory System** — Qdrant vector database for long-term conversational memory with BM25 + semantic hybrid search, topic fatigue tracking, and temporal context
-- **Multi-Modal** — Vision support (image analysis via smolvlm or similar), direct audio input to Gemma 12B (skip STT, `input_audio` field)
-- **Control Panel** — Web dashboard (Flask on port 8081) for monitoring, configuration, and manual interaction
-- **Hot Reloader** — Auto-detects Python, Rust (serin_core), and Rust voice receiver changes; rebuilds and restarts automatically
-- **Conversation Management** — Enhanced message manager, context builder, natural response generation, thinking filter, correction handler, mention translator
+- **Natural presence, not a command tool** — replies are *caused* by accumulated relational
+  state (familiarity, mood, affect, standing) rather than rolled fresh each turn. Serin decides
+  to reply / react / ignore, and times its responses like a person.
+- **10-stage message pipeline** — Decision → Retrieval → Plan (belief-constrained) → Temporal →
+  Personality → Prompt Assembly → LLM → Cleaning → Send → Memory Write. Each stage is an
+  independently testable unit (see [`docs/SUBSYSTEM_pipeline_act.md`](docs/SUBSYSTEM_pipeline_act.md)).
+- **Voice conversation** — Rust `voice_receiver` subprocess decrypts/decodes Discord Opus to PCM,
+  Python runs VAD + silence detection + noise-burst filtering, Whisper transcribes, and Edge-TTS /
+  Coqui synthesizes the reply played back into the voice channel.
+- **Memory & beliefs** — Qdrant vector store with BM25 + semantic hybrid search, a Bayesian
+  belief/evidence engine (`PENDING → SUPPORTED → CONTESTED → SUPERSEDED`), fact extraction,
+  and a SQLite backing store. Per-user relationships, evidence, and episodic memories.
+- **Multi-modal LLM** — vision inputs (e.g. `smolvlm`) and direct audio input (`input_audio` to
+  Gemma-class models, skipping STT) when the configured model supports them.
+- **Affect & conversation dynamics** — a `ConversationDynamicsEngine` (Boltzmann-style
+  energy model) drives the reply/react/ignore decision and natural typing delays; an
+  `AffectEngine` tracks per-user sentiment over time.
+- **FastAPI control panel** — web dashboard with WebSocket live updates: pipeline stage events,
+  prompt-debug snapshots, personality mood history, and bot state.
+- **Hot reloader** — watches `*.py`, `cargo build`s the voice receiver / `maturin develop`s
+  `serin_core` automatically, and restarts the bot on change.
+- **Lawful architecture** — the codebase is governed by a strict, enforced architecture
+  ([`docs/THE_LAW.md`](docs/THE_LAW.md)): depth-sequence naming, a 5/5 directory horizon,
+  a 500-line ceiling, and a depth-DAG import rule (Rule 5).
 
 ## Quick Start
 
-### Prerequisites
+### Option A — Setup wizard (recommended)
 
-- Python 3.11+
-- Rust toolchain (for building the voice receiver and optional PyO3 module)
-- A Discord bot token with voice intents enabled
-- An OpenAI-compatible LLM endpoint (llama-swap, vLLM, Ollama, etc.)
-- Qdrant vector database (optional for memory features)
-
-### Setup
+`setup.sh` detects your GPU/VRAM/CPU, recommends a model, installs dependencies via `uv`,
+configures your Discord token + LLM settings interactively, and can spin up llama-swap and
+Qdrant via Docker.
 
 ```bash
-# 1. Clone and configure
-git clone <repo-url> Serin
-cd Serin
-cp .env.example .env
-# Edit .env: fill in DISCORD_TOKEN, model URL, etc.
-
-# 2. Create virtualenv and install dependencies
-pip install uv
-uv sync
-# or: pip install -r requirements.txt
-
-# 3. Build the Rust voice receiver (required for voice features)
-cd voice/rust_receiver
-cargo build --release
-cd ../..
-
-# 4. Build the serin_core PyO3 module (optional — Python fallbacks exist)
-cd serin_core
-maturin develop --release
-cd ..
-
-# 5. Start the bot
-uv run -m serin
+cp .env.example .env          # baseline config; the wizard edits it interactively
+bash setup.sh setup           # interactive: deps + Discord token + LLM + Qdrant
+bash setup.sh start           # start configured services (llama-swap + Qdrant)
+uv run python -m serin        # run the bot
 ```
 
-The bot runs directly. For auto-reload during development, use `uv run serin/ops/hot_reloader.py` instead — it watches for file changes and restarts automatically.
+Manage services any time:
+
+```bash
+bash setup.sh status          # service status
+bash setup.sh stop            # stop all services
+bash setup.sh qdrant logs     # tail Qdrant logs
+```
+
+### Option B — Manual setup
+
+```bash
+# 1. Configure
+cp .env.example .env
+# Edit .env: set DISCORD_TOKEN, LLM_BASE_URL, LLM_MODEL, etc.
+
+# 2. Dependencies (uv is required)
+pip install uv
+uv sync                       # installs everything in pyproject.toml
+
+# 3. Rust voice receiver (required for voice features)
+cargo build --release --manifest-path voice/rust_receiver/Cargo.toml
+#   → produces target/release/voice_receiver
+
+# 4. serin_core PyO3 module (optional — Python fallbacks exist)
+cd serin_core && maturin develop --release && cd ..
+
+# 5. Run
+uv run python -m serin
+```
+
+> **Entry points (both canonical):** `uv run python -m serin` runs the bot directly
+> (retry + clean-shutdown). `python discord_bot.py` (repo root) launches it under the
+> hot reloader — a watched subprocess that auto-restarts on code/Rust changes. Use the
+> reloader during development: `uv run python hot_reloader.py`.
+
+### Prerequisites
+
+- **Python 3.11+**
+- **Rust toolchain** (for the voice receiver and the optional `serin_core` module)
+- A **Discord bot token** with the *Message Content* and *Server Members* intents, plus
+  voice intent (Privileged Gateway Intents) enabled
+- An **OpenAI-compatible LLM endpoint** (llama-swap, vLLM, Ollama, LM Studio, SGLang, …)
+- **Qdrant** (optional for memory — Docker-managed via `QDRANT_USE_DOCKER=true`, or bring your own)
 
 ### Environment Variables
 
+Based on [` .env.example`](.env.example). All settings are env-driven (loaded by
+`serin/d1_4_config_base/d2_1_base_config.py` → `BotConfig`).
+
 | Variable | Description |
 |---|---|
-| `DISCORD_TOKEN` | Discord bot token (required) |
-| `LLM_BASE_URL` | llama-swap / OpenAI-compatible API endpoint |
-| `LLM_MODEL` | Model name (e.g. gemma12b) |
-| `QDRANT_HOST` / `QDRANT_PORT` | Qdrant vector database connection |
-| `ENABLE_VOICE` | Voice features (`true`/`false`) |
-| `ENABLE_TTS` | Text-to-speech (`true`/`false`) |
-| `VOICE_RECEIVER_MODE` | `"rust"` (DAVE-compatible) or `"pycord"` |
+| `DISCORD_TOKEN` | Discord bot token (**required**) |
+| `LLM_BASE_URL` | OpenAI-compatible API endpoint (e.g. `http://localhost:8080/v1`) |
+| `LLM_API_KEY` | API key (ignored by most local backends) |
+| `LLM_MODEL` | Model identifier (e.g. `Qwen/Qwen2.5-7B-Instruct`, `gemma12b`) |
+| `LLM_TEMPERATURE` / `LLM_TOP_P` / `LLM_MAX_TOKENS` | Generation parameters |
+| `LLM_ENABLE_THINKING` | Enable reasoning/thinking tokens (`true`/`false`) |
 | `LLM_SUPPORTS_VISION` | Enable vision/image inputs |
-| `LLM_SUPPORTS_AUDIO` | Enable direct audio input to Gemma |
-| `CONTROL_PANEL_PORT` | Web dashboard port (default 8081) |
-| `DEBUG_MODE` | Enable debug logging |
-| `TRACE_MESSAGES` | Trace raw messages |
-| `ALLOWED_CHANNEL_IDS` | Restrict bot to specific channels |
+| `VISION_MODEL` | Vision model (e.g. `smolvlm256m`) |
+| `LLM_SUPPORTS_AUDIO` | Enable direct audio input to the LLM (`true`/`false`) |
+| `QDRANT_HOST` / `QDRANT_PORT` | Qdrant connection (`localhost:6333` default) |
+| `QDRANT_USE_DOCKER` | Auto-manage Qdrant via Docker (`true`/`false`) |
+| `ENABLE_VOICE` / `ENABLE_TTS` | Voice + text-to-speech features |
+| `VOICE_RECEIVER_MODE` | `"rust"` (DAVE-compatible, default) or `"pycord"` |
+| `CREATOR_IDS` | Comma-separated user IDs that always get an instant reply |
+| `ALLOWED_CHANNEL_IDS` | Restrict the bot to specific channel IDs |
+| `CONTROL_PANEL_PORT` | Web dashboard port (default `8081`) |
+| `CONTROL_PANEL_KEY` | Sets panel auth; empty = no auth (dev only) |
+| `DEBUG_MODE` / `TRACE_MESSAGES` / `DEBUG_MEMORY` / `DEBUG_LLM` | Debug logging toggles |
+| `LOG_LEVEL` | `DEBUG`/`INFO`/… |
+| `LOG_FORMAT` | `text` (default) or `json` |
+| `MAINTENANCE_INTERVAL_HOURS` | Periodic maintenance cadence |
 
 ## Architecture
 
-Serin is organized as a message pipeline:
+Serin follows a **layered, dependency-ordered architecture** enforced by
+[`docs/THE_LAW.md`](docs/THE_LAW.md) (Rule 5 — the Depth DAG). A single composition root
+(`serin/d1_1_serin_di.py`) owns all pipeline/state class imports; the
+gateway consumes them through `create_*`/`get_*` factories, so a file may only import from
+strictly shallower depth.
+
+Five numbered layers (`d1_1` … `d1_5`) hold the system in dependency order
+(low-numbered = higher in the graph):
+
+| Layer | Role |
+|---|---|
+| `d1_1_pipeline_flow` | The message lifecycle: ingest → perceive → think → remember → act (the 10-stage DAG + dispatch) |
+| `d1_2_gateway_io` | I/O boundaries: Discord gateway, voice system, STT transcribe |
+| `d1_3_state_core` | Shared state (lowest layer): logger, core memory, model system, voice, conversation state |
+| `d1_4_config_base` | `BotConfig` singleton + debug logging |
+| `d1_5_ops_tooling` | Operational machinery: FastAPI control panel, background processor, hot reloader, passive monitor |
+
+### The 10-stage message pipeline
 
 ```
-Discord Event
-     │
-     ▼
-MessagePipeline (serin/messaging/pipeline.py)
-     │
-     ├── ResponseDecisionStage   — should Serin respond?
-     ├── MemoryRetrievalStage    — fetch relevant memories from Qdrant
-     ├── TemporalStage           — resolve time references
-     ├── PersonalityStage        — inject tone + traits
-     ├── PromptAssemblyStage     — build LLM prompt
-     ├── LLMCallStage            — call the model
-     ├── ResponseCleaningStage   — filter + naturalize response
-     ├── SendStage               — type + send to Discord
-     └── MemoryWriteStage        — store interaction in Qdrant
+Discord Event (on_message)
+      │
+      ▼
+EnhancedMessageManagerV3  ── builds a MessageContext envelope + MessagePipeline
+      │
+      ▼
+┌─────────────────────────── MessagePipeline (10 stages) ───────────────────────────┐
+│  1. ResponseDecisionStage   — reply / react / ignore? (ConversationDynamicsEngine) │
+│  2. MemoryRetrievalStage    — hybrid BM25+vector search from Qdrant               │
+│  3. ResponsePlannerStage    — belief-constrained plan (Bayesian beliefs)           │
+│  4. TemporalStage           — resolve date/time references                         │
+│  5. PersonalityStage        — inject persona + per-relationship tone              │
+│  6. PromptAssemblyStage     — build the full prompt (8 context sections)          │
+│  7. LLMCallStage            — call the model                                      │
+│  8. ResponseCleaningStage   — strip thinking tags, humanize, truncate             │
+│  9. SendStage               — type + send to Discord (natural delay)              │
+│ 10. MemoryWriteStage        — ALWAYS runs: perceive + store + affect feedback     │
+└────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Each stage is independently testable in `serin/messaging/stages/`. Adding behavior = adding one stage.
+Stages broadcast live events to the control panel (WebSocket) as they run. The pipeline
+breaks early when the decision stage sets `halt_reason`, but **`MemoryWriteStage` always runs**
+— so perception, memory, personality, and affect update for *every* message even when Serin
+stays silent.
 
-## Project Structure
+### Project layout (top level)
 
 ```
-├── serin/__main__.py           # Main bot entry point (python -m serin)
-├── pyproject.toml              # Python dependencies
-├── .env.example                # Config template
+Serin/
+├── discord_bot.py            # Root entry → hot reloader (auto-restart)
+├── hot_reloader.py           # Root entry → runs the reloader
+├── pyproject.toml           # Python deps + tool config (ruff/mypy/pyright/…)
+├── setup.sh                 # Unified setup/start/stop/status wizard
+├── .env.example             # Config template
+├── README.md                # This file
 │
-├── serin/                      # Main package
-│   ├── core/                   # Config, logging — imported by everything
-│   │   ├── config.py
-│   │   └── logger.py
-│   ├── memory/                 # Qdrant vector store, BM25 index, hybrid search
-│   │   ├── qdrant.py
-│   │   ├── retrieval.py
-│   │   ├── context.py
-│   │   ├── sync_monitor.py
-│   │   └── temporal.py
-│   ├── messaging/              # Message pipeline — all text response logic
-│   │   ├── pipeline.py         # MessagePipeline: runs 9 stages in order
-│   │   ├── context.py          # MessageContext: data envelope for stages
-│   │   ├── manager.py          # Pre-processing wrapper for backwards compat
-│   │   ├── stages/             # 9 pipeline stage files
-│   │   │   ├── decision.py, memory_retrieval.py, temporal.py,
-│   │   │   ├── personality.py, prompt_assembly.py, llm_call.py,
-│   │   │   ├── response_cleaning.py, send.py, memory_write.py
-│   │   ├── response_generator.py
-│   │   ├── response_controller.py
-│   │   ├── mention_translator.py
-│   │   ├── fillers.py, typos.py
-│   │   ├── correction_handler.py
-│   │   ├── long_message.py, crawler.py
-│   │   └── context_builder.py
-│   ├── personality/            # Personality traits, conversation mood
-│   │   ├── bot_personality.py
-│   │   ├── conversation_analyzer.py
-│   │   └── topic_fatigue.py
-│   ├── utils/                  # Support utilities
-│   │   ├── background.py, passive_monitor.py
-│   │   ├── thinking_filter.py, debug_logger.py
-│   │   └── database_protector.py
-│   └── control_panel/          # Web dashboard (Flask)
-│       ├── server.py
-│       └── routes.py
+├── serin/                   # All source (5 depth-1 layers, d1_1 … d1_5)
+│   ├── d1_1_pipeline_flow/  # ingest, perceive, think, remember, act
+│   ├── d1_2_gateway_io/     # discord (incl. main_entry + initializer), voice, transcribe
+│   ├── d1_3_state_core/     # logger, core memory (Qdrant/SQLite/BM25), model, voice, conversation
+│   ├── d1_4_config_base/    # BotConfig singleton
+│   └── d1_5_ops_tooling/    # control panel (FastAPI), background, hot reloader, monitors
 │
-├── voice/                      # Voice pipeline
-│   ├── bridge.py               # stdin/stdout bridge to Rust binary
-│   ├── processor.py            # VAD, silence detection, burst filter, lock
-│   ├── pipeline.py             # Voice message processing
-│   ├── output.py               # TTS synthesis and queuing
-│   ├── transcriber.py          # Speech-to-text via faster-whisper
-│   ├── listener.py             # Voice connection listener
-│   ├── behavior.py             # Voice behavior rules
-│   ├── tracker.py, decider.py, profiles.py
-│   └── rust_receiver/src/main.rs  # DAVE-compatible Rust voice receiver
-│
-├── models/                     # LLM connectors
-│   ├── factory.py, interface.py, adapter.py
-│   ├── vllm.py, lm_studio.py, sglang.py
-│
-├── serin_core/                 # PyO3 Rust module (optional)
-│   └── src/lib.rs              # FTS, thinking filter, contractions, etc.
-│
-├── tts/                        # Text-to-speech engine
-│   └── tts_engine.py
-│
-├── tests/                      # Test suite (run with pytest)
-│   ├── messaging/stages/       # Pipeline stage unit tests
-│   ├── voice/                  # Voice processor smoke tests
-│   └── memory/                 # Memory system tests
-│
-└── docs/                       # Reference documentation
-    ├── LOGGING.md              # Structured logging convention
-    └── ARCHITECTURE.md         # Detailed architecture reference
+├── serin_core/              # Optional Rust PyO3 accelerator (FTS, thinking filter, contractions)
+├── voice/rust_receiver/     # Rust voice binary (DAVE-compatible) + vendored songbird
+├── control_panel/static/    # Dashboard HTML/JS
+├── tts/                     # Text-to-speech voice assets
+├── scripts/                 # Automation: law checkers, undef-var scanner, deploy helpers
+├── bot_data/                # Runtime data: bot_data.db (SQLite), memory_fts.db (FTS5), Qdrant
+├── tests/                   # pytest suite (mirrors serin/)
+└── docs/                    # Reference documentation (see below)
 ```
+
+The full subsystem map (14 subsystems) and per-file verification live in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); cross-cutting edges (panel observability,
+affect→store, PyO3 seams, voice seam, DI/entry duality) are enumerated in
+[`docs/CONNECTIONS.md`](docs/CONNECTIONS.md).
 
 ## Data Flow
 
-### Text Message
-1. `discord_bot.py:on_message()` receives Discord event
-2. `MessagePipeline.process(ctx)` runs 9 stages in sequence
-3. Response sent to Discord; interaction stored in Qdrant
+### Text message → reply
+1. `discord_bot.on_message` runs the intake funnel (skips own/non-text/DM/empty messages,
+   routes allowed vs passive channels, short-circuits command handlers), then calls
+   `message_manager.process_message`.
+2. `EnhancedMessageManagerV3` builds a `MessageContext` envelope and a fresh `MessagePipeline`
+   (wired with the retrieval/context builder, dynamics engine, and affect engine).
+3. The **10-stage DAG** runs: the decision stage consults the `ConversationDynamicsEngine`
+   (reply/react/ignore) and `AffectEngine`; retrieval searches Qdrant/BM25; the planner writes a
+   belief-constrained plan; personality + temporal context are injected; the prompt is assembled;
+   the LLM is called; output is cleaned; the reply is sent.
+4. **`MemoryWriteStage`** perceives the exchange, stores facts/beliefs/evidence, updates
+   relationships and per-user affect, then writes the reply — for every message, even on halt.
 
-### Voice Message
-1. User speaks → Discord sends encrypted Opus frames
-2. Rust receiver decrypts + decodes to PCM → stdout
-3. `voice/processor.py` reads PCM chunks, runs VAD, buffers speech
-4. After 1.5s of consecutive silence (bursts <0.5s ignored), audio queued
-5. If Gemma (supports `input_audio`), raw PCM sent to LLM directly — skips STT
-6. Otherwise Whisper transcribes to text
-7. LLM generates → Edge-TTS synthesizes → Rust plays in voice channel
-8. Processing lock released on `TTS_DONE` from Rust
+### Voice message → response
+1. Gateway `on_voice_state_update` feeds the `VoiceTracker`.
+2. The Rust `voice_receiver` subprocess decodes Discord voice UDP (via songbird — no second
+   gateway client, avoiding dual-gateway conflict) and streams `AUDIO:{uid}:{len}` PCM lines.
+3. `AudioStreamProcessor` buffers per-user PCM with VAD (RMS-150) under a per-guild lock;
+   `VoiceMemoryPipeline` transcribes (Whisper) and routes to the response path.
+4. The reply is queued to `VoiceOutputManager`, TTS'd (edge-tts→ffmpeg or Coqui), and sent to
+   Rust as `SPEAK:{len}`+WAV; on playback end Rust emits `TTS_DONE`, which releases the Python
+   per-guild lock.
+
+### Control panel
+Routes read live `ConversationDynamicsEngine` state, `PersonalityState` mood history, and the
+`bot_state` dict. `/api/bot/restart` writes a gate-confirmed `.restart.signal` that the hot
+reloader picks up. The `BackgroundProcessor` summarizes message batches via the extractor LLM
+and runs impression/affect batches.
 
 ## Development
 
 ```bash
-# Run tests (excludes integration tests requiring live services)
-pytest tests/ -m "not integration"
+# Install + hooks
+pip install uv && uv sync
+cp scripts/hooks/pre-commit.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
 
-# Build Rust components manually
-cd voice/rust_receiver && cargo build --release
-cd serin_core && maturin develop --release
+# Run non-integration tests (requires no live services)
+uv run pytest tests/ -m "not integration" -q
 
-# Debug voice pipeline
-LOG_LEVEL=DEBUG uv run serin/ops/hot_reloader.py
+# Build Rust components
+cargo build --release --manifest-path voice/rust_receiver/Cargo.toml
+maturin develop            # serin_core (optional accelerator; bot runs without it)
+
+# Debug the voice pipeline
+LOG_LEVEL=DEBUG uv run python hot_reloader.py
 ```
 
-## Troubleshooting
+### Static-analysis & architecture gates (CI)
 
-- **DAVE `opus_decode` errors** — mitigated by lowered VAD threshold (150), always-buffer mode. If persistent, check `vendor/songbird/src/driver/tasks/udp_rx/mod.rs:229-232` for the DAVE `adjusted_tail` fix.
-- **Processing lock stuck** — 30-second safety net auto-releases if TTS_DONE signal isn't received.
-- **Fresh clone issues** — ensure `voice/rust_receiver` and `serin_core` are fully built (steps 3–4 above).
+These must pass clean before merge (see [`AGENTS.md`](AGENTS.md) and
+[`CONTRIBUTING.md`](CONTRIBUTING.md)):
+
+```bash
+uv run ruff check serin/                 # lint + imports + format gate
+uv run mypy serin/                       # strict type checking
+uv run pyright serin/                    # Pyright (LSP) gate
+uv run semgrep --config .semgrep/rules/  # custom patterns (no bare except, no os.environ, …)
+.venv/bin/import-linter lint             # THE_LAW Rule 5 layer boundaries
+uv run bandit -r serin/ -q               # security scan
+uv run detect-secrets scan --baseline .secrets.baseline
+```
+
+`serin_core` uses a Rust dev/CI CLI (`scripts/undef-var-scanner`) exercised by the test suite:
+build it with `cargo build --release --manifest-path scripts/undef-var-scanner/Cargo.toml`.
+
+### THE_LAW (architectural invariants)
+
+Every contribution must comply with [`docs/THE_LAW.md`](docs/THE_LAW.md):
+
+- **5/5 Horizon** — no directory exceeds 5 files + 5 subdirectories.
+- **500-Line Ceiling** — no `.py` file exceeds 500 lines (a file becomes a folder at 501).
+- **Depth-Sequence Naming** — `d{depth}_{seq}_{word}_{word}.py` (the name *is* the address).
+- **Import DAG (Rule 5)** — a file may only import from strictly shallower depth digits.
+- **Required Sections** — every file has Imports / Types / Constants / Entry / Core / Helpers / Errors.
+
+Validate locally:
+
+```bash
+uv run python scripts/law/check_structure.py
+uv run python scripts/law/check_imports.py
+```
+
+## Documentation
+
+| Doc | What it covers |
+|---|---|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Living, per-file architecture map (14 subsystems) |
+| [`docs/CONNECTIONS.md`](docs/CONNECTIONS.md) | Cross-subsystem edge list + shared state |
+| [`docs/THE_LAW.md`](docs/THE_LAW.md) | The enforced architectural law |
+| [`docs/SERIN_VISION.md`](docs/SERIN_VISION.md) | Design philosophy & prime directive |
+| [`docs/ENGINEERING_STANDARDS.md`](docs/ENGINEERING_STANDARDS.md) | Code-organization standards |
+| [`docs/CODING_GUIDELINES.md`](docs/CODING_GUIDELINES.md) | Behavior guidelines |
+| [`docs/start_guide.md`](docs/start_guide.md) | Setup/service walkthrough |
+| `docs/SUBSYSTEM_*.md` | One deep doc per subsystem (act, ingest, remember, think, gateway_*, rust_accel, tests, …) |
+| [`docs/troubleshooting_guide.md`](docs/troubleshooting_guide.md) | Qdrant / memory / integration troubleshooting |
+| [`docs/deployment_checklist.md`](docs/deployment_checklist.md) | Deployment checklist |
+| [`SECURITY.md`](SECURITY.md) | Security policy |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Contribution workflow |
+
+## Contributing
+
+1. Fork & clone, install deps with `uv sync`, install the pre-commit hook.
+2. Branch: `git checkout -b feat/my-feature`.
+3. Make changes following THE_LAW; run `pytest` + the structure/import/lint gates locally.
+4. Commit with conventional prefixes (`feat:`, `fix:`, `refactor:`, `docs:` …).
+5. Push and open a PR; CI gates + a code-owner approval are required.
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for full details.
+
+## License
+
+See repository license file.
