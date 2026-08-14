@@ -2,6 +2,10 @@
 
 > *"It's not a bot. It's Serin."*
 
+[![CI](https://github.com/AnuAnu22/Serin/actions/workflows/test.yml/badge.svg)](https://github.com/AnuAnu22/Serin/actions/workflows/test.yml)
+[![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org)
+[![Rust](https://img.shields.io/badge/rust-required-F74C00?logo=rust&logoColor=white)](https://www.rust-lang.org)
+
 Serin is an advanced Discord AI companion that processes **text and voice** through a
 10-stage message pipeline, backed by **Qdrant vector memory + SQLite**, a **Bayesian
 belief/evidence system**, an **affect & conversation-dynamics engine**, and an
@@ -11,7 +15,38 @@ uses a **Rust subprocess** for DAVE-compatible Discord voice decryption + playba
 gracefully to pure Python when absent. A **FastAPI control panel** exposes live pipeline
 telemetry over WebSockets.
 
-See [`docs/SERIN_VISION.md`](docs/SERIN_VISION.md) for the design philosophy.
+See [`docs/SERIN_VISION.md`](docs/SERIN_VISION.md) for the full design philosophy.
+
+## Why Serin is different
+
+Most Discord bots are command-line tools wearing a costume: they reply instantly, to
+everything, with no memory of who you are. Serin is built around the opposite bet — that a bot
+earns its place in a community the same way a person does, through *accumulated, persistent
+state* rather than a fresh performance each turn.
+
+- **Causality, not performance.** Serin's warmth, bias, and silences are *downstream of real
+  history with you* — not rolled from a die or pasted in by a prompt. Push on it and the state
+  holds.
+- **It decides, like a person.** Reply, react, or stay quiet — chosen by a
+  conversation-dynamics engine, not a keyword trigger. And it never replies *instantly* unless
+  a human would.
+- **Relationships that drift.** Familiarity, mood, and affect change how it talks to you over
+  weeks, not within a single message. It forms opinions and can grow to like — or dislike — you.
+- **Imperfect, human memory.** It remembers fuzzily — emotional impressions and key facts, not
+  database dumps — and forgets the way people do.
+- **The "BOT" tag stops mattering.** Serin never denies what it is, but the tag shouldn't be the
+  reason it feels present. That's the whole goal.
+
+## Table of Contents
+
+- [Features](#features)
+- [Quick Start](#quick-start)
+  - [See it come alive (2 minutes)](#see-it-come-alive-2-minutes)
+- [Architecture](#architecture)
+- [Data Flow](#data-flow)
+- [Development](#development)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
 
 ## Features
 
@@ -89,6 +124,23 @@ uv run python -m serin
 > (retry + clean-shutdown). `python discord_bot.py` (repo root) launches it under the
 > hot reloader — a watched subprocess that auto-restarts on code/Rust changes. Use the
 > reloader during development: `uv run python hot_reloader.py`.
+
+### See it come alive (2 minutes)
+
+Once the bot is running in a channel (text is enough — voice is optional):
+
+1. **Talk to it like a person.** Say something, or `@mention` it. Watch it *not* always reply
+   instantly — it decides whether to respond, react, or stay quiet, and paces itself like a
+   human.
+2. **Open the control panel** at `http://localhost:8081` (port set by `CONTROL_PANEL_PORT`).
+   It streams the pipeline **live**: every stage the message flows through, the prompt snapshot,
+   personality mood, and bot state — over WebSockets.
+3. **Build a relationship.** Mention it over a few sessions and watch familiarity, mood, and
+   affect shift how it talks to you. Ask it what it thinks of someone and see the standing
+   (friend / stranger / enemy) surface in its voice.
+
+That feedback loop — *state in, behavior out* — is the whole point, and it's visible the moment
+the panel lights up.
 
 ### Prerequisites
 
