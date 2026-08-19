@@ -106,15 +106,16 @@ class ResponsePlannerStage(PipelineStage):
                     is_agreement = any(w in claim_lower for w in ["agree", "right", "yes", "correct"])
 
                     if belief_lower and claim_lower:
-                        contradiction_flags.append({
-                            "belie": content,
-                            "user_says": user_claim,
-                            "confidence": conf,
-                            "state": state,
-                        })
-
                         if is_negation and not is_agreement:
-                            # User is contradicting a strong belief
+                            # User is contradicting a strong belief — the ONLY
+                            # case that is a genuine contradiction (M3: an
+                            # agreement used to be flagged as one).
+                            contradiction_flags.append({
+                                "belie": content,
+                                "user_says": user_claim,
+                                "confidence": conf,
+                                "state": state,
+                            })
                             base_stance_val = cast(str, strategy["base_stance"])
                             stance = "disagree_firmly" if base_stance_val in (
                                 "disagree_gently", "disagree_firmly"
@@ -134,10 +135,22 @@ class ResponsePlannerStage(PipelineStage):
                                 f"You believe {content}. The user's "
                                 f"statement '{user_claim}' is noted."
                             )
+                else:
+                    # No user claim on this belief — flag defaults so the
+                    # "not constraints" branch below never touches an
+                    # unbound name.
+                    is_agreement = False
+                    is_negation = False
 
                 if not constraints:
+                    # A strong belief still constrains the reply...
                     constraints.append(f"You believe {content}.")
-                    stance = "agree"
+                    # ...but M4: it must NOT stamp stance="agree" on its own —
+                    # agreement is caused by the user actually agreeing, never
+                    # by the absence of a claim. Without one, the stance stays
+                    # whatever the intent strategy already chose.
+                    if is_agreement:
+                        stance = "agree"
 
             elif state == "CONTESTED":
                 constraints.append(

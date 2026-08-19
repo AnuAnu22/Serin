@@ -13,7 +13,6 @@ disagree/agree stance in the prompt.
 """
 from __future__ import annotations
 
-import secrets
 import sqlite3
 from typing import Any
 
@@ -27,10 +26,6 @@ _STANCE_RANK: dict[str, int] = {
     "dislike": -1,
     "hate": -2,
 }
-
-
-def _rand() -> float:
-    return secrets.randbelow(10_000_000) / 10_000_000
 
 
 class BotPersonality:
@@ -178,14 +173,22 @@ class BotPersonality:
         return dict(result) if result else None
 
     def _express_unknown(self, item: str) -> str:
-        """Express that bot doesn't have a formed opinion"""
+        """Express that bot doesn't have a formed opinion.
+
+        Deterministic variety (vision: causality, not performance): the same
+        topic always gets the same honest phrasing, derived from the topic
+        itself — no die roll. Note: the builtin hash() is process-randomized
+        in CPython, so a stable character-sum is used so the choice is
+        reproducible across restarts.
+        """
         expressions = [
             f"haven't really thought about {item}",
             f"don't know much about {item}",
             f"no strong feelings on {item}",
             f"never really got into {item}"
         ]
-        return secrets.choice(expressions)
+        stable_index = sum(ord(c) for c in item) % len(expressions)
+        return expressions[stable_index]
 
     def get_opinion(self, topic: str) -> dict[str, Any] | None:
         """Get bot's opinion on a topic"""
@@ -253,38 +256,69 @@ class BotPersonality:
     def detect_topic_stance(self, text: str) -> tuple[str, str] | None:
         """Read the user's stated stance toward a topic Serin has an opinion on.
 
-        Scans for "i <stance> <word>" and matches <word> against known opinion
-        topics. Returns (topic, user_stance) or None. Used by the response
-        planner to decide real disagreement. Punctuation is stripped from
-        candidate words so "technology," matches the topic "technology".
+        Scans stance markers in TRUE textual order (the earliest marker in the
+        message wins, not the first in a hardcoded list), matches the object
+        against known opinion topics, and resolves pronouns ("it"/"that") to the
+        most recently mentioned topic. Returns (topic, user_stance) or None.
+        Used by the response planner to decide real disagreement.
         """
         import re as _re
 
         lower = text.lower()
-        for marker, stance in (
-            ("love", "love"), ("hate", "hate"),
-            ("don't like", "dislike"), ("dont like", "dislike"),
-            ("do not like", "dislike"), ("dislike", "dislike"),
+        markers: tuple[tuple[str, str], ...] = (
+            ("love", "love"),
+            ("hate", "hate"),
+            ("don't like", "dislike"),
+            ("dont like", "dislike"),
+            ("do not like", "dislike"),
+            ("dislike", "dislike"),
             ("like", "like"),
-        ):
-            if marker not in lower:
-                continue
-            segment = lower.split(marker, 1)[1]
-            # Strip punctuation, take the next few words as the object.
-            words = [
-                _re.sub(r"[^a-z0-9]", "", w)
-                for w in segment.split()
-                if _re.sub(r"[^a-z0-9]", "", w)
-            ][:3]
-            for topic_row in self._all_opinion_topics():
+        )
+
+        # Collect every marker occurrence, then pick the EARLIEST in the text —
+        # "i like gaming but hate politics" must read as like-gaming, not
+        # hate-politics (marker list order used to beat textual order: M2).
+        hits: list[tuple[int, str, str]] = []
+        for marker, stance in markers:
+            idx = lower.find(marker)
+            if idx != -1:
+                hits.append((idx, marker, stance))
+        if not hits:
+            return None
+        hits.sort(key=lambda h: h[0])
+        marker_start, marker, stance = hits[0]
+
+        segment = lower.split(marker, 1)[1]
+        words = [
+            _re.sub(r"[^a-z0-9]", "", w)
+            for w in segment.split()
+            if _re.sub(r"[^a-z0-9]", "", w)
+        ][:3]
+        topics = self._all_opinion_topics()
+
+        for w in words:
+            for topic_row in topics:
                 topic = topic_row["topic"]
-                for w in words:
-                    # Require a meaningful match, not an accidental fragment
-                    # (e.g. "it" must not match "politics").
-                    if w == topic or (
-                        len(w) >= 3 and (topic in w or (w in topic and len(w) >= len(topic) // 2))
-                    ):
-                        return (topic, stance)
+                if w == topic or (
+                    len(w) >= 3 and (topic in w or (w in topic and len(w) >= len(topic) // 2))
+                ):
+                    return (topic, stance)
+
+        # Referent resolution: a pronoun after the marker ("gaming is the best,
+        # i love it") refers to the most recently mentioned known topic BEFORE it.
+        if any(w in ("it", "that", "this", "them") for w in words):
+            prefix = lower[:marker_start]
+            best_pos = -1
+            best_topic: str | None = None
+            for topic_row in topics:
+                topic = topic_row["topic"]
+                pos = prefix.rfind(topic)
+                if pos > best_pos:
+                    best_pos = pos
+                    best_topic = topic
+            if best_topic is not None:
+                return (best_topic, stance)
+
         return None
 
     def _all_opinion_topics(self) -> list[dict[str, Any]]:
@@ -324,9 +358,13 @@ class BotPersonality:
         if bot_rank == 0 or user_rank == 0 or (bot_rank > 0) == (user_rank > 0):
             return False
 
-        # Genuine conflict. Confidence scales how readily Serin pushes back.
-        confidence: float = opinion.get("confidence", 0.5)
-        return _rand() < (0.35 + 0.5 * confidence)
+        # Genuine conflict -> deterministic disagreement. Disagreement is
+        # CAUSED by the stored stance comparison (vision: causality, not
+        # performance) — it was previously a confidence-scaled coin flip
+        # (_rand()), a die roll that could push back at random even with full
+        # confidence. Confidence now scales HOW the planner phrases the pushback
+        # (see ResponsePlannerStage), not whether it happens.
+        return True
 
     def get_personality_context(self) -> str:
         """
