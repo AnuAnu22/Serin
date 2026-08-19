@@ -111,14 +111,16 @@ wired by the gateway: `d1_2_gateway_io/d2_1_io_discord/d3_1_pipeline_init/d4_1_p
 ## Cross-language seams (graphify is BLIND to all three Rust crates)
 
 ### D. Python → Rust PyO3 (serin_core) — OPTIONAL accelerator, never required
-`serin_core` (a PyO3 `#[pymodule]`) is imported at exactly **4 live sites**, every one try/except-guarded
+`serin_core` (a PyO3 `#[pymodule]`) is imported at exactly **3 live sites**, every one try/except-guarded
 with a pure-Python fallback — the bot's text correctness does not depend on Rust:
 - `d1_1_pipeline_flow/d2_4_flow_remember/d3_1_remember_core/d4_1_core_storage/d5_1_search_store.py:168` → `rerank_candidates` (fallback `_rerank_results_simple`)
-- `d1_1_pipeline_flow/d2_5_flow_think/d3_3_response_generator.py:352-354` → `apply_contractions` (fallback Python regex)
 - `d1_3_state_core/d2_3_model_system/d3_5_model_helpers/d6_1_thinking_filter.py:70` → `filter_thinking` (via `importlib`, fallback `strip_special_tokens`) — **note: in d1_3, not d1_1**
 - `d1_3_state_core/d2_2_core_memory/d3_5_memory_helpers/d6_1_bm25_index.py:46` → `sanitize_fts_query` (fallback Python loop) — **note: in d1_3, not d1_1**
-**5 exported functions have NO live importer** (evans-peeled dead Rust or reserved): `validate_json_fast`,
-`compute_text_similarity`, `extract_mentions`, `tokenize_words`, `sanitize_markdown`.
+**`apply_contractions` lost its only importer 2026-08-18**: it was called solely inside
+`response_generator.apply_natural_variations()`, which was deleted with the RNG humanizer — it is now
+dead Rust (see `docs/SERIN_VISION.md` § Operational Definitions row 1).
+**6 exported functions have NO live importer** (evans-peeled dead Rust or reserved): `validate_json_fast`,
+`compute_text_similarity`, `extract_mentions`, `tokenize_words`, `sanitize_markdown`, `apply_contractions`.
 Build bridge: `d1_5_ops_tooling/d2_3_hot_reloader.py` runs `maturin develop` on `serin_core/src/lib.rs` change.
 The 13 thinking-filter regexes document newer model tokens (`BEGIN_THINKING`, `|begin▁of▁thinking|`)
 absent from the dated Python prose.
