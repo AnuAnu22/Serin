@@ -26,19 +26,18 @@ def test_opinions_seeded_on_init(tmp_path) -> None:
     assert p._all_opinion_topics()
 
 
-def test_can_disagree_is_real_not_random(tmp_path) -> None:
+def test_can_disagree_is_deterministic_state_comparison(tmp_path) -> None:
     p = _make_personality(tmp_path)
-    # The bot loves technology (confident). A user who hates it is a real conflict.
-    # Over many draws this should be True far more than a coin flip, and a
-    # neutral/aligned stance should essentially never trigger disagreement.
-    disagrees = sum(1 for _ in range(200) if p.can_disagree("technology", "hate"))
-    assert disagrees > 120  # confident love vs hate -> usually pushes back
+    # The bot loves technology (confident). A user who hates it is a real
+    # directional conflict -> disagreement is CAUSED by the state comparison,
+    # so it must hold on EVERY call (no die roll, no confidence-scaled chance).
+    assert p.can_disagree("technology", "hate") is True
+    assert p.can_disagree("technology", "dislike") is True
 
-    aligned = sum(1 for _ in range(200) if p.can_disagree("technology", "love"))
-    assert aligned == 0  # same stance -> never "disagrees"
-
-    neutral = sum(1 for _ in range(200) if p.can_disagree("technology", "neutral"))
-    assert neutral == 0  # bot has a stance, user neutral -> no conflict
+    # Aligned or one-sided-neutral stances never trigger disagreement.
+    assert p.can_disagree("technology", "love") is False
+    assert p.can_disagree("technology", "like") is False
+    assert p.can_disagree("technology", "neutral") is False
 
 
 def test_can_disagree_unknown_topic_is_open(tmp_path) -> None:

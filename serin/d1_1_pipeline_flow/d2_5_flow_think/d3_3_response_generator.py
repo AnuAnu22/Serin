@@ -10,10 +10,6 @@ import re
 import secrets
 from typing import TYPE_CHECKING, Any, cast
 
-from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_1_think_personality.d4_1_personality_humanization import (
-    add_conversational_fillers,
-    add_realistic_typos,
-)
 from serin.d1_3_state_core.d2_3_model_system.d3_3_system_factory import (
     get_model_connector,
 )
@@ -27,9 +23,6 @@ from serin.d1_4_config_base.d2_3_core_logger import logger
 if TYPE_CHECKING:
     import discord
 
-
-def _rand() -> float:
-    return secrets.randbelow(10_000_000) / 10_000_000
 
 # Global instance (single connector)
 llama: ModelInterface | None = None
@@ -105,11 +98,14 @@ def resolve_system_prompt(
             if msg.get("role") == "system":
                 system_prompt = str(msg.get("content", ""))
                 if tone_modifier:
-                    system_prompt += f"\n\nCurrent mood: {tone_modifier}"
+                    # State-caused mood line, phrased as Serin's current state
+                    # (never a "Current mood:" directive — the model should
+                    # inhabit the state, not obey a mood label).
+                    system_prompt += f"\n\n{tone_modifier}"
                 return system_prompt
     system_prompt = build_natural_system_prompt()
     if tone_modifier:
-        system_prompt += f"\n\nCurrent mood: {tone_modifier}"
+        system_prompt += f"\n\n{tone_modifier}"
     return system_prompt
 
 
@@ -129,9 +125,8 @@ async def get_response_natural(
 
     if llama is None or not llama.is_connected:
         return secrets.choice([
-            "brain.exe stopped working",
-            "uh what",
-            "lost my train of thought"
+            "uh, I completely lost my train of thought there",
+            "huh, that went somewhere else in my head - give me a sec",
         ])
 
     try:
@@ -257,22 +252,22 @@ async def get_response_natural(
         # Clean response
         cleaned = clean_response(response_text)
 
-        if not is_instruction:
-            cleaned = apply_natural_variations(cleaned, tone_modifier)
-            # Add fillers/typos
-            cleaned = add_conversational_fillers(cleaned, personality_state, message_complexity)
-            cleaned = add_realistic_typos(cleaned, personality_state, False)
-
+        # Gain-of-function note: post-hoc RNG "humanization" (fillers/typos/
+        # case-dropping) was removed — rolled dice are a performance of
+        # imperfection, violating the vision's causality-not-performance rule.
+        # Imperfection is now downstream of real state (energy/fatigue), which
+        # the state-driven tone guidance in the persona already shapes.
         return cleaned
 
     except Exception as e:
         logger.exception(f" Generation error: {e}")
 
-        # Fallback
+        # Fallback: a confused-human line, not a scripted "bot broke" tell
+        # (the vision's resilience rule — react like a person drawing a blank).
         return secrets.choice([
-            "brain.exe stopped working",
-            "uh what",
-            "lost my train of thought"
+            "uh, I completely lost my train of thought there",
+            "huh, that went somewhere else in my head - give me a sec",
+            "my brain just did a full reset, what were we talking about",
         ])
 
 def build_natural_system_prompt() -> str:
@@ -319,8 +314,15 @@ Special behaviors:
 To mention someone, use: @Username"""
 
 
+# Single source of truth for post-LLM text cleanup (critique §5: the two
+# cleaning paths duplicated logic with different caps — 400 in the generator vs
+# 2000 in ResponseCleaningStage — and could disagree on truncation). Discord's
+# hard message limit is the only REAL guardrail, so one constant serves both.
+MAX_RESPONSE_LENGTH = 2000
+
+
 def clean_response(response: str) -> str:
-    """Clean up model response"""
+    """Clean up model response (canonical post-LLM cleaner)."""
     try:
         if not response:
             return ""
@@ -348,16 +350,16 @@ def clean_response(response: str) -> str:
         cleaned = re.sub(r"\n\s*\n\s*\n+", "\n\n", cleaned)
         cleaned = re.sub(r" +", " ", cleaned)
 
-        # Truncate to realistic Discord message length
-        if len(cleaned) > 400:
-            # Find natural break point
-            truncated = cleaned[:400]
+        # Truncate to Discord's hard message limit (single guardrail; the
+        # "short messages" voice is the model's job via the prompt, not a cap).
+        if len(cleaned) > MAX_RESPONSE_LENGTH:
+            truncated = cleaned[:MAX_RESPONSE_LENGTH]
             last_period = truncated.rfind(".")
             last_newline = truncated.rfind("\n")
 
-            if last_period > 250:
+            if last_period > MAX_RESPONSE_LENGTH // 2:
                 cleaned = cleaned[:last_period + 1]
-            elif last_newline > 250:
+            elif last_newline > MAX_RESPONSE_LENGTH // 2:
                 cleaned = cleaned[:last_newline]
             else:
                 cleaned = truncated.rstrip() + "..."
@@ -368,65 +370,6 @@ def clean_response(response: str) -> str:
         logger.error(f" Error cleaning response: {e}")
         return response.strip() if response else ""
 
-def apply_natural_variations(text: str, tone_modifier: str | None = None) -> str:
-    """
-    Apply natural language variations to make text feel more human.
-    - Sometimes lowercase
-    - Drop punctuation occasionally
-    - Add casual contractions
-    """
-    # 30% chance to make first letter lowercase (casual)
-    if _rand() < 0.3 and len(text) > 0:
-        text = text[0].lower() + text[1:]
-
-    # 20% chance to drop final period (casual)
-    if text.endswith('.') and _rand() < 0.2:
-        text = text[:-1]
-
-    # Add contractions if not already present
-    try:
-        import serin_core
-        if hasattr(serin_core, 'apply_contractions'):
-            text = serin_core.apply_contractions(text)
-        else:
-            raise ImportError
-    except ImportError:
-        contractions = {
-            ' do not ': " dont ",
-            ' cannot ': " cant ",
-            ' will not ': " wont ",
-            ' should not ': " shouldnt ",
-            ' would not ': " wouldnt ",
-            ' is not ': " isnt ",
-            ' are not ': " arent ",
-            ' have not ': " havent ",
-            ' has not ': " hasnt ",
-            ' did not ': " didnt ",
-            ' I am ': " Im ",
-            ' you are ': " youre ",
-            ' it is ': " its ",
-            ' that is ': " thats ",
-            ' what is ': " whats ",
-        }
-        contraction_pattern = re.compile(
-            r'\b(' + '|'.join(re.escape(k.strip()) for k in contractions) + r')\b',
-            re.IGNORECASE
-        )
-        contraction_lookup = {k.strip().lower(): v.strip() for k, v in contractions.items()}
-        text = contraction_pattern.sub(lambda m: contraction_lookup[m.group(0).lower()], text)
-
-    # 10% chance to add "lol" or "haha" if tone is casual/energetic
-    if tone_modifier and ('energetic' in tone_modifier.lower() or 'witty' in tone_modifier.lower()):
-        if _rand() < 0.1:
-            casual_additions = ['lol', 'haha', 'lmao']
-            addition = secrets.choice(casual_additions)
-            # Add at end
-            if text.endswith('.'):
-                text = text[:-1] + f' {addition}.'
-            else:
-                text = text + f' {addition}'
-
-    return text
 def build_instruction_system_prompt() -> str:
     """
     Build a strict system prompt for when Rin gives instructions.

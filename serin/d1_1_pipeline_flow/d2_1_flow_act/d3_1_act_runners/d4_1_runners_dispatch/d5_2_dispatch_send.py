@@ -37,9 +37,14 @@ class SendStage(PipelineStage):
             ctx.metadata["message_sent"] = False
             return ctx
 
+        # Absolute floor: Serin never replies *literally* instantly, even for
+        # the creator override (vision: "It never replies instantly (unless a
+        # human would)"). The dev loop still gets a near-instant reply.
+        min_send_delay = 0.4
+
         if ctx.metadata.get("instant_reply"):
             # Creator override — the dev is testing live, skip the Hawkes delay.
-            delay = 0.0
+            delay = min_send_delay
         elif self.dynamics:
             delay = self.dynamics.sample_delay(ctx.channel_id)
         else:
