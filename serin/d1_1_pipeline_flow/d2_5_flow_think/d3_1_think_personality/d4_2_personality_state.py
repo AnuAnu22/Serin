@@ -374,27 +374,58 @@ class PersonalityState:
 
     @staticmethod
     def _build_tone_modifier(energy_level: float, sass_level: float, engagement: float) -> str:
-        """Build tone-guidance string from a mood triple."""
-        modifiers: list[str] = []
+        """Build a continuous, state-caused tone line from the mood triple.
 
-        if energy_level > 0.65:
-            modifiers.append("Be energetic and punchy")
-        elif energy_level < 0.35:
-            modifiers.append("Be chill and low-energy")
+        Vision-driven change (2026-08-18): the previous version was a set of
+        threshold cliffs (>0.65 / <0.35) with a silent dead middle band, phrased
+        as instructions to the model ("Be energetic and punchy") — exactly the
+        "describe the desired mood in the prompt and hope the model complies"
+        pattern the vision rejects. This version:
+          - maps the WHOLE range with graduated bands (no cliffs, no dead zone),
+          - phrases the result as Serin's current state, not as a directive,
+          - still returns a stable string so per-user moods compare differently
+            and a fresh user equals the global default.
+        """
+        parts: list[str] = []
 
-        if sass_level > 0.65:
-            modifiers.append("You can be sarcastic, witty, and a little mean")
-        elif sass_level < 0.35:
-            modifiers.append("Be straightforward and genuine")
+        if energy_level >= 0.80:
+            parts.append("running hot and quick")
+        elif energy_level >= 0.62:
+            parts.append("pretty energized")
+        elif energy_level >= 0.50:
+            parts.append("at a normal sort of energy")
+        elif energy_level >= 0.38:
+            parts.append("a bit low on energy")
+        elif energy_level >= 0.20:
+            parts.append("running on fumes")
+        else:
+            parts.append("completely drained")
 
-        if engagement > 0.65:
-            modifiers.append("Show real interest and ask follow-ups")
-        elif engagement < 0.35:
-            modifiers.append("Keep it short, don't drag the conversation")
+        if sass_level >= 0.80:
+            parts.append("sassier than usual")
+        elif sass_level >= 0.62:
+            parts.append("dry and a little witty")
+        elif sass_level >= 0.38:
+            parts.append("fairly straightforward")
+        elif sass_level >= 0.20:
+            parts.append("quieter and more careful")
+        else:
+            parts.append("totally deadpan")
 
-        if modifiers:
-            return ". ".join(modifiers) + "."
+        if engagement >= 0.80:
+            parts.append("fully hooked on the conversation")
+        elif engagement >= 0.62:
+            parts.append("engaged and following along")
+        elif engagement >= 0.50:
+            parts.append("paying normal attention")
+        elif engagement >= 0.38:
+            parts.append("only half-listening")
+        elif engagement >= 0.20:
+            parts.append("distracted and drifting")
+        else:
+            parts.append("mentally elsewhere")
+
+        return "Right now you're " + ", ".join(parts) + "."
 
         return "Be natural and a little playful."
-
 
