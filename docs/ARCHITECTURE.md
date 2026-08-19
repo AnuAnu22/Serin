@@ -40,7 +40,7 @@ Both terminate in `main()` in `d4_1_main_entry.py` (note: `main_entry` lives in 
 | `serin/d1_3_state_core/` | Shared state, LOWEST layer: `d2_1_logger`, `d2_2_core_memory` (QdrantMemorySystem, belief/evidence stores, **BM25 index + PyO3 seam**), `d2_3_model_system` (LLM connector/adapter/factory, **thinking_filter + PyO3 seam**), `d2_4_core_voice` (VoiceTracker, voice_profiles canonical, MentionTranslator-DEAD), `d2_5_state_conversation` (MessageContext envelope, ConversationDynamicsEngine, AffectEngine). |
 | `serin/d1_4_config_base/` | `BotConfig` singleton, `RUST_VOICE_RECEIVER_PATH` (**DEAD+STALE** — see CONNECTIONS J). |
 | `serin/d1_5_ops_tooling/` | Control panel + background: `d2_1_control_panel` (LIVE `d3_2_panel_server/`; DEAD `d3_1_panel_panels/` + `d3_4_panel_routes.py`), `d2_2_tooling_background` (BackgroundProcessor), `d2_3_hot_reloader`, `d2_4_passive_monitor`, `d2_5_voice_manager`. |
-| `serin_core/` | Rust PyO3 module — `sanitize_fts_query`, `apply_contractions`, `filter_thinking`, `rerank_candidates` + 5 unused exports. **Optional accelerator.** |
+| `serin_core/` | Rust PyO3 module — `sanitize_fts_query`, `filter_thinking`, `rerank_candidates` + 6 unused exports (`apply_contractions` lost its only importer 2026-08-18 with the RNG humanizer). **Optional accelerator.** |
 | `voice/rust_receiver/` | Rust voice binary (`voice_receiver` + `minimal_test`), vendored songbird 0.6.0 with one patch. **Required for voice.** |
 | `scripts/undef-var-scanner/` | Rust dev/CI CLI — the only `{var}`-in-string detector; consumed by the test suite. |
 | `control_panel/static/` | HTML/JS for dashboard UI. |
@@ -94,8 +94,10 @@ This is the Phase-4 "how it actually works end-to-end" walkthrough. Edge letters
    **PersonalityStage** reads `PersonalityState`; **PromptAssemblyStage** builds the full prompt and —
    **edge A** — calls `store_prompt_debug` into the panel's `_prompt_history` buffer.
 6. **LLMCallStage** calls the configured model and — **edge A** — `update_last_prompt_debug` with
-   `(raw_response, latency_ms)`; the thinking filter (`filter_thinking`, edge D) and contractions
-   (`apply_contractions`, edge D) clean the output in **ResponseCleaningStage**.
+   `(raw_response, latency_ms)`; the thinking filter (`filter_thinking`, edge D) strips thinking
+   tags and basic cleanup (special tokens, name prefixes, whitespace, truncation) runs in
+   **ResponseCleaningStage** — no contraction pass (the `apply_contractions` seam was deleted
+   2026-08-18 with the RNG humanizer; see `docs/SERIN_VISION.md` § Operational Definitions row 1).
 7. **SendStage** sends the reply (skipping the dynamics delay on instant replies); **MemoryWriteStage**
    ALWAYS runs (even on halt) — it perceives via `perceive_message` and stores via remember, calls
    `affect_engine.record_sentiment` (**edge G feedback loop**), and writes general memory. If the LLM

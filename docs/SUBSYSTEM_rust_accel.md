@@ -23,7 +23,7 @@ This subsystem is the set of **Rust binaries backed by native code** that accele
 |---|---|---|
 | `sanitize_fts_query` | `d6_1_bm25_index.py:46` | single-pass FTS5 special-char stripping |
 | `filter_thinking` | `d6_1_thinking_filter.py:70` (importlib) | 13 compiled regex patterns stripping LLM thinking tags |
-| `apply_contractions` | `d3_3_response_generator.py:352-354` | one-pass N=50 contraction replacement |
+| `apply_contractions` | (no live importer since 2026-08-18 — was `d3_3_response_generator.py:352-354`; its only caller `apply_natural_variations` was deleted with the RNG humanizer) | one-pass N=50 contraction replacement — now dead Rust |
 | `rerank_candidates` | `d5_1_search_store.py:168` | score + recency-decay combined rerank |
 | `validate_json_fast` | (not matched to live importer) | fast JSON validity check |
 | `compute_text_similarity` | (not matched to live importer) | Levenshtein normalized 0..1 |
@@ -31,7 +31,7 @@ This subsystem is the set of **Rust binaries backed by native code** that accele
 | `tokenize_words` | (not matched to live importer) | whitespace word split |
 | `sanitize_markdown` | (not matched to live importer) | strips `**bold**`, ```code```, `~~strike~~`, etc. |
 
-**Key architectural fact: serin_core is an OPTIONAL accelerator, not a hard dependency.** Every one of the 4 live import sites wraps the `import serin_core` in try/except and falls back to the pure-Python equivalent (e.g. `bm25_index` has a Python fallback loop, `search_store` falls back to `_rerank_results_simple`, `response_generator` / `thinking_filter` have Python regex fallbacks). So the bot runs correctly with the `.so` absent; Rust is a speed layer only.
+**Key architectural fact: serin_core is an OPTIONAL accelerator, not a hard dependency.** Every one of the 3 live import sites wraps the `import serin_core` in try/except and falls back to the pure-Python equivalent (e.g. `bm25_index` has a Python fallback loop, `search_store` falls back to `_rerank_results_simple`, `thinking_filter` has a Python regex fallback). The `response_generator` Python-regex fallback is gone with its 2026-08-18 RNG-humanizer deletion. So the bot runs correctly with the `.so` absent; Rust is a speed layer only.
 
 Patterns worth noting in lib.rs:
 - **13 compiled thinking patterns** (LazyLock<Vec<Regex>>): `<|channel|>thought`, `thinking...response`, `<reasoning>`, `<<<thinking>>>`, `/think`, `[Thinking]`, `<!-- thinking -->`, `<tool_call>`, `<|reserved_special_token_N|>`, `[think]`, `BEGIN_THINKING`, and `<｜begin▁of▁thinking｜>` (the Anthropic-style Tibetan-bookmark tokens). The last two (BEGIN_THINKING, `<｜begin▁of▁thinking｜>`) document models newer than the dated prose in some docs.
@@ -82,7 +82,7 @@ A 30-second-idle smoke test that spawns only a `Driver` (DecodeMode::**Decrypt**
 ## Cross-cutting / notable findings (see CONNECTIONS.md)
 
 1. **Three separate Rust crates, three distinct roles** — PyO3 module (in-process, optional accelerator), subprocess voice binary (mandatory for voice, owned by Subsystem 10), and a CLI lint tool (dev-only). They are *not* one system.
-2. **serin_core is speed-only, not correctness-critical** — all 4 live PyO3 call sites fall back to Python on ImportError/AttributeError. The bot's text correctness does not depend on Rust.
+2. **serin_core is speed-only, not correctness-critical** — all 3 live PyO3 call sites fall back to Python on ImportError/AttributeError. The bot's text correctness does not depend on Rust.
 3. **CONNECTIONS J confirmed end-to-end** — `main.rs` wire protocol matches the `RustVoiceBridge.start()` (d5_1_process_watch:116-180) spawn + `RustStdoutReader` (`d4_1_io_bridge`) parse. The `TTS_DONE` handshake is the lock-release signal documented in Subsystem 10.
 4. **`RUST_VOICE_RECEIVER_PATH` config is dead + stale** (config_base:66-68): set from env, default path is wrong (`serin/d1_4_config_base/voice/...`), and **no code reads it**. `RustVoiceBridge` computes the correct binary path itself (`os.pardir`×4 from process_watch dir → `voice/rust_receiver/target/release/voice_receiver`), independent of the config. Confirms the Subsystem-1 stale finding. Phase-4 candidate: delete the config key or wire it in.
 5. **Vendored songbird 0.6.0** with a single behavioral patch (ClientConnect SSRC mapping) — the DAVE tail-offset fix is already in upstream, so the vendor tree is *thin* (one patch), tracked via `[patch.crates-io]` + `docs/wiki/songbird-clientconnect-patch.md`.

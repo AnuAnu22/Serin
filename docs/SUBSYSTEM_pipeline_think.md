@@ -23,16 +23,15 @@ helpers those stages consume.
 
 ## Files (d2_5_flow_think)
 
-### d3_1_think_personality/d4_1_personality_humanization.py — LIVE
-Two "make the bot sound human" engines, plus module-level convenience functions.
-- `ConversationalFillers` — injects filler words ("hmm", "you know", "tbh", ...) at an 8% base
-  rate, scaled by energy; deliberately SKIPS concession/agreement sentences
-  (`CONCESSION_PATTERNS`) so it never dilutes a clean "you're right". Uses `secrets` RNG.
-- `RealisticTypos` — 3% base rate (up to 5% when energetic), max ONE typo/message, from curated
-  dictionaries (apostrophe drops, adjacent-key transpositions, common misspellings); never on
-  protected words (commands/names) and never on important messages.
-- `get_filler_engine()/get_typo_engine()` — module-level singletons; `add_conversational_fillers`
-  / `add_realistic_typos` convenience wrappers. Consumed by `response_generator.py`.
+### d3_1_think_personality/d4_1_personality_humanization.py — REMOVED (2026-08-18)
+Deleted entirely. Contained two "make the bot sound human" RNG engines — `ConversationalFillers`
+(8%-base filler injection) and `RealisticTypos` (3-5% typo injection) plus module-level
+`add_conversational_fillers`/`add_realistic_typos` wrappers consumed by `response_generator.py`,
+all driven by `secrets` dice rolls. Removed because post-hoc die-rolled "humanization" (fillers,
+typos, case-drops) is a *performance* of imperfection and violates the vision's
+"causality, not performance" rule — imperfection must be a consequence of real state
+(energy/fatigue shaped in the persona). See `docs/SERIN_VISION.md` § Operational Definitions (row 1)
+and `.semgrep/rules/no-performative-randomness.yaml`.
 
 ### d3_1_think_personality/d4_2_personality_state.py — LIVE, multi-subsystem
 `PersonalityState` — rolling energy/sass/engagement (each 0..1) + a bounded 500-sample
@@ -40,9 +39,12 @@ Two "make the bot sound human" engines, plus module-level convenience functions.
 - `update_from_conversation(mood, user_traits, time_of_day)` — time-of-day energy curve, mood
   matching, trait-driven sass, decay-to-baseline after 1h; persists to SQLite every 10th update.
 - `save_to_db/load_from_db` — creates `personality_state` + `personality_history` tables.
-- `get_tone_modifier(user_id=None)` — produces the LLM tone-guidance string ("Be energetic and
-  punchy"...). Without a user it reads the global default mood. With a user it reads that
-  relationship's per-user mood vector instead.
+- `get_tone_modifier(user_id=None)` — produces the continuous, state-caused tone line ("Right now
+  you're pretty energized, dry and a little witty, engaged and following along."). Graduated bands
+  across the whole energy/sass/engagement range (no threshold cliffs, no dead middle band), phrased
+  as Serin's current state — never a "Be energetic and punchy" directive (see `docs/SERIN_VISION.md`
+  § Operational Definitions row 2). Without a user it reads the global default mood; with a user it
+  reads that relationship's per-user mood vector instead.
 - **Per-relationship mood / emotional persistence** (CODING_GUIDELINES §4):
   `update_from_conversation(..., user_id, relationship)` updates a **per-user** vector persisted
   in the `user_mood_state` table (Subsystem 5 schema) rather than the shared global mood; a new
@@ -71,14 +73,19 @@ The classic "natural response" generator. Module-global connector holders `llama
   "[Image attached]"), picks token budgets + `chat_template_kwargs.enable_thinking` for
   thinking-capable models (`_should_use_thinking`), logs PROMPT_DEBUG, then:
   `filter_thinking` (d1_3 thinking_filter, PyO3) → `clean_response` (special tokens, name prefixes,
-  mention strip, 400-char natural truncation) → `apply_natural_variations` →
-  `add_conversational_fillers` → `add_realistic_typos`.
-- `apply_natural_variations()` — **PyO3 seam at line 352: `import serin_core` →
-  `apply_contractions`** with a Python regex fallback dict (→ CONNECTIONS D). Also 30% first-letter
-  lowercase, 20% dropped final period, occasional "lol/haha".
+  mention strip, whitespace collapse, and the single `MAX_RESPONSE_LENGTH` truncation guardrail —
+  the same canonical `clean_response` that `ResponseCleaningStage` delegates to, so the two
+  cleaning paths can no longer disagree). No post-generation RNG "humanization" pass remains
+  (removed 2026-08-18) — imperfection is downstream of real state (energy/fatigue) via the
+  state-driven tone guidance already embedded in the persona.
+- (Removed 2026-08-18) `apply_natural_variations()` — the previous PyO3 seam (→ CONNECTIONS D) that
+  post-hoc lowercased/dropped periods/added "lol/haha" via `_rand()`. Deleted with the RNG
+  humanizer; it was a die-rolled performance, not a state consequence.
 - `build_natural_system_prompt()` — the big Serin persona system prompt (used by prompt_assembly
   in Subsystem 7). `build_instruction_system_prompt()` — strict "obey Rin, drop persona" prompt.
-- Failure fallback: "brain.exe stopped working" / "uh what" / "lost my train of thought".
+- Failure fallback (revised 2026-08-18): natural confused-human lines ("uh, I completely lost my
+  train of thought there", ...) — the scripted "brain.exe stopped working" trio was a fingerprintable
+  bot tell that violated the vision's resilience requirement.
 Consumed by serin_di, `core_manager`, `message_process` (Subsystem 8).
 
 ### d3_4_response_planner.py — LIVE (pipeline stage)
@@ -141,8 +148,9 @@ instead).
 2. **Two DEAD perceive modules:** `ActiveSearch` and `TopicFatigue` are fully unreferenced —
    ambitious scaffolding that never got wired (the "internal monologue search" idea and the
    "bored of a topic" idea). `ConversationAnalyzer` + `BotPersonality` ARE live (ingest core).
-3. **PyO3 seams here:** `apply_contractions` (response_generator:352, CONNECTIONS D); also
-   `filter_thinking` is imported from d1_3 thinking_filter (itself a PyO3 seam).
+3. **PyO3 seams here:** `filter_thinking` is imported from d1_3 thinking_filter (itself a PyO3
+   seam). The `apply_contractions` seam (formerly response_generator:352, CONNECTIONS D) is DEAD
+   since 2026-08-18 — its only caller `apply_natural_variations` was deleted with the RNG humanizer.
 4. **`PersonalityState` is genuinely multi-subsystem:** act stage, ingest core, and the VOICE
    gateway (system_output, voice_behavior) all touch it — the same object spans d1_1 and d1_2.
 5. **`ResponsePlannerStage` is the belief-constraint bridge:** it converts the (d1_3 Bayesian)
