@@ -1,0 +1,27 @@
+rules:
+  - id: no-mood-directive
+    message: >
+      A mood directive tells the model what mood to perform ("Current mood: ...",
+      imperative mood commands like "Be energetic and punchy") instead of
+      letting mood be CAUSED by real state. Show the state, don't instruct the
+      mood: shape the persona text from accumulated affect/energy and let the
+      model inhabit it.
+    severity: ERROR
+    languages: [python]
+    paths:
+      include:
+        - "serin/**"
+    patterns:
+      - pattern-either:
+          - pattern: |
+              "...Current mood:..."
+          - pattern: |
+              "...current mood:..."
+          - pattern: |
+              "...Be energetic and punchy..."
+          - pattern: |
+              "...Be chill and low-energy..."
+          - pattern: |
+              "...Be sarcastic, witty..."
+          - pattern: |
+              "...Be straightforward and genuine..."
