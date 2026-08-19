@@ -131,32 +131,54 @@ def _fuzz_memories(memories: list[dict[str, Any]], limit: int = 8) -> str:
 
 
 def _affect_context(snap: Any, username: str) -> str:
-    """Build a tone directive based on how Serin feels about this user.
+    """Build a tone line based on how Serin actually feels about this user.
 
-    Returns empty string for near-strangers (familiarity < 0.1) so new users
-    do not get the old hostile 'You don't really like them' default.
+    Vision-driven change (2026-08-18): the old code snapped straight from a
+    silent void (familiarity < 0.1 -> empty) to full-strength feelings
+    ("genuinely like you and light up") at 0.11 — a visible cliff. Now the
+    strength of the feeling GRADUATES with familiarity:
+      - familiarity < 0.1: no section at all (deliberate stranger suppression,
+        keeps new users from being prejudged — this is a safety guard, not a cliff)
+      - 0.1 .. 0.5: a muted, low-specificity line ("you've started to warm",
+        "no strong opinion yet") — near-strangers get an honest read, never hostile
+      - >= 0.5: the full valence-driven bands, only once real accumulated state
+        actually supports a strong feeling.
+    Only an absent snapshot (no stored relationship) returns empty.
     """
-    if snap is None or snap.familiarity < 0.1:
+    if snap is None:
         return ""
 
-    v = snap.valence
-    if v > 0.5:
-        line = f"You genuinely like {username} and light up a bit when they talk."
-    elif v > 0.15:
-        line = f"You're warm toward {username}."
-    elif v < -0.5:
-        line = f"You find {username} grating. You're curt and don't go out of your way for them."
-    elif v < -0.15:
-        line = f"You're a bit wary of {username}."
+    familiarity = float(snap.familiarity)
+    v = float(snap.valence)
+
+    if familiarity >= 0.5:
+        # Established relationship: valence drives the tone fully.
+        if v > 0.5:
+            line = f"You genuinely like {username} and light up a bit when they talk."
+        elif v > 0.15:
+            line = f"You're warm toward {username}."
+        elif v < -0.5:
+            line = f"You find {username} grating. You're curt and don't go out of your way for them."
+        elif v < -0.15:
+            line = f"You're a bit wary of {username}."
+        else:
+            line = f"You feel neutral about {username}."
+    elif familiarity >= 0.1:
+        # Near-stranger/acquaintance: muted, honest, low specificity.
+        if v < -0.3:
+            line = f"You're still getting a read on {username} — a little wary so far."
+        elif v > 0.3:
+            line = f"You've started to warm up to {username}."
+        else:
+            line = f"You don't know {username} well yet but have no strong opinion."
     else:
-        line = f"You feel neutral about {username}."
+        # True stranger: suppress the relationship section entirely.
+        return ""
 
     if snap.impression:
         line += f" Your current impression: {snap.impression}"
 
     return line
-
-
 def _belief_evolution_context(memory_system: Any, query: str) -> str:
     """Find beliefs that recently changed and surface them naturally."""
     if not memory_system:
