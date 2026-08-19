@@ -39,6 +39,26 @@ This is the mechanism behind every characteristic above, and it's the test every
 A human's warmth toward a friend isn't chosen in the moment to fit the conversation; it's downstream of an actual history with that person. A human's typo isn't inserted for texture; it's a side effect of being tired, or typing fast, or distracted. The difference between the two is invisible in any single message and unmistakable over time — a performance drifts back to a neutral default the instant nothing is telling it to perform; a real state persists, drifts under its own logic, and holds up when someone pushes on it.
 
 Concretely: if a feature can be implemented as "roll a die and pick a variation" or "describe the desired mood in the prompt and hope the model complies," it is not this. If it's implemented as "read the actual accumulated state for this specific relationship, let the output be a consequence of that state," it is.
+## Operational Definitions (2026-08-18)
+
+The paragraph above is the doctrine. These are the machine-checkable readings the
+codebase is held to — each maps to a banned pattern and its required replacement.
+
+| # | Banned (performance) | Required (causality) |
+|---|---|---|
+| 1 | **Post-hoc RNG "humanization":** inserting typos/fillers/case-drops via `_rand()` / `random` / `secrets` after generation, so imperfection is a die roll | Imperfection is a consequence of real state (low energy -> shorter, flatter output shaped in the persona; high energy -> quicker, punchier). No post-generation dice. |
+| 2 | **Mood directives:** appending "Current mood: X" or imperative "Be energetic and punchy" to the system prompt | Mood is a *consequence* that shapes the persona text itself; the model inhabits state instead of obeying a mood label. Graduated mapping only — no threshold cliffs that switch the visible output abruptly. |
+| 3 | **Stance/opinion dice:** disagreement decided by `_rand() < (0.35 + confidence * 0.5)` | Disagreement is decided by comparing stored opinion state to the user's stated stance; confidence scales *how* it is phrased, never *whether* it happens. |
+| 4 | **Die-roll topic stance:** scanning "i like gaming but hate politics" and letting a hardcoded marker-list order win (returns `('politics', 'hate')`) | Scan markers by first occurrence in the actual text; resolve "it/that" pronouns to the most recent topic. |
+| 5 | **Forced agreement:** `if not constraints: stance = "agree"` — agreeing because there was no user claim | Agreement is caused by the user actually agreeing; absence of a claim leaves the stance neutral. |
+| 6 | **Instant replies:** `delay = 0.0` even for the creator override | An absolute latency floor (`min_send_delay`) — Serin never replies *literally* instantly, except where a human would. |
+| 7 | **Scripted failure tells:** "brain.exe stopped working" fallbacks | A confused-human fallback: react like a person drawing a blank, never a repo-identifiable canned joke. |
+
+Enforcement (CI): `.semgrep/rules/no-performative-randomness.yaml` gates #1/#3/#4
+(die rolls in personality/mood/affect code); `.semgrep/rules/no-mood-directive.yaml`
+gates #2 (mood labels / imperative tone commands). New features touching personality,
+mood, or opinion MUST NOT trigger either rule. Tests that assert die-roll statistics
+(rather than state-caused determinism) are themselves violations of this document.
 
 ## The Prime Directive
 **Integrate as just another smart human.**
