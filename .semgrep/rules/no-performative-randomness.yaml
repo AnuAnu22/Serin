@@ -1,0 +1,26 @@
+rules:
+  - id: no-performative-randomness
+    message: >
+      Performative randomness: a die roll (_rand(), random.choice,
+      secrets.choice) used to fabricate a personality/behavior response
+      (fillers, typos, mood, disagreement chance) violates the vision's
+      "causality, not performance" rule. Imperfection must be caused by real
+      accumulated state (energy, fatigue, evidence, familiarity), never by
+      rolling dice. Remove the RNG and derive the behavior from state.
+    severity: ERROR
+    languages: [python]
+    paths:
+      include:
+        - "*personality*"
+        - "*humanization*"
+        - "*mood*"
+        - "*affect*"
+    patterns:
+      - pattern-either:
+          - pattern: _rand()
+          - pattern: random.choice(...)
+          - pattern: random.random()
+          - pattern: secrets.choice(...)
+          - pattern: secrets.randbelow(...)
+          - pattern: random.randint(...)
+          - pattern: random.uniform(...)
