@@ -111,7 +111,15 @@ class UserAffectEngine:
         """
         snap = self._cache.get(user_id)
         if snap is None:
-            asyncio.get_event_loop().call_soon(
+            # Best-effort background load so the next tick has the DB value.
+            # If there is no running event loop (sync context, startup before
+            # the bot loop exists, or a test), skip it - a one-message lag on
+            # a cache miss is acceptable per the vision (Serin is imperfect).
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                return _NEUTRAL
+            loop.call_soon(
                 lambda: asyncio.ensure_future(self._load_from_store(user_id))
             )
             return _NEUTRAL
