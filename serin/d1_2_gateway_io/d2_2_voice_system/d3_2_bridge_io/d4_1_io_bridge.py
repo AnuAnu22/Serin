@@ -41,9 +41,70 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+import time
 from typing import Any
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# ---------------------------------------------------------------------------
+# Raw-SSRC attribution guard — the loud failure mode for a lost SSRC→user map.
+# ---------------------------------------------------------------------------
+#
+# The vendored-songbird ClientConnect patch feeds Rust's SSRC→user_id map (see
+# docs/wiki/songbird-clientconnect-patch.md). When that mapping is missing, the
+# receiver falls back to attributing audio by RAW SSRC. Discord snowflake user
+# ids are always >= 2**32 (they exceed 32 bits by design), while an SSRC is a
+# 32-bit value — so a "user id" below 2**32 on an AUDIO/JOIN event is proof the
+# map was incomplete for that packet. Without this check the misattribution is
+# silent: transcripts land on the wrong (or no) user and nobody notices.
+
+_SNOWFLAKE_MIN_32BIT = 2**32  # smallest real Discord snowflake exceeds any u32 SSRC
+_RAW_SSRC_WARN_INTERVAL = 300.0  # seconds between repeated raw-SSRC warnings
+
+
+class _RawSsrcWarner:
+    """Rate-limited warning for AUDIO/JOIN events carrying a raw-SSRC 'user id'."""
+
+    def __init__(self) -> None:
+        self._last_warned: float = 0.0
+
+    def check(self, user_id: str) -> bool:
+        """Return True if `user_id` looks like a raw SSRC (sub-2**32)."""
+        try:
+            numeric: int = int(user_id)
+        except ValueError:
+            return False
+        if numeric <= 0 or numeric >= _SNOWFLAKE_MIN_32BIT:
+            return False
+        now: float = time.monotonic()
+        if now - self._last_warned >= _RAW_SSRC_WARN_INTERVAL:
+            self._last_warned = now
+            stderr_message: str = (
+                "voice.raw_ssrc_attribution "
+                f"user_id={user_id} outcome=audio_attributed_by_raw_ssrc "
+                "degradation_reason='SSRC→user map missing (ClientConnect patch "
+                "lost?) — see docs/wiki/songbird-clientconnect-patch.md'"
+            )
+            try:
+                from serin.d1_2_gateway_io.d2_4_io_di import get_logger
+
+                get_logger().warning(
+                    "voice.raw_ssrc_attribution",
+                    extra={
+                        "user_id": user_id,
+                        "outcome": "audio_attributed_by_raw_ssrc",
+                        "degradation_reason": (
+                            "SSRC→user map missing (ClientConnect patch lost?) — see "
+                            "docs/wiki/songbird-clientconnect-patch.md"
+                        ),
+                    },
+                )
+            except RuntimeError:
+                # Gateway DI not wired (bare process/unit context) — this warning
+                # must NEVER kill the stdout read loop, so fall back to stderr,
+                # which is where Rust-side logs surface anyway.
+                print(f"[rust-bridge] {stderr_message}", file=sys.stderr)
+        return True
 
 # ---------------------------------------------------------------------------
 # Stdout protocol reader — runs as an asyncio task
@@ -69,6 +130,7 @@ class RustStdoutReader:
     def __init__(self, proc: asyncio.subprocess.Process) -> None:
         self.proc = proc
         self.events: asyncio.Queue[Any] = asyncio.Queue()
+        self._ssrc_guard = _RawSsrcWarner()
 
     async def read_loop(self) -> None:
         """
@@ -110,6 +172,7 @@ class RustStdoutReader:
                     parts = line.split(':')
                     if len(parts) >= 3:
                         user_id = parts[1]
+                        self._ssrc_guard.check(user_id)
                         try:
                             pcm_len = int(parts[2])
                         except ValueError:
@@ -123,7 +186,9 @@ class RustStdoutReader:
                         del buf[:pcm_len]
                         await self.events.put(('audio', user_id, pcm))
                 elif line.startswith('JOIN:'):
-                    await self.events.put(('join', line.split(':', 1)[1]))
+                    join_uid = line.split(':', 1)[1]
+                    self._ssrc_guard.check(join_uid)
+                    await self.events.put(('join', join_uid))
                 elif line.startswith('LEAVE:'):
                     await self.events.put(('leave', line.split(':', 1)[1]))
                 elif line == 'TTS_DONE':
@@ -145,11 +210,11 @@ class RustStdoutReader:
             EOFError: if the process has died and the pipe is closed
         """
         try:
-            result = await asyncio.wait_for(self.events.get(), timeout=timeout)
+            result: Any = await asyncio.wait_for(self.events.get(), timeout=timeout)
             if result is self._EOF:
                 raise EOFError("Rust stdout pipe closed")
-            assert isinstance(result, tuple)  # nosec B101
-            return result
+            event: tuple[Any, ...] = result  # narrowed from Any for pyright
+            return event
         except TimeoutError:
             return None
 

@@ -2,7 +2,7 @@
 type: overview
 tags: [index, catalog]
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-25
 sources: [wiki/SCHEMA.md]
 status: seed
 ---
@@ -19,7 +19,7 @@ sources · queries.
 - [[message_flow]] — text message → 10-stage pipeline → reply; always-run MemoryWriteStage.
 - [[voice_flow]] — Rust subprocess voice receive/send, DAVE, wire protocol, the TTS_DONE lock.
 - [[testing]] — 40-file pytest suite: live unit tests, AST contract gates, CI tooling gate, pipeline inspector.
-- [[known_debt]] — dead code clusters, stale config, schema conflicts, ideal-vs-real architecture gap.
+- [[known_debt]] — dead code clusters, stale config, schema conflicts, ideal-vs-real architecture gap; § Vendored-songbird patch records the 2026-08-25 ClientConnect-patch tripwires.
 
 ## Entities — concrete components
 

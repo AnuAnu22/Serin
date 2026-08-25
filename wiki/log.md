@@ -2,6 +2,19 @@
 
 Append-only chronology (`## [YYYY-MM-DD] <op> | <title>`). Latest first.
 
+## [2026-08-25] harden | ClientConnect patch tripwires
+Guarded the vendored-songbird ClientConnect patch against silent death
+([[dave_receive]], [[known_debt]]): new `tests/test_songbird_patch_contract.py`
+(Cargo.toml `[patch]` presence + registry-free lockfile resolution + the patched
+lines in ws.rs/core.rs/context mod.rs + consumer handling in main.rs); CI
+`voice-receiver` job (`cargo check --locked`) in `.github/workflows/test.yml`;
+Rust once-per-SSRC `UNKNOWN_SSRC` stderr warning on raw-SSRC fallback; Python
+`_RawSsrcWarner` in `d4_1_io_bridge.py` warning `voice.raw_ssrc_attribution`
+for sub-2^32 user ids; hot_reloader now watches `vendor/songbird/src/**`.
+Also repaired `tests/integration/test_bridge.py` (missing gateway-DI bootstrap —
+both bridge tests had been failing since the DI refactor; suite now 629 passed,
+3 skipped, 0 failed).
+
 ## [2026-08-16] scaffold | Serin Project Wiki
 Created the wiki at `wiki/`: schema (SCHEMA.md), index, log, five overviews
 (architecture, message_flow, voice_flow, testing, known_debt), seven entity pages
