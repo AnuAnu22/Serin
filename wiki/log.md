@@ -2,6 +2,55 @@
 
 Append-only chronology (`## [YYYY-MM-DD] <op> | <title>`). Latest first.
 
+## [2026-08-26] query | Dynamics Persistence Plan
+Filed `wiki/queries/2026-08-26_dynamics_persistence_plan.md` after implementing
+SQLite persistence for `ConversationDynamicsEngine`: new `channel_dynamics`
+table in the authoritative schema (`d4_3_schema_store.py`), row functions in
+new `d4_1_core_storage/d5_4_dynamics_store.py` (extracted to respect the
+Rule-2 500-line ceiling on `d5_2_sqlite_store.py`; storage dir 4→5 files,
+Rule-1 compliant), snapshot/restore/throttled-flush methods on the engine,
+boot-restore in ingest core_manager, force-flush in run_maintenance +
+main() shutdown (covers hot-reloader SIGTERM). d1_3→d1_1 access is
+function-scoped with a duck-typed store (edge-B). Updated
+[[conversation_dynamics_engine]] (status: live), [[index]], CONNECTIONS edge G,
+SUBSYSTEM_state_core_context; corrected the "stdlib logger divergence" note
+(same logger object `d2_3_core_logger.setup()` configures — verified at
+runtime). Gates: ruff/mypy clean, pyright clean on all touched files, semgrep
+0 findings, import-linter pass, full suite 652 passed / 3 skipped.
+## [2026-08-26] ingest | SMALL_LLM_* seam for Bayesian fact extraction
+Implemented the "small LLM" supporting-connector seam that feeds the [[bayesian_beliefs]]
+schema: `SMALL_LLM_MODEL/BASE_URL/API_KEY` env keys in `bot_config` (each aliasing the
+main LLM when unset), a dedicated `__small__` cache slot in the model-system factory,
+and a `serin_di.get_small_llm_connector()` Rule-5 accessor wired into
+EnhancedMessageManagerV3 + PipelineInitializer. Positive accumulation path now pinned by
+`tests/test_small_llm_accumulation.py` (fact row written; claim_hash corroboration
+dedups); negative path unchanged ([[known_debt]] holdout still pins empty tables).
+Updated [[message_flow]], [[bot_config]], and docs/ARCHITECTURE.md § message flow.
+Gates: ruff/mypy clean, semgrep 0 findings, pyright baseline-neutral, 637+9 tests green.
+## [2026-08-25] lint | Stale-claim sweep against live source
+Full LINT pass over `wiki/` + `docs/` with every claim re-verified against the live tree
+(two-pass: grep + line-level read before each edit). Fixed:
+- `overviews/message_flow` — stage 8 no longer lists the deleted `apply_contractions`
+  contraction pass (humanizer removal, 2026-08-18); stage 9 SendStage now records the
+  `min_send_delay = 0.4` creator-override floor (`d5_2_dispatch_send.py:43-47`) instead of
+  "skips dynamics delay".
+- `overviews/testing`, `index`, `docs/ARCHITECTURE.md`, `docs/SUBSYSTEM_tests.md` — suite is
+  60 files / 52 test modules (was 40); contracts file 539 lines (was 530);
+  `test_fact_belief_gating.py` is tracked in git now (was untracked).
+- `overviews/known_debt` + `docs/todo.md` — the >500-line file debt and the >5-files-per-dir
+  debt are RESOLVED (re-measured 2026-08-25: largest serin file = core_manager at 478; no
+  directory violates Rule 1).
+- `entities/rust_voice_bridge` — supervision correction: the live `_supervise_rust_process`
+  loop has NO timed restart-window enforcement; the "5-restarts/60s" numbers belong to the
+  dead `d4_3_bridge_recovery.py` mixin. `start()` span corrected to :116-205.
+- `concepts/bayesian_beliefs` — holdout-test tracking status updated.
+- `docs/CONNECTIONS.md` — edge-A call-site paths fixed to real locations
+  (`d3_1_act_runners/d4_1_runners_dispatch/d5_1_llm_call.py`, `.../d4_3_prompt_assembly/...`)
+  with verified line numbers (:28-30, :23-25, :34-37, :260-270), `start()` :116-205,
+  `tests/messaging/test_processor.py` path fix.
+- `docs/ARCHITECTURE.md` — dead VoiceProfileManager twin's real path noted
+  (`d2_3_voice_transcribe/d3_1_transcribe_models/d4_1_models_profiles.py`).
+
 ## [2026-08-25] harden | ClientConnect patch tripwires
 Guarded the vendored-songbird ClientConnect patch against silent death
 ([[dave_receive]], [[known_debt]]): new `tests/test_songbird_patch_contract.py`

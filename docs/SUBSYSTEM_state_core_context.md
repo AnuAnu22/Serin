@@ -31,8 +31,13 @@ data/model (db_protect+core_memory+model_system) vs context/voice (this subsyste
   bot sees. `decide_action()` supports per-user valence+familiarity bias toward "reply". Rules
   1-3 from ResponseController (creator, @mention, bot-name) are HARD OVERRIDES checked BEFORE the
   engine. Exposes `get_state_for_panel()` for the ops control panel.
-  **NOTE divergence:** uses `logging.getLogger("serin")` (stdlib) directly, NOT the
-  `d2_3_core_logger` custom logger used by the rest of the codebase.
+  **PERSISTENT (2026-08-26):** per-channel state survives restarts via the `channel_dynamics`
+  SQLite table (`d4_3_schema_store.py` DDL; `d4_1_core_storage/d5_4_dynamics_store.py` row
+  functions). Boot-restore in ingest core_manager; force-flush in run_maintenance + main()
+  shutdown; engine-side throttle 60s. Pinned by `tests/test_dynamics_persistence.py`.
+  **NOTE divergence:** uses `logging.getLogger("serin")` (stdlib) directly — note this is the
+  same logger object `d2_3_core_logger.setup()` configures; the divergence is configuration
+  order only, not a separate pipeline.
 - `d3_2_message_context.py` — **MessageContext** (dataclass). THE cross-cutting data envelope
   flowing through the entire message pipeline. Every stage reads from and writes to one; the
   module docstring states "No stage has side effects outside of what it writes into the context."
