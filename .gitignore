@@ -212,3 +212,7 @@ docs/superpowers/
 protection.json
 package.json
 package-lock.json
+.bug-hunter/
+.gh-cache/
+.semgrep-home/
+.pyver_msg.txt

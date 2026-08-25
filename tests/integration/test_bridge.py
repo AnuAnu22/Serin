@@ -6,10 +6,18 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from serin.d1_2_gateway_io.d2_2_voice_system.d3_2_bridge_io.d4_1_io_bridge import (
+from serin.d1_2_gateway_io.d2_4_io_di import init_gateway
+from serin.d1_4_config_base.d2_3_core_logger import logger as _default_logger
+
+# RustVoiceBridge.__init__ calls get_logger() (gateway DI). Initialize the same
+# way tests/messaging/test_processor.py does, so constructing the bridge in a
+# bare test process doesn't raise "Gateway not initialized".
+init_gateway(_default_logger)
+
+from serin.d1_2_gateway_io.d2_2_voice_system.d3_2_bridge_io.d4_1_io_bridge import (  # noqa: E402
     RustStdoutReader,
 )
-from serin.d1_2_gateway_io.d2_2_voice_system.d3_2_bridge_io.d4_4_process_watch.d5_1_process_watch import (
+from serin.d1_2_gateway_io.d2_2_voice_system.d3_2_bridge_io.d4_4_process_watch.d5_1_process_watch import (  # noqa: E402
     RustVoiceBridge,
 )
 
