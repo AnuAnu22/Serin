@@ -22,6 +22,7 @@ from serin.d1_1_serin_di import (
     create_sync_monitor,
     get_llama_connector,
     get_response_generator_fn,
+    get_small_llm_connector,
     get_thinking_filter_instance,
     init_root,
     initialize_llama_connector,
@@ -323,7 +324,7 @@ class PipelineInitializer:
                 mention_translator=mention_translator_obj,
                 mood_state=self.message_manager.personality,
                 client=self.client,
-                small_llm=self.message_manager.llm,
+                small_llm=get_small_llm_connector(),
                 dynamics_engine=self.message_manager.dynamics_engine,
                 affect_engine=getattr(self.message_manager, "affect_engine", None),
             )
