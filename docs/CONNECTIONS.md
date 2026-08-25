@@ -73,20 +73,20 @@ other way round. That's edge A.
 The message pipeline reaches DOWN into the ops layer to stream live events to panel clients. Four
 confirmed call sites, all importing from the **live panel server**
 `d1_5_ops_tooling/d2_1_control_panel/d3_2_panel_server/`:
-- `d1_1_pipeline_flow/d2_1_flow_act/d3_1_act_runners/d4_2_runners_pipeline.py:29-30` → `d4_8_server/d5_2_server_websocket.py:broadcast_event`
+- `d1_1_pipeline_flow/d2_1_flow_act/d3_1_act_runners/d4_2_runners_pipeline.py:28-30` → `d4_8_server/d5_2_server_websocket.py:broadcast_event`
   — every message run broadcasts a decision event to connected panel WebSocket clients.
-- `.../d3_2_act_stages/d4_1_decision_temporal.py:23-24` → `broadcast_event` — the response-decision
+- `.../d3_2_act_stages/d4_1_decision_temporal.py:23-25` → `broadcast_event` — the response-decision
   stage broadcasts its decision (respond/skip + reason). Dedicated "decision" event type.
-- `.../d4_1_runners_dispatch/d5_1_llm_call.py:34-35` → `d4_6_routes/d5_3_debug_routes/d6_2_debug_routes.py:update_last_prompt_debug`
+- `.../d3_1_act_runners/d4_1_runners_dispatch/d5_1_llm_call.py:34-37` → `d4_6_routes/d5_3_debug_routes/d6_2_debug_routes.py:update_last_prompt_debug`
   — after each LLM call records `(raw_response, latency_ms)` into the panel's in-memory prompt-debug buffer.
-- `.../d4_3_prompt_assembly/d5_1_prompt_assembly.py:260-261` → `store_prompt_debug` — stores a full prompt
+- `.../d3_1_act_runners/d4_3_prompt_assembly/d5_1_prompt_assembly.py:260-270` → `store_prompt_debug` — stores a full prompt
   snapshot dict (user, channel, system_prompt, memories, relationships, beliefs, user_message, full_prompt).
 
 **This is a genuine cross-subsystem shared-memory channel:** the debug buffers (`_prompt_history`,
 `_last_prompt` etc.) live as module state in `d6_2_debug_routes.py` (d1_5) and are written by d1_1
 stages. `_ws_lock` in `d5_2_server_websocket.py` guards concurrent broadcast+disconnect. Lifecycle
 wired by the gateway: `d1_2_gateway_io/d2_1_io_discord/d3_1_pipeline_init/d4_1_pipeline_initializer.py:414`
-`init_bot_state` + `:427` `start_server(port)`.
+`init_bot_state` (imported from the panel lifecycle module) + `:427` `start_server(port)`.
 **Pinned by tests:** `tests/server/test_websocket.py` (broadcast_event/broadcast_log), `tests/test_pipeline_smoke.py`
 (_prompt_history grows per PromptAssemblyStage run).
 
@@ -146,7 +146,8 @@ exactly one is authoritative:
   `d5_1_belief_beliefs.BeliefStore` + `d5_2_belief_evidence.FactStore` INSERT
   `content/confidence/source_message_id/...` — columns absent from the authoritative `facts`
   (a real "no such column" risk). **NOTHING in `serin/` imports these two files**; their only
-  consumer is the **untracked `tests/test_fact_belief_gating.py`**, which monkeypatches them onto a
+  consumer is `tests/test_fact_belief_gating.py` (untracked at Phase-4 time; tracked since),
+  which monkeypatches them onto a
   real connected SQLite `QdrantMemorySystem` to prove the live facts/beliefs gating behavior
   (empty when `small_llm=None`). Also dead in `d2_4_flow_remember`: `d4_3_memory_quality`,
   `d4_4_knowledge_retrieval` (zero refs).
@@ -156,7 +157,8 @@ exactly one is authoritative:
   reaches in lazily for the engine.
 - **Phase-4 verdict:** canonical entry is `d4_3_schema_store` + `d4_4_core_store` wiring (both in d1_1
   remember); the legacy d1_1 stores and `test_fact_belief_gating.py` should be migrated to the
-  authoritative schema (and the test added to git). The legacy `memory_store` CREATE TABLE is dead.
+  authoritative schema (the "add the test to git" half is done — it is tracked as of 2026-08-25).
+  The legacy `memory_store` CREATE TABLE is dead.
 
 ### G. state_core_context → pipeline → ops (conversational state wire-up) ⭐
 `d1_3_state_core/d2_5_state_conversation/d3_1_dynamics_engine.py:ConversationDynamicsEngine` is a
@@ -168,6 +170,13 @@ exactly one is authoritative:
 - d1_5 ops reads it live: `d6_2_debug_routes.py:306-309` → `get_state_for_panel()`; `d6_1_personality_routes.py:141`
   → `decide_action`; `d5_1_tooling_background.py:298-299` → `allocate_attention()` (run_maintenance).
 - `_build_pipeline` also sets `background_processor.dynamics_engine` (ingest core_manager) — a fourth wire.
+- **Persistence wire (added 2026-08-26):** the engine's `channels` state now survives restarts via
+  the `channel_dynamics` SQLite table (DDL in `d4_3_schema_store.py`, row functions in
+  `d4_1_core_storage/d5_4_dynamics_store.py`). Boot: core_manager loads + restores snapshots after
+  construction. Writes: `run_maintenance` (`d3_4_event_handlers.py`) and `main()` shutdown
+  (`d4_1_main_entry.py`) call `flush_to_store(force=True)`; the engine otherwise throttles to one
+  flush/60s. d1_3 → d1_1 access is function-scoped with a duck-typed store (edge-B pattern),
+  pinned by `tests/test_dynamics_persistence.py`.
 `MessageContext` (`d3_2_message_context.py`) is the pipeline-wide data envelope every d1_1 stage mutates.
 `AffectEngine.record_sentiment`/`apply_impression` (edge B) feed the same conversation state — MemoryWriteStage
 calls `record_sentiment` per message (edge G feedback loop, pinned by `tests/test_affect_wiring.py`).
@@ -213,7 +222,7 @@ Resolved answers to each Phase-1 duplicate question:
 200-line stderr ring buffer, 5-restarts/60s recovery supervisor — described DEAD code:
 `d3_2_bridge_io/d4_3_bridge_recovery.py` has zero importers. The LIVE seam is below.)
 - **Spawn:** `d1_2_gateway_io/d2_2_voice_system/d3_2_bridge_io/d4_4_process_watch/d5_1_process_watch.py:RustVoiceBridge.start()`
-  (:116-180) self-resolves the binary via `os.pardir`×4 → `voice/rust_receiver/target/release/voice_receiver`,
+  (:116-205, re-verified 2026-08-25) self-resolves the binary via `os.pardir`×4 → `voice/rust_receiver/target/release/voice_receiver`,
   then `asyncio.create_subprocess_exec(binary, stdin=PIPE, stdout=PIPE, stderr=PIPE, env=RUST_BACKTRACE=full)`.
   First stdin line = `ConnectionInfo` JSON (`{endpoint, token, session_id, guild_id, channel_id, user_id}`).
 - **Wire protocol (newline-delimited):**
@@ -272,7 +281,7 @@ across a layer boundary.
 - **I:** `tests/bot_pipeline_init/test_main.py` (entry chain), `test_on_ready.py` (PipelineInitializer + re-exports),
   `test_on_message.py` (intake funnel), `test_di_contracts.py` (whole-tree DI reachability).
 - **J/voice:** `tests/test_runtime_contracts.py` (Layer 3 self-attr contracts, Layer 5 guild_id, Layer 6 no-silent-except),
-  `tests/integration/test_bridge.py` (missing-binary path), `tests/test_processor.py` (AudioStreamProcessor constants,
+  `tests/integration/test_bridge.py` (missing-binary path), `tests/messaging/test_processor.py` (AudioStreamProcessor constants,
   mislabeled as messaging).
 - **D:** no direct serin_core test; `test_runtime_contracts.py` Layer 2 is the ONLY consumer of the
   `undef-var-scanner` Rust binary (dev/CI). `tests/test_static_analysis.py` gates ruff/mypy/pyright/semgrep/
@@ -284,8 +293,8 @@ across a layer boundary.
 
 1. Delete/consolidate the two dead panel worlds (`d3_1_panel_panels/`, `d3_4_panel_routes.py`) and the
    shadowed `d4_7_state/d5_3_server_status` duplicate routes.
-2. Migrate `test_fact_belief_gating.py` to the authoritative `d4_3_schema_store` + `d4_4_core_store` wiring and
-   `git add` it; drop the d1_1 `knowledge_belief` stores (`d5_1_belief_beliefs`, `d5_2_belief_evidence`) +
+2. Migrate `test_fact_belief_gating.py` to the authoritative `d4_3_schema_store` + `d4_4_core_store` wiring
+   (the test is now tracked in git — that half is done); drop the d1_1 `knowledge_belief` stores (`d5_1_belief_beliefs`, `d5_2_belief_evidence`) +
    `d4_3_memory_quality`, `d4_4_knowledge_retrieval`.
 3. Delete `d3_2_bridge_io/d4_3_bridge_recovery.py` (0 importers) and the `RUST_VOICE_RECEIVER_PATH` config key (never read).
 4. Dedup MentionTranslator (keep pipeline copy), VoiceProfileManager (keep core_voice twin).
