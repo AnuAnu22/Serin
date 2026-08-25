@@ -24,9 +24,14 @@ class LLMConnector(ModelInterface):
 
     RETRY_INTERVAL = 15
 
-    def __init__(self, model_name: str | None = None) -> None:
-        self.base_url = config.LLM_BASE_URL
-        self.api_key = config.LLM_API_KEY
+    def __init__(
+        self,
+        model_name: str | None = None,
+        base_url: str | None = None,
+        api_key: str | None = None,
+    ) -> None:
+        self.base_url = base_url or config.LLM_BASE_URL
+        self.api_key = api_key or config.LLM_API_KEY
         self.model_name = model_name or config.LLM_MODEL or None
         self.temperature = config.LLM_TEMPERATURE
         self.top_p = config.LLM_TOP_P

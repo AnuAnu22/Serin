@@ -87,6 +87,14 @@ class BotConfig:
         self.LLM_TOP_P: float = float(os.getenv('LLM_TOP_P', '0.9'))
         self.LLM_MAX_TOKENS: int = int(os.getenv('LLM_MAX_TOKENS', '400'))
         self.LLM_ENABLE_THINKING: bool = os.getenv('LLM_ENABLE_THINKING', 'false').lower() == 'true'
+        # --- Supporting ("small") LLM for memory fact/belief extraction ---
+        # MemoryWriteStage runs cheap extraction on EVERY message; pointing it
+        # at a dedicated small-model endpoint avoids loading/swapping the main
+        # chat model per message. Empty values alias the main LLM settings
+        # (the historical behavior), so nothing changes unless you opt in.
+        self.SMALL_LLM_MODEL: str = os.getenv('SMALL_LLM_MODEL', '') or self.LLM_MODEL
+        self.SMALL_LLM_BASE_URL: str = os.getenv('SMALL_LLM_BASE_URL', '') or self.LLM_BASE_URL
+        self.SMALL_LLM_API_KEY: str = os.getenv('SMALL_LLM_API_KEY', '') or self.LLM_API_KEY
 
         # --- Debug / Logging ---
         self.DEBUG_MEMORY: bool = os.getenv('DEBUG_MEMORY', 'false').lower() == 'true'
@@ -140,6 +148,8 @@ class BotConfig:
             'VOICE_RECEIVER_MODE': self.VOICE_RECEIVER_MODE,
             'LLM_MODEL': self.LLM_MODEL,
             'LLM_BASE_URL': self.LLM_BASE_URL,
+            'SMALL_LLM_MODEL': self.SMALL_LLM_MODEL,
+            'SMALL_LLM_BASE_URL': self.SMALL_LLM_BASE_URL,
             'LLM_TEMPERATURE': self.LLM_TEMPERATURE,
             'LLM_TOP_P': self.LLM_TOP_P,
             'LLM_MAX_TOKENS': self.LLM_MAX_TOKENS,
@@ -159,7 +169,8 @@ class BotConfig:
                        'ENABLE_VOICE', 'ENABLE_TTS', 'LLM_MODEL', 'VOICE_RECEIVER_MODE',
                        'LLM_BASE_URL', 'LLM_TEMPERATURE', 'LLM_TOP_P',
                        'LLM_MAX_TOKENS', 'LLM_ENABLE_THINKING', 'LOG_LEVEL', 'LOG_FORMAT',
-                       'DEBUG_MEMORY', 'DEBUG_LLM']
+                       'DEBUG_MEMORY', 'DEBUG_LLM',
+                       'SMALL_LLM_MODEL', 'SMALL_LLM_BASE_URL']
         for key in simple_keys:
             if key in data:
                 if isinstance(getattr(self, key, None), bool):
