@@ -2,9 +2,9 @@
 type: entity
 tags: [voice, rust, bridge, subprocess]
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-25
 sources: [docs/SUBSYSTEM_gateway_voice.md, docs/CONNECTIONS.md, docs/wiki/python-rust-voice-protocol.md]
-status: seed
+status: live
 ---
 
 # RustVoiceBridge (Python ↔ Rust voice seam)
@@ -25,13 +25,16 @@ Rust owns ALL voice transport (UDP, DAVE, Opus, playback) — no second gateway 
 
 ## Key behaviors
 
-- **Spawn** (`RustVoiceBridge.start()`, ~:116-180): self-resolves the binary via `os.pardir`×4
+- **Spawn** (`RustVoiceBridge.start()`, :116-205): self-resolves the binary via `os.pardir`×4
   → `voice/rust_receiver/target/release/voice_receiver`; `asyncio.create_subprocess_exec`
   with `RUST_BACKTRACE=full`; first stdin line = `ConnectionInfo` JSON.
 - **Wire protocol** — see [[voice_flow]] for the table; canonical docstring in
   `voice/rust_receiver/src/main.rs`. Logs go to stderr only (stdout is data).
-- **Supervision**: 5-restarts/60s recovery (the old `d4_3_bridge_recovery.py` is DEAD — the
-  live logic lives in process_watch).
+- **Supervision**: a supervisor task watches for process death and re-spawns
+  (`_supervise_rust_process`, `_handle_process_death`; `_restart_timestamps` deque maxlen=5).
+  ⚠️ Correction (2026-08-25): the "5-restarts/60s recovery window" numbers describe the DEAD
+  `d4_3_bridge_recovery.py` mixin (0 importers) — the live `process_watch` loop sets its death
+  event but performs no timed restart-window enforcement today.
 
 ## Notes / Known issues
 

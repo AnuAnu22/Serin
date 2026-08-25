@@ -2,9 +2,9 @@
 type: concept
 tags: [beliefs, memory, bayesian, schema]
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-25
 sources: [docs/SUBSYSTEM_pipeline_remember.md, docs/CONNECTIONS.md]
-status: seed
+status: live
 ---
 
 # Bayesian Beliefs & Evidence
@@ -42,8 +42,9 @@ temporal decay, so stale impressions fade the way memory does.
 
 - Three representations existed; exactly one is authoritative (above). The legacy d1_1 stores
   (`d5_1_belief_beliefs`, `d5_2_belief_evidence`) INSERT columns absent from the authoritative
-  `facts` table (a real "no such column" risk) — their only consumer is the untracked
-  `tests/test_fact_belief_gating.py` (see [[known_debt]]).
+  `facts` table (a real "no such column" risk) — their only consumer is
+  `tests/test_fact_belief_gating.py` (tracked in git as of 2026-08-25; it was untracked at
+  Phase-4 time; see [[known_debt]]).
 - `perception_classify.py:245-248` lazily reaches in for the engine.
 
 ## See also

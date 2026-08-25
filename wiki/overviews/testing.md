@@ -2,24 +2,25 @@
 type: overview
 tags: [testing, ci, contracts]
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-25
 sources: [docs/SUBSYSTEM_tests.md, docs/TESTING_PIPELINE.md, docs/README.md]
-status: seed
+status: live
 ---
 
 # Testing & CI Overview
 
-A 40-file pytest suite in four distinct kinds of test:
+A 60-file pytest suite (52 test modules; re-counted 2026-08-25 — it was 40 files at the
+2026-08-16 seeding) in four distinct kinds of test:
 
 1. **Unit tests of LIVE pipeline/subsystem code** (the majority) — affect, decision,
    memory-retrieval, personality, perception, memory stores, voice audio constants, panel.
-2. **Contract/lint suite** — `test_runtime_contracts.py` (530 lines, 6 layers) and
+2. **Contract/lint suite** — `test_runtime_contracts.py` (539 lines as of 2026-08-25, 6 layers) and
    `test_static_analysis.py` (120 lines): AST structural checks + shell-outs to
    ruff/mypy/pyright/semgrep/import-linter/bandit/detect-secrets.
 3. **Rust-integration tests** — the `undef-var-scanner` CLI (Layer 2) + `test_bridge.py`
    (RustVoiceBridge missing-binary path).
-4. **One test gated on the DEAD legacy schema** — `test_fact_belief_gating.py` (untracked;
-   CONNECTIONS F — see [[known_debt]]).
+4. **One test gated on the DEAD legacy schema** — `test_fact_belief_gating.py` (tracked in git;
+   it was untracked at Phase-4 time; CONNECTIONS F — see [[known_debt]]).
 
 ## The 6-layer structural gate (`test_runtime_contracts.py`)
 
@@ -53,6 +54,10 @@ Suite: `uv run python -m pytest tests/inspector/ -q`.
 - No real `voice_receiver` subprocess integration test (wire framing covered only by AST
   contracts); no `serin_core` PyO3 smoke test — the two explicit gaps in the suite.
 - Run non-integration tests: `uv run pytest tests/ -m "not integration" -q`.
+
+> ⚠️ SUPERSEDED (2026-08-25): the songbird-patch "dies silently on re-vendor" risk is now
+> guarded by `tests/test_songbird_patch_contract.py` + a CI `voice-receiver` job — see
+> [[known_debt]] § Vendored-songbird patch.
 
 ## See also
 
