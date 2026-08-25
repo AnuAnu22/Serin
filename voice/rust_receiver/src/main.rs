@@ -64,7 +64,7 @@ use std::num::NonZeroU64;
 use std::sync::mpsc;
 
 use async_trait::async_trait;
-use dashmap::DashMap;
+use dashmap::{DashMap, DashSet};
 use flume;
 use serde::Deserialize;
 use songbird::driver::DecodeMode;
@@ -145,6 +145,9 @@ struct Receiver {
     known_ssrcs: DashMap<u32, u64>,
     active_users: DashMap<u32, bool>,
     out_tx: flume::Sender<OutEvent>,
+    /// SSRCs we already warned about (unknown-SSRC fallback). Prevents one
+    /// warning per 20ms VoiceTick from flooding stderr — warn once per SSRC.
+    warned_unknown_ssrcs: DashSet<u32>,
 }
 
 impl Receiver {
@@ -153,6 +156,7 @@ impl Receiver {
             known_ssrcs: DashMap::new(),
             active_users: DashMap::new(),
             out_tx,
+            warned_unknown_ssrcs: DashSet::new(),
         }
     }
 }
@@ -188,7 +192,24 @@ impl VoiceEventHandler for Receiver {
                     // Resolve user ID from SSRC mapping (fall back to SSRC as raw ID)
                     let user_id = match self.known_ssrcs.get(ssrc) {
                         Some(entry) => *entry,
-                        None => *ssrc as u64,
+                        None => {
+                            // Unmapped SSRC. The DAVE decrypt path drops packets
+                            // from unmapped SSRCs pre-decrypt (see the vendored
+                            // ClientConnect patch), so audio surfacing here with
+                            // a raw-SSRC "user id" means the SSRC→user map is
+                            // incomplete — usually the ClientConnect patch being
+                            // lost to a re-vendor, or a missed Speaking event.
+                            // Warn ONCE per SSRC; stderr flows to Python's logger.
+                            if self.warned_unknown_ssrcs.insert(*ssrc) {
+                                eprintln!(
+                                    "UNKNOWN_SSRC ssrc={} — attributed by raw SSRC; \
+                                     SSRC→user map missing (ClientConnect patch lost? \
+                                     see docs/wiki/songbird-clientconnect-patch.md)",
+                                    ssrc
+                                );
+                            }
+                            *ssrc as u64
+                        }
                     };
 
                     // First time seeing this SSRC this session → send Join
@@ -255,6 +276,11 @@ impl VoiceEventHandler for Receiver {
                 for ssrc in ssrcs_to_remove {
                     self.active_users.remove(&ssrc);
                 }
+                // Drop the warned-flag too, so if the user reconnects and the
+                // map is still missing, the UNKNOWN_SSRC warning re-fires.
+                self.warned_unknown_ssrcs.retain(|ssrc| {
+                    !self.active_users.contains_key(ssrc) && !self.known_ssrcs.contains_key(ssrc)
+                });
             }
 
             _ => {}

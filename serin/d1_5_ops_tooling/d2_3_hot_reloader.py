@@ -13,6 +13,7 @@ WATCH_FILES = [
     PROJECT_ROOT / "serin_core" / "src" / "lib.rs",
 ]
 RUST_RECEIVER_SRC = PROJECT_ROOT / "voice" / "rust_receiver" / "src"
+VENDOR_SONGBIRD_SRC = PROJECT_ROOT / "voice" / "rust_receiver" / "vendor" / "songbird" / "src"
 SIGNAL_FILE = PROJECT_ROOT / ".restart.signal"
 BOT_DIR = PROJECT_ROOT
 COOLDOWN_SECS = 1.0
@@ -57,6 +58,16 @@ def get_mtimes() -> dict[Path, float]:
             pass
     if RUST_RECEIVER_SRC.is_dir():
         for rs_file in RUST_RECEIVER_SRC.rglob("*.rs"):
+            try:
+                mtimes[rs_file] = rs_file.stat().st_mtime
+            except FileNotFoundError:
+                pass
+    # The vendored songbird tree carries the ClientConnect SSRC patch — edits
+    # there must trigger a rebuild exactly like src/ changes (see
+    # docs/wiki/songbird-clientconnect-patch.md).
+    vendor_src = RUST_RECEIVER_SRC.parent / "vendor" / "songbird" / "src"
+    if vendor_src.is_dir():
+        for rs_file in vendor_src.rglob("*.rs"):
             try:
                 mtimes[rs_file] = rs_file.stat().st_mtime
             except FileNotFoundError:
@@ -181,7 +192,9 @@ async def watch_loop() -> None:
         for path, mtime in current_mtimes.items():
             old = prev_mtimes.get(path)
             if old is not None and mtime > old:
-                if path.suffix == ".rs" and RUST_RECEIVER_SRC in path.parents:
+                _under_receiver_src = RUST_RECEIVER_SRC in path.parents
+                _under_vendor = VENDOR_SONGBIRD_SRC in path.parents
+                if path.suffix == ".rs" and (_under_receiver_src or _under_vendor):
                     if not voice_receiver_triggered:
                         voice_receiver_triggered = True
                         ts = time_mod.strftime("%Y-%m-%d %H:%M:%S")
