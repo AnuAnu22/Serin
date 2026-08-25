@@ -43,6 +43,9 @@ from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_3_remember_qdrant import (
 from serin.d1_1_pipeline_flow.d2_5_flow_think.d3_1_think_personality.d4_2_personality_state import (
     PersonalityState,
 )
+from serin.d1_1_serin_di import (
+    get_small_llm_connector,
+)
 from serin.d1_3_state_core.d2_3_model_system.d3_3_system_factory import (
     get_model_connector,
 )
@@ -92,6 +95,9 @@ class EnhancedMessageManagerV3:
 
         # Initialize LLM connector for image analysis + fact extraction
         self.llm = get_model_connector()
+        # Supporting ("small") LLM for per-message fact/belief extraction —
+        # aliases the main LLM's settings unless SMALL_LLM_* env keys are set.
+        self.small_llm = get_small_llm_connector()
         try:
             self.llm.load_model()
         except Exception:
@@ -139,6 +145,19 @@ class EnhancedMessageManagerV3:
 
         # Dynamics engine for physics-based conversation state
         self.dynamics_engine = ConversationDynamicsEngine()
+        # Restore per-channel momentum/phase/timing from the last session so
+        # conversational rhythm survives restarts (hot_reloader respawns the
+        # bot on every .py change — SERIN_VISION "Growth" demands accumulated
+        # state, not a fresh simulation per boot).
+        try:
+            snapshots = ConversationDynamicsEngine.load_persisted_snapshots(
+                self.memory,
+            )
+            if snapshots:
+                self.dynamics_engine.restore_from_snapshots(snapshots)
+                logger.info("dynamics.boot_restore", extra={"channels": len(snapshots)})
+        except Exception as exc:
+            logger.debug("dynamics restore skipped: %s", exc)
 
         # Affect engine for per-user sentiment valence and impressions
         from serin.d1_3_state_core.d2_5_state_conversation.d3_3_affect_engine import (
@@ -232,7 +251,7 @@ class EnhancedMessageManagerV3:
                 mention_translator=self.mention_translator,
                 mood_state=self.personality,
                 client=self.client,
-                small_llm=self.llm,
+                small_llm=self.small_llm,
                 dynamics_engine=self.dynamics_engine,
                 affect_engine=self.affect_engine,
             )
@@ -425,7 +444,7 @@ class EnhancedMessageManagerV3:
                     mention_translator=self.mention_translator,
                     mood_state=self.personality,
                     client=self.client,
-                    small_llm=self.llm,
+                    small_llm=self.small_llm,
                     dynamics_engine=self.dynamics_engine,
                     affect_engine=self.affect_engine,
                 )
