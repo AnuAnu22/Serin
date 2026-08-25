@@ -36,6 +36,24 @@ jobs:
       - name: Run ruff linting
         run: uv run ruff check .
 
+  voice-receiver:
+    # The vendored songbird tree carries the ClientConnect SSRC patch — the ONE
+    # behavioral patch (see docs/wiki/songbird-clientconnect-patch.md). Build
+    # the crate in CI so a broken vendor tree (re-vendor, dep drift, bad merge)
+    # fails loudly here instead of silently dropping user audio in production.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: voice/rust_receiver
+
+      - name: Check voice receiver (vendored songbird + patch)
+        run: cargo check --locked --manifest-path voice/rust_receiver/Cargo.toml --all-targets
+
   security:
     runs-on: ubuntu-latest
     steps:

@@ -2,7 +2,7 @@
 type: concept
 tags: [voice, dave, songbird, rust]
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-25
 sources: [docs/wiki/dave-support-vs-receive-support.md, docs/wiki/songbird-dave-offset-bug.md, docs/wiki/songbird-clientconnect-patch.md, docs/wiki/gateway-less-voice-driver.md, docs/wiki/voice-debugging-log.md]
 status: seed
 ---
@@ -48,6 +48,17 @@ fed `ConnectionInfo` from Python's py-cord over stdin — one gateway per token.
 - Silent drops are the enemy; prefer loud errors during bring-up.
 - Wire reality beats documentation — twice.
 - "Supported" in a feature matrix means the code exists, not that anyone runs it.
+
+## The ClientConnect patch is now guarded (2026-08-25)
+
+The "dies silently on re-vendor" risk above has tripwires (see [[known_debt]]
+§ Vendored-songbird patch): a presence-contract test
+(`tests/test_songbird_patch_contract.py`), a CI `cargo check --locked` job
+(`voice-receiver` in `.github/workflows/test.yml`), a once-per-SSRC
+`UNKNOWN_SSRC` stderr warning in `voice/rust_receiver/src/main.rs`, the
+Python-side `voice.raw_ssrc_attribution` warning on sub-2^32 "user ids"
+(`d4_1_io_bridge.py`), and hot-reloader watching of `vendor/songbird/src/`.
+Losing the patch now fails CI or logs loudly — it can no longer vanish quietly.
 
 ## See also
 

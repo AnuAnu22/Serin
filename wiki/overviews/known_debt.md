@@ -2,7 +2,7 @@
 type: overview
 tags: [debt, dead-code, stale]
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-25
 sources: [docs/CONNECTIONS.md, docs/todo.md, docs/ENGINEERING_STANDARDS.md, docs/SUBSYSTEM_ops_tooling.md]
 status: seed
 ---
@@ -29,6 +29,27 @@ Anything with a fix recommendation is ranked roughly by impact.
   `d5_2_belief_evidence` + `d4_3_memory_quality` + `d4_4_knowledge_retrieval` — nothing
   imports them except the untracked `tests/test_fact_belief_gating.py` (see [[bayesian_beliefs]]).
 - **Dead bridge recovery**: `d3_2_bridge_io/d4_3_bridge_recovery.py` (0 importers).
+
+## Vendored-songbird patch — guarded (was: dies silently on re-vendor)
+
+The ClientConnect SSRC-mapping patch ([[dave_receive]]) was the one behavioral
+patch in `voice/rust_receiver/vendor/songbird` and died silently on any
+re-vendor. **Guarded 2026-08-25**:
+
+- `tests/test_songbird_patch_contract.py` — fails CI if `[patch.crates-io]`
+  disappears, Cargo.lock resolves songbird from the registry, or the patched
+  lines vanish from `ws.rs` / `events/core.rs` / `events/context/mod.rs`.
+- CI job `voice-receiver` (`.github/workflows/test.yml`) runs
+  `cargo check --locked` on the crate — a broken vendor tree fails loudly.
+- Runtime loudness: Rust emits `UNKNOWN_SSRC ssrc=…` (once per SSRC) when audio
+  falls back to raw-SSRC attribution; Python (`d4_1_io_bridge.py`
+  `_RawSsrcWarner`) warns `voice.raw_ssrc_attribution` on any AUDIO/JOIN whose
+  "user id" is below 2^32 (real snowflakes always exceed u32).
+- `hot_reloader.get_mtimes()` also watches `vendor/songbird/src/**`, so patch
+  edits trigger rebuilds like `src/` changes.
+
+Remaining exit strategy: upstream the ClientConnect patch so the vendor tree can
+be dropped by design (docs/wiki/songbird-clientconnect-patch.md § Maintenance warning).
 
 ## Stale config & stale refs
 
