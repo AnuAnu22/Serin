@@ -14,7 +14,8 @@ The subsystem has two physical halves plus three top-level helpers:
 
 1. **`d3_1_remember_core/`** — the STORAGE ENGINE. `d4_4_core_store.py` is the single
    `QdrantMemorySystem` hub; the rest are split-out implementation modules
-   (`d4_1_core_storage/` search/sqlite/write, `d4_2_connection_store`, `d4_3_schema_store`).
+   (`d4_1_core_storage/` search/sqlite/write + `d5_6_goal_storage/` (goals),
+   `d4_2_connection_store`, `d4_3_schema_store`).
 2. **`d3_2_remember_knowledge/`** — knowledge helpers. Mixed wiring: `d4_2_memory_context`
    is live; `d4_1_knowledge_belief/` (BeliefStore+FactStore), `d4_3_memory_quality`,
    `d4_4_knowledge_retrieval` are **dead near-duplicate code** (see findings).
@@ -48,9 +49,17 @@ claim_hash UNIQUE` + indexes on `(subject_id, is_active)` and `(state, is_active
 **`fact_observations`** ledger, **`beliefs`** (`id TEXT PK, content, category, state,
 confidence, supporting_fact_ids, contradicting_fact_ids, evidence_count, claim_count,
 timestamp, updated_at, last_contradicted_at, contradiction_resolved_at, is_active` +
-indexes), and **`user_affect`** (per-user valence + familiarity, partial index). This is the
-single source of truth for the fact/belief/affect tables that BOTH the d1_1 pipeline and the
-d1_3 `core_memory` stores read/write (→ CONNECTIONS F).
+indexes), **`user_affect`** (per-user valence + familiarity, partial index),
+**`user_mood_state`** (per-relationship energy/sass/engagement), **`channel_dynamics`**
+(per-channel physics snapshot for ConversationDynamicsEngine persistence),
+**`pipeline_runs`** (one row per completed pipeline run; read by the panel's
+`/api/metrics/pipeline`), and **`goals` + `goal_evidence`** (self-generated goals:
+`id, created_at, updated_at, statement TEXT NOT NULL — stored VERBATIM, no curation layer —
+status CHECK IN ('FORMING','ACTIVE','PAUSED','ACHIEVED','DROPPED','SUPERSEDED'), salience
+REAL DEFAULT 0.5, origin_provenance, parent_goal_id, last_reviewed_at`; goal_evidence is the
+append-only provenance trail `(goal_id, kind, detail, source, created_at)`). This is the
+single source of truth for the fact/belief/affect/dynamics/goals tables that BOTH the d1_1
+pipeline and the d1_3 state stores read/write (→ CONNECTIONS F).
 
 ### d3_1_remember_core/d4_1_core_storage/d5_1_search_store.py
 Hybrid vector+keyword search. `search_hybrid` runs a Qdrant vector search (cosine) and an
@@ -71,6 +80,23 @@ the symbols the d1_3 `AffectEngine` lazily imports (→ CONNECTIONS B). Also `_s
 `store_recent_message` (20k/channel cap), `get_recent_conversation_from_sqlite`,
 `cleanup_old_memories` (Qdrant scroll+delete + BM25 delete_documents). Wired by the core store
 and read by d1_5 `tooling_background` (→ CONNECTIONS C).
+
+### d3_1_remember_core/d4_1_core_storage/d5_6_goal_storage/ (package, `d6_1_goals_store.py`)
+Row functions for the self-generated goals tables. Lives in its own package because
+`d4_1_core_storage/` already held five non-init modules (Rule 1). Duck-typed `store`
+contract like `d5_4_dynamics_store` (anything with `.conn`; edge-B callers import it
+function-scoped). API: `create_goal(store, statement, salience, provenance=,
+parent_goal_id=, status='FORMING') -> int`, `add_goal_evidence(store, goal_id, kind,
+detail=, source=) -> bool`, `update_goal_status(store, goal_id, new_status,
+salience_delta=0., superseded_by=None) -> bool` (terminal statuses absorb; SUPERSEDED
+records the replacement in goal_evidence), `bump_goal_salience` (clamped to [0,1]),
+`get_active_goals(store, min_salience=0., limit=20)` (FORMING+ACTIVE ordered salience
+DESC — the pursuit order), `get_goals_due_review(store, older_than_s, limit)`
+(NULL/stale `last_reviewed_at` only), `count_goals_by_status`, `load_all_goals(store,
+limit, include_terminal=True)`. **Machinery only — statement content is never read,
+filtered, or rewritten by this module.** Consumers: BackgroundProcessor maintenance
+(formation + review, C2/C3), ResponsePlannerStage pursuit constraints (C3), panel route
+(C5). Tests: `tests/test_goals_store.py`.
 
 ### d3_1_remember_core/d4_1_core_storage/d5_3_write_store.py
 Memory write path. `add_memory_enhanced`: `_generate_memory_id` (uuid5 from
@@ -99,7 +125,20 @@ Owns the Qdrant client (via `_connect_with_retry` → connection_store), the emb
 DISTINCT from the d1_3 `d3_4_memory_store.py` `QdrantMemorySystem` (stale duplicate w/ legacy
 schema) — this is the real one.
 
-### d3_1_remember_core/__init__.py, d4_1_core_storage/__init__.py — empty
+### d3_1_remember_core/d4_1_core_storage/d5_4_dynamics_store.py
+SQLite persistence for ConversationDynamicsEngine channel snapshots — `upsert_channel_dynamics`,
+`load_channel_dynamics`, `delete_stale_channel_dynamics`. Duck-typed `store` contract; the d1_3
+engine imports it function-scoped (edge-B). See `tests/test_dynamics_persistence.py` and the
+[[2026-08-26_dynamics_persistence_plan]] wiki query.
+
+### d3_1_remember_core/d4_1_core_storage/d5_5_pipeline_metrics.py
+Recorder for the `pipeline_runs` table: `record_pipeline_run(store, ctx, timings, ...)`,
+`load_recent_pipeline_runs`, `summarize_pipeline_runs`, `prune_pipeline_runs`. Written by
+`MessagePipeline.process` (edge-A) when `PIPELINE_METRICS_ENABLED`; read by the panel's
+`/api/metrics/pipeline` route (`d6_4_metrics_routes.py`). Never raises into the pipeline.
+
+### d3_1_remember_core/__init__.py, d4_1_core_storage/__init__.py, d5_6_goal_storage/__init__.py
+Empty (the goals package `__init__` carries a one-line pointer docstring).
 
 ### d3_2_remember_knowledge/d4_2_memory_context.py — **LIVE**
 `EnhancedMemoryContext` (holder with `context_history`/`temporal_context`) and

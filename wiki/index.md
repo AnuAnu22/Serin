@@ -30,6 +30,7 @@ sources · queries.
 - [[enhanced_message_manager_v3]] — the ingest funnel that builds the pipeline per message.
 - [[rust_voice_bridge]] — the Python↔Rust voice subprocess seam (`RustVoiceBridge`).
 - [[bot_config]] — env-driven `BotConfig` singleton (stale key purged 2026-08-26).
+- [[goals_engine]] — self-generated persistent goals: schema, state machine, salience pursuit; machinery only, content verbatim.
 
 ## Concepts — ideas & principles
 
