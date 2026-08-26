@@ -66,11 +66,8 @@ class BotConfig:
         # "pycord": discord.py AudioSink — simpler but lacks DAVE support
         self.VOICE_RECEIVER_MODE: str = os.getenv('VOICE_RECEIVER_MODE', 'rust').lower()
 
-        # --- Rust Binary Path ---
-        self.RUST_VOICE_RECEIVER_PATH: str = os.getenv(
-            'RUST_VOICE_RECEIVER_PATH',
-            os.path.join(os.path.dirname(__file__), 'voice', 'rust_receiver', 'target', 'release', 'voice_receiver')
-        )
+        # NOTE: no RUST_VOICE_RECEIVER_PATH config key — RustVoiceBridge resolves the
+        # repo-root binary path itself (voice/rust_receiver/target/release/voice_receiver).
 
         # --- Qdrant Settings ---
         self.QDRANT_HOST: str = os.getenv('QDRANT_HOST', 'localhost')

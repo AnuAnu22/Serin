@@ -34,7 +34,7 @@
   - [ ] Stop any background processes
 
 - [ ] **Data preparation**
-  - [ ] Archive existing ChromaDB data
+  - [ ] Archive existing `bot_data/` (Qdrant storage + SQLite) — there is no ChromaDB anymore
   - [ ] Export user profiles and relationships
   - [ ] Document data schema differences
   - [ ] Prepare for fresh Qdrant instance
@@ -56,9 +56,9 @@
 
 ### Phase 2: Bot Integration
 - [ ] **Update Discord bot**
-  - [ ] Modify `discord_bot.py` to use Qdrant
-  - [ ] Update `enhanced_message_manager.py` integration
-  - [ ] Test memory system initialization
+  - [ ] Verify `discord_bot.py` entry path (loads config/state, injects via `serin/d1_1_serin_di.py`)
+  - [ ] Verify message-manager wiring (`d4_4_core_manager.EnhancedMessageManagerV3`)
+  - [ ] Test memory system initialization (`d2_2_core_memory/d3_4_memory_store.QdrantMemorySystem`)
   - [ ] Verify bot startup with Qdrant
 
 - [ ] **Test basic functionality**
@@ -68,17 +68,16 @@
   - [ ] Verify error handling
 
 ### Phase 3: Web API Integration
-- [ ] **Update control panel**
-  - [ ] Deploy `enhanced_api_routes.py`
-  - [ ] Test Qdrant-specific endpoints
+- [ ] **Verify control panel**
+  - [ ] Panel is served in-process by uvicorn (`d3_3_panel_lifecycle.py`, default port 8081)
+  - [ ] Test panel endpoints
   - [ ] Verify memory search functionality
   - [ ] Test user management endpoints
 
-- [ ] **API testing**
+- [ ] **API testing** (panel default port: `CONTROL_PANEL_PORT=8081`)
   - [ ] Test `/api/status` endpoint
-  - [ ] Test `/api/search` endpoint
-  - [ ] Test `/api/memories` endpoints
-  - [ ] Test `/api/users` endpoints
+  - [ ] Test `/api/stats` endpoint
+  - [ ] Test `/api/health` endpoint
 
 ### Phase 4: Performance Testing
 - [ ] **Load testing**
@@ -137,13 +136,12 @@
    - [ ] Stop Qdrant container
 
 2. **Restore backup**
-   - [ ] Restore ChromaDB data from backup
+   - [ ] Restore Qdrant storage from backup
    - [ ] Restore SQLite database
    - [ ] Restore configuration files
 
 3. **Restart services**
-   - [ ] Start Discord bot with ChromaDB
-   - [ ] Start control panel
+   - [ ] Start Discord bot with Qdrant (control panel starts in-process)
    - [ ] Verify functionality
 
 ### Rollback Triggers
@@ -163,7 +161,7 @@
 - [ ] **Data Integrity**: Zero data loss during migration
 
 ### Functional Requirements
-- [ ] **Backward Compatibility**: All existing ChromaDB functionality preserved
+- [ ] **Data Continuity**: All existing Qdrant/SQLite data preserved (there is no ChromaDB fallback)
 - [ ] **Search Quality**: Hybrid search improves relevance by 20%+
 - [ ] **Scalability**: Support 10M+ memories without performance degradation
 - [ ] **Reliability**: Automatic recovery from failures

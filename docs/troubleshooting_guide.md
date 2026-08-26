@@ -94,16 +94,11 @@ python -c "import qdrant_client; print('Qdrant client available')"
 python -c "from sentence_transformers import SentenceTransformer; print('Sentence transformers available')"
 ```
 
-**Fallback to ChromaDB:**
+**Verify the memory system imports (canonical path):**
 ```python
-# In discord_bot.py
-try:
-    from qdrant_memory_system import QdrantMemorySystem
-    memory_system = QdrantMemorySystem()
-except ImportError:
-    from memory_system import UnifiedMemorySystem
-    memory_system = UnifiedMemorySystem()
-    logger.warning("⚠️ Qdrant not available, using ChromaDB fallback")
+# There is NO ChromaDB fallback - Qdrant is the only vector store.
+from serin.d1_3_state_core.d2_2_core_memory.d3_4_memory_store import QdrantMemorySystem
+memory_system = QdrantMemorySystem()
 ```
 
 #### Problem: Memory Addition Fails
@@ -253,7 +248,7 @@ if hasattr(memory_system, 'reranker'):
 ```python
 # Test memory system initialization
 try:
-    from qdrant_memory_system import QdrantMemorySystem
+    from serin.d1_3_state_core.d2_2_core_memory.d3_4_memory_store import QdrantMemorySystem
     memory_system = QdrantMemorySystem()
     print("✅ Qdrant memory system initialized")
 except Exception as e:
@@ -261,7 +256,9 @@ except Exception as e:
 
 # Test message manager
 try:
-    from enhanced_message_manager import EnhancedMessageManagerV3
+    from serin.d1_1_pipeline_flow.d2_2_flow_ingest.d3_2_ingest_core.d4_4_core_manager import (
+        EnhancedMessageManagerV3,
+    )
     manager = EnhancedMessageManagerV3(client, mention_translator, memory_system)
     print("✅ Message manager initialized")
 except Exception as e:
@@ -277,7 +274,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 print("Configuration:")
-print(f"USE_QDRANT: {os.getenv('USE_QDRANT')}")
 print(f"QDRANT_HOST: {os.getenv('QDRANT_HOST')}")
 print(f"QDRANT_PORT: {os.getenv('QDRANT_PORT')}")
 print(f"DATA_DIR: {os.getenv('DATA_DIR')}")
@@ -291,16 +287,16 @@ print(f"DATA_DIR: {os.getenv('DATA_DIR')}")
 
 **Debug Steps:**
 ```bash
-# Test API endpoints
-curl http://localhost:8080/api/status
-curl http://localhost:8080/api/stats
-curl -X POST http://localhost:8080/api/search -H "Content-Type: application/json" -d '{"query": "test"}'
+# Test API endpoints (panel default port is CONTROL_PANEL_PORT=8081,
+# served by uvicorn via d1_5_ops_tooling/.../d3_3_panel_lifecycle.py)
+curl http://localhost:8081/api/status
+curl http://localhost:8081/api/stats
 ```
 
 **WebSocket Debug:**
 ```javascript
 // Test WebSocket connection in browser console
-const ws = new WebSocket('ws://localhost:8080/ws');
+const ws = new WebSocket('ws://localhost:8081/ws');
 ws.onmessage = function(event) {
     console.log('Received:', JSON.parse(event.data));
 };
@@ -567,9 +563,10 @@ def optimize_query(query):
 #!/bin/bash
 echo "🚨 Emergency restart procedure"
 
-# Stop all services
+# Stop all services (the panel runs inside the bot process under uvicorn;
+# there is no separate enhanced_api_routes.py service)
 pkill -f "python3 -m serin"
-pkill -f "python3 enhanced_api_routes.py"
+pkill -f "discord_bot.py"
 
 # Check Qdrant
 if ! curl -s http://localhost:6333/ >/dev/null; then
@@ -578,12 +575,9 @@ if ! curl -s http://localhost:6333/ >/dev/null; then
     sleep 10
 fi
 
-# Start services
-echo "🤖 Starting Discord bot..."
+# Start services (control panel starts with the bot - one process)
+echo "🤖 Starting Discord bot (panel included)..."
 nohup python3 -m serin > logs/bot.log 2>&1 &
-
-echo "🌐 Starting control panel..."
-nohup python3 enhanced_api_routes.py > logs/control_panel.log 2>&1 &
 
 echo "✅ Emergency restart complete"
 ```
@@ -604,9 +598,9 @@ fi
 
 echo "📁 Using backup: $LATEST_BACKUP"
 
-# Stop services
+# Stop services (single process)
 pkill -f "python3 -m serin"
-pkill -f "python3 enhanced_api_routes.py"
+pkill -f "discord_bot.py"
 
 # Backup current state
 cp -r ./bot_data ./bot_data/$(date +%Y%m%d_%H%M%S)_pre_recovery
@@ -616,11 +610,8 @@ cp -r "$BACKUP_DIR/$LATEST_BACKUP/qdrant_data" ./bot_data/
 cp "$BACKUP_DIR/$LATEST_BACKUP/bot_data.db" ./bot_data/
 
 # Start services
-echo "🤖 Starting Discord bot..."
+echo "🤖 Starting Discord bot (panel included)..."
 python3 -m serin
-
-echo "🌐 Starting control panel..."
-python3 enhanced_api_routes.py
 
 echo "✅ Recovery complete"
 ```
