@@ -51,13 +51,19 @@ Suite: `uv run python -m pytest tests/inspector/ -q`.
 
 ## Known gaps
 
-- No real `voice_receiver` subprocess integration test (wire framing covered only by AST
-  contracts); no `serin_core` PyO3 smoke test — the two explicit gaps in the suite.
+- ~~No real `voice_receiver` subprocess integration test~~ **CLOSED 2026-08-26** (Plan 4,
+  commit `96df250`): `tests/integration/test_wire_protocol.py` + `test_protocol_sync_guard.py`
+  drive the real framer/parser against main.rs-pinned frames; live-audio DAVE smoke still open
+  (tracked in GitHub issue #39).
+- No `serin_core` PyO3 smoke test — last explicit gap in the suite (imports as an empty
+  namespace package locally, so `hasattr` guards are load-bearing).
 - Run non-integration tests: `uv run pytest tests/ -m "not integration" -q`.
 
 > ⚠️ SUPERSEDED (2026-08-25): the songbird-patch "dies silently on re-vendor" risk is now
 > guarded by `tests/test_songbird_patch_contract.py` + a CI `voice-receiver` job — see
 > [[known_debt]] § Vendored-songbird patch.
+> ⚠️ CORRECTED (2026-08-26): the wire-framing gap above was listed as open after Plan 4 had
+> already closed it — verification against the tree before trusting this page's gap list.
 
 ## See also
 
