@@ -2,6 +2,17 @@
 
 Append-only chronology (`## [YYYY-MM-DD] <op> | <title>`). Latest first.
 
+## [2026-08-26] ingest+lint | First source ingest (6 pages) + debt corrections
+INGEST of the six major docs into `wiki/sources/`: [[source_architecture]],
+[[source_connections]], [[source_the_law]], [[source_serin_vision]],
+[[source_subsystem_tests]], [[source_voice_wiki_research]] — each with provenance,
+verified-today key contents, and contradiction flags; index Sources section filled
+(previously "None yet"). LINT corrections in the same pass: [[known_debt]] status-route
+shadowing direction fixed (Starlette serves FIRST handler — d5_3 was dead, not d5_2;
+live-probe verified) and all CONNECTIONS-H clusters marked resolved after the 2026-08-26
+dedup commits (panel worlds, d5_3 routes, both twins, bridge_recovery, stale config key);
+[[testing]] wire-framing gap marked closed (Plan 4 harness landed); [[bot_config]] entity
+updated for the purged RUST_VOICE_RECEIVER_PATH key.
 ## [2026-08-26] query | Dynamics Persistence Plan
 Filed `wiki/queries/2026-08-26_dynamics_persistence_plan.md` after implementing
 SQLite persistence for `ConversationDynamicsEngine`: new `channel_dynamics`
