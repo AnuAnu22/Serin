@@ -2,6 +2,16 @@
 
 Append-only chronology (`## [YYYY-MM-DD] <op> | <title>`). Latest first.
 
+## [2026-08-26] ingest | Goals engine C1 — schema + storage layer
+Landed the storage half of the goals engine ([[goals_engine]]): `goals` + `goal_evidence`
+DDL added to the authoritative schema (`d4_3_schema_store.py`; status CHECK state machine,
+salience, provenance, parent links), row functions in new package
+`d4_1_core_storage/d5_6_goal_storage/d6_1_goals_store.py` (Rule-1-compliant split;
+duck-typed store contract like d5_4_dynamics_store). Machinery only - statements stored
+verbatim, no curation layer. Pinned by tests/test_goals_store.py (12 tests). Updated
+SUBSYSTEM_pipeline_remember.md to full currency (added previously missing d5_4/d5_5
+sections + user_mood_state/channel_dynamics/pipeline_runs table inventory) and
+[[qdrant_memory_system]].
 ## [2026-08-26] ingest+lint | First source ingest (6 pages) + debt corrections
 INGEST of the six major docs into `wiki/sources/`: [[source_architecture]],
 [[source_connections]], [[source_the_law]], [[source_serin_vision]],
