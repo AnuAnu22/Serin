@@ -2,6 +2,18 @@
 
 Append-only chronology (`## [YYYY-MM-DD] <op> | <title>`). Latest first.
 
+## [2026-08-26] ingest | Goals engine C3 - pursuit reaches the live pipeline
+C3 of [[goals_engine]]: goals now CAUSE behavior through accumulated state. ResponseDecisionStage
+gets goals_engine and a _goal_salience_bonus helper (0.10 x salience per active goal, bounded,
+deterministic, no RNG) that lifts engagement salience; it also records ctx.metadata[active_goals].
+ResponsePlannerStage gets goals_engine and injects the top active goal verbatim as a binding
+constraint + ctx.response_plan[active_goals] (slots ahead of per-message belief constraints but
+honors the 3-slot cap). Pipeline build() gained a goals_engine param threaded into both stages,
+and the initializer passes the managers engine (mirrors dynamics/affect). Tests:
+tests/test_goals_pursuit.py (6 tests: bonus math, metadata surfacing, verbatim constraint, cap
+priority, no-engine noop). Docs synced: SUBSYSTEM_pipeline_act stage list. ruff + mypy strict +
+structure gates green; 40 tests pass across goals layers.
+
 ## [2026-08-26] ingest | Goals engine C2 — formation + review machinery wired
 C2 of [[goals_engine]]: `d3_4_goals_engine.py` (GoalsEngine) added to d1_3 state layer with
 `build_formation_prompt`/`parse_formation` (verbatim, clamps salience, rejects malformed/empty/
