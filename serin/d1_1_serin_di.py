@@ -171,6 +171,16 @@ def get_thinking_filter_instance() -> Any:
     return get_thinking_filter()
 
 
+def get_small_llm_connector() -> Any:
+    """The supporting ("small") LLM used by MemoryWriteStage fact/belief
+    extraction. Aliased to the main chat connector's settings unless
+    SMALL_LLM_* env keys override them (see BotConfig)."""
+    from serin.d1_3_state_core.d2_3_model_system.d3_3_system_factory import (
+        get_small_llm_connector as _factory_get_small_llm_connector,
+    )
+    return _factory_get_small_llm_connector()
+
+
 # --- Response generator: module-level state + pure functions ---
 # response_generator.py holds a couple of module-level globals
 # (discord_client, llama) that gateway code needs to set once at startup

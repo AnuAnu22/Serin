@@ -97,6 +97,21 @@ async def main() -> None:
     except Exception as e:
         get_logger().exception(f"Fatal error in main: {e}")
     finally:
+        # Persist conversation-dynamics state before exit so momentum/phase/
+        # timing survive restart (hot_reloader SIGTERM lands here too —
+        # SERIN_VISION "Growth": accumulated state must outlive the process).
+        try:
+            from serin.d1_2_gateway_io.d2_1_io_discord import d3_1_pipeline_init as bp
+
+            manager = getattr(bp, "message_manager", None)
+            engine = getattr(manager, "dynamics_engine", None)
+            memory = getattr(manager, "memory", None)
+            if engine is not None and memory is not None:
+                flushed = engine.flush_to_store(memory, force=True)
+                get_logger().info(f"Dynamics state saved on shutdown: {flushed} channels")
+        except Exception as e:
+            get_logger().debug(f"Dynamics shutdown flush skipped: {e}")
+
         get_logger().info("Bot shutdown complete")
         if not client.is_closed():
             await client.close()

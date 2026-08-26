@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from serin.d1_4_config_base.d2_1_base_config import config
+
 from .d3_2_system_connector import LLMConnector
 from .d3_4_system_interface import ModelInterface
 
@@ -16,6 +18,22 @@ def get_model_connector(
     if key not in loaded_models:
         loaded_models[key] = LLMConnector(model_name)
     return loaded_models[key]
+
+def get_small_llm_connector() -> ModelInterface:
+    """Connector for the supporting ("small") LLM used by memory fact/belief
+    extraction. Cached separately from the main connector so a dedicated
+    SMALL_LLM_* endpoint never evicts or thrashes the chat model's cache slot.
+    Falls back to the main LLM settings when SMALL_LLM_* is unset (config
+    aliases them), matching the historical single-model behavior."""
+    key = "__small__"
+    if key not in loaded_models:
+        loaded_models[key] = LLMConnector(
+            model_name=config.SMALL_LLM_MODEL,
+            base_url=config.SMALL_LLM_BASE_URL,
+            api_key=config.SMALL_LLM_API_KEY,
+        )
+    return loaded_models[key]
+
 
 def get_available_providers() -> dict[str, bool]:
     """Return available providers (always just llama-swap)."""

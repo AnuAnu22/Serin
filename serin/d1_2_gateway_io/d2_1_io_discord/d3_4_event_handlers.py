@@ -59,6 +59,20 @@ async def run_maintenance() -> None:
             if bp.background_processor:
                 await bp.background_processor.run_maintenance()
 
+            # Persist conversation-dynamics physics state (throttle bypassed
+            # here — maintenance runs rarely; keep momentum/phase warm across
+            # restarts per SERIN_VISION "Growth").
+            if bp.message_manager is not None and getattr(
+                bp.message_manager, "dynamics_engine", None
+            ) is not None and getattr(bp.message_manager, "memory", None) is not None:
+                try:
+                    flushed = bp.message_manager.dynamics_engine.flush_to_store(
+                        bp.message_manager.memory, force=True,
+                    )
+                    get_logger().info(f"Dynamics state flushed: {flushed} channels")
+                except Exception as e:
+                    get_logger().error(f"Dynamics flush failed: {e}")
+
             try:
                 backup_path = bp.db_protector.create_backup(backup_type="scheduled")
                 get_logger().info(f"Scheduled backup created: {backup_path}")

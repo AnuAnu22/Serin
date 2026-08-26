@@ -4,7 +4,7 @@ tags: [debt, dead-code, stale]
 created: 2026-08-16
 updated: 2026-08-25
 sources: [docs/CONNECTIONS.md, docs/todo.md, docs/ENGINEERING_STANDARDS.md, docs/SUBSYSTEM_ops_tooling.md]
-status: seed
+status: live
 ---
 
 # Known Debt & Dead Code
@@ -27,7 +27,8 @@ Anything with a fix recommendation is ranked roughly by impact.
   the wrong (dead) one.
 - **Legacy belief stores**: `d1_1 d2_4_flow_remember` `d5_1_belief_beliefs` +
   `d5_2_belief_evidence` + `d4_3_memory_quality` + `d4_4_knowledge_retrieval` — nothing
-  imports them except the untracked `tests/test_fact_belief_gating.py` (see [[bayesian_beliefs]]).
+  imports them except `tests/test_fact_belief_gating.py` (tracked in git as of 2026-08-25;
+  it was untracked when this page was seeded — see [[bayesian_beliefs]]).
 - **Dead bridge recovery**: `d3_2_bridge_io/d4_3_bridge_recovery.py` (0 importers).
 
 ## Vendored-songbird patch — guarded (was: dies silently on re-vendor)
@@ -73,9 +74,11 @@ be dropped by design (docs/wiki/songbird-clientconnect-patch.md § Maintenance w
 
 ## Still-over-500-line files (todo.md)
 
-Worst offenders at migration time: memory store ~1500, control-panel server ~1400, ingest
+~~Worst offenders at migration time: memory store ~1500, control-panel server ~1400, ingest
 manager ~1050, voice bridge ~940, database protector ~920, Discord bot entry ~820, audio
-processor ~830 — re-measure with the Law checkers before splitting.
+processor ~830.~~ **RESOLVED — re-measured 2026-08-25**: no `.py` under `serin/` exceeds the
+500-line ceiling anymore (largest: `d4_4_core_manager.py` at 478). No directory violates the
+5-files/5-subdirs horizon either.
 
 ## Known behavioral debt (from the response-generation critique)
 

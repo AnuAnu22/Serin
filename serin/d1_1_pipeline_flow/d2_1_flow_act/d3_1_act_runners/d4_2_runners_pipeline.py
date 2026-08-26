@@ -34,6 +34,11 @@ from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_8_server.d5_
 class MessagePipeline:
     def __init__(self, stages: list[PipelineStage]) -> None:
         self.stages = stages
+        # Set once by build() when PIPELINE_METRICS_ENABLED — when truthy,
+        # every completed process() writes one pipeline_runs row (edge-A,
+        # CONNECTIONS.md Phase-5 rec #4). None => metrics fully off.
+        self._metrics_store: Any | None = None
+        self._pipeline_started_ts: float = 0.0
 
     @classmethod
     def build(
@@ -90,7 +95,7 @@ class MessagePipeline:
         if creator_ids is None:
             creator_ids = config.CREATOR_IDS
 
-        return cls(stages=[
+        pipeline = cls(stages=[
             ResponseDecisionStage(dynamics=dynamics, creator_ids=creator_ids, affect_engine=affect_engine),
             MemoryRetrievalStage(memory_system, retrieval),
             ResponsePlannerStage(personality=personality),
@@ -102,8 +107,16 @@ class MessagePipeline:
             SendStage(dynamics=dynamics),
             MemoryWriteStage(memory_system, personality=mood_state, client=client, small_llm=small_llm, affect_engine=affect_engine),
         ])
+        if getattr(config, "PIPELINE_METRICS_ENABLED", False):
+            # Duck-typed store (anything with .conn): the memory system owns
+            # the SQLite handle. Recording itself is function-scoped + never
+            # raises — see d5_5_pipeline_metrics.
+            if memory_system is not None and hasattr(memory_system, "conn"):
+                pipeline._metrics_store = memory_system
+        return pipeline
 
     async def process(self, ctx: MessageContext) -> MessageContext:
+        self._pipeline_started_ts = time.time()
         logger.info("pipeline.start", extra={
             "user": ctx.username,
             "user_id": ctx.user_id,
@@ -160,6 +173,36 @@ class MessagePipeline:
             "total_ms": round(sum(ctx.stage_timings.values()), 2),
             "stage_timings": ctx.stage_timings,
         })
+        self._record_run_metrics(ctx)
         return ctx
+
+    def _record_run_metrics(self, ctx: MessageContext) -> None:
+        """Persist one pipeline_runs row (edge-A). Never raises.
+
+        Function-scoped import keeps this d1_1 file from top-level-importing
+        the storage module; the recorder itself swallows all storage errors.
+        """
+        store = self._metrics_store
+        if store is None:
+            return
+        try:
+            from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_1_core_storage.d5_5_pipeline_metrics import (
+                record_pipeline_run,
+            )
+
+            record_pipeline_run(store, {
+                "started_ts": self._pipeline_started_ts or time.time(),
+                "duration_ms": round(sum(ctx.stage_timings.values()), 2),
+                "user_id": ctx.user_id,
+                "channel_id": ctx.channel_id,
+                "halted": bool(ctx.halt_reason),
+                "halt_reason": ctx.halt_reason or "",
+                "responded": bool(ctx.final_response),
+                "stage_count": len(ctx.stage_timings),
+                "stage_timings": dict(ctx.stage_timings),
+                "error": "",
+            })
+        except Exception as e:  # pragma: no cover — belt & suspenders
+            logger.debug("pipeline.metrics_write_failed: %s", e)
 
 
