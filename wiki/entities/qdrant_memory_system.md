@@ -18,7 +18,8 @@ subsystem: search, FTS, fact/belief tables, user profiles, relationships.
 ## Where it lives
 
 - Hub: `serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_1_remember_core/d4_4_core_store.py`
-- Storage split-outs: `d4_1_core_storage/` (search / sqlite / write), `d4_2_connection_store`
+- Storage split-outs: `d4_1_core_storage/` (search / sqlite / write / dynamics / metrics /
+  `d5_6_goal_storage` for self-generated goals), `d4_2_connection_store`
   (Qdrant connection + Docker lifecycle), `d4_3_schema_store` (**authoritative SQLite schema**).
 - The d1_3 `memory_store.py` twin is a **stale duplicate** (legacy schema, not in use).
 
@@ -27,7 +28,9 @@ subsystem: search, FTS, fact/belief tables, user profiles, relationships.
 - **Authoritative schema** (`d4_3_schema_store.py`): `users`, `relationships`,
   `recent_messages`, `memory_fts` (FTS5), `facts` (Bayesian: belief/variance/log_odds/
   observation/corroboration/contradiction counts, `claim_hash UNIQUE`, state PENDING),
-  `fact_observations` ledger, `beliefs` — see [[bayesian_beliefs]].
+  `fact_observations` ledger, `beliefs` — see [[bayesian_beliefs]]; plus `user_affect`,
+  `user_mood_state`, `channel_dynamics`, `pipeline_runs`, and the self-generated
+  **`goals` + `goal_evidence`** tables — see [[goals_engine]].
 - **Hybrid retrieval**: BM25 (`d6_1_bm25_index.py`, PyO3 `sanitize_fts_query` seam) + vector
   search; rerank via PyO3 `rerank_candidates` (fallback `_rerank_results_simple`);
   recency decay ~30-day half-life.

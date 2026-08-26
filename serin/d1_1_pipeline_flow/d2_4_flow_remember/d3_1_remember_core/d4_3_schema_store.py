@@ -279,6 +279,47 @@ def init_sqlite_schema(conn: sqlite3.Connection, cursor: sqlite3.Cursor) -> None
         "ON pipeline_runs(started_ts)"
     )
 
+    # Self-generated goals — Serin's own persistent cognitive state
+    # (SERIN_VISION "Growth"). The engine only owns MACHINERY here: rows are
+    # formed/revised/pursued/dropped through the state machine below; the
+    # CONTENT of a goal statement is whatever the forming LLM produced and is
+    # never curated, filtered, or templated by this code (causality, not
+    # performance: pursuit weight comes from salience, never a die roll).
+    # One row per goal; goal_evidence is the append-only provenance trail.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS goals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at REAL NOT NULL,
+            updated_at REAL NOT NULL,
+            statement TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'FORMING'
+                CHECK (status IN ('FORMING','ACTIVE','PAUSED','ACHIEVED',
+                                  'DROPPED','SUPERSEDED')),
+            salience REAL NOT NULL DEFAULT 0.5,
+            origin_provenance TEXT NOT NULL DEFAULT '',
+            parent_goal_id INTEGER,
+            last_reviewed_at REAL
+        )
+    """)
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_goals_active_salience "
+        "ON goals(status, salience DESC)"
+    )
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS goal_evidence (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            goal_id INTEGER NOT NULL,
+            kind TEXT NOT NULL,
+            detail TEXT NOT NULL DEFAULT '',
+            source TEXT NOT NULL DEFAULT '',
+            created_at REAL NOT NULL
+        )
+    """)
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_goal_evidence_goal "
+        "ON goal_evidence(goal_id, created_at)"
+    )
+
     # Migration: add state column if table exists without it
     import sqlite3
     for col, dtype in [

@@ -56,11 +56,11 @@ Both terminate in `main()` in `d4_1_main_entry.py` (note: `main_entry` lives in 
 
 | # | Subsystem | One-liner | Doc |
 |---|---|---|---|
-| 1 | **config_base** | `BotConfig` singleton + debug logger; log dir is file-relative; `RUST_VOICE_RECEIVER_PATH` stale/dead | `SUBSYSTEM_config_base.md` |
+| 1 | **config_base** | `BotConfig` singleton + debug logger; log dir is file-relative; ~~`RUST_VOICE_RECEIVER_PATH` stale/dead~~ key deleted 2026-08-26 (bridge resolves its own path) | `SUBSYSTEM_config_base.md` |
 | 2 | **state_core_db** | Qdrant + SQLite stores, belief/fact engines, db_protect (stale ChromaDB); legacy-vs-Bayesian schema conflict lives here | `SUBSYSTEM_state_core_db.md` |
 | 3 | **state_core_context** | `MessageContext` pipeline envelope; `ConversationDynamicsEngine` (3-subsystem shared object); `AffectEngine` lazy-imports d1_1 store | `SUBSYSTEM_state_core_context.md` |
 | 4 | **wiring_entry_di** | `serin_di` = Rule-5 composition root; `io_di` logger holder; entry duality (`python -m serin` vs `discord_bot.py`→hot_reloader) | `SUBSYSTEM_wiring_entry_di.md` |
-| 5 | **pipeline_remember** | **Authoritative Bayesian schema** (`d4_3_schema_store`); real wiring via `d4_4_core_store`; 4 dead knowledge files; compat shim | `SUBSYSTEM_pipeline_remember.md` |
+| 5 | **pipeline_remember** | **Authoritative Bayesian schema** (`d4_3_schema_store`: facts/beliefs/affect/mood/dynamics/runs/goals); real wiring via `d4_4_core_store`; 4 dead knowledge files; compat shim | `SUBSYSTEM_pipeline_remember.md` |
 | 6 | **pipeline_think** | Response generator/planner, personality, thinking filter; PyO3 seams; `PersonalityState` multi-subsystem | `SUBSYSTEM_pipeline_think.md` |
 | 7 | **pipeline_act** | The 10-stage message pipeline DAG (Decision→Retrieval→Plan→Temporal→Personality→Assemble→LLM→Clean→Send→Write); CONNECTIONS A at 3 sites; `_missed_messages` shared state | `SUBSYSTEM_pipeline_act.md` |
 | 8 | **pipeline_ingest** | `EnhancedMessageManagerV3` feeder; builds MessageContext + MessagePipeline; canonical MentionTranslator; perception module | `SUBSYSTEM_pipeline_ingest.md` |
@@ -166,7 +166,7 @@ maturin develop                          # serin_core (optional accelerator; bot
 bandit, detect-secrets — all shelled out by `tests/test_static_analysis.py`.
 
 **Config:** `serin/d1_4_config_base/d2_1_base_config.py` `BotConfig` (env-driven). The
-`RUST_VOICE_RECEIVER_PATH` key is dead — the voice bridge resolves its own binary path.
+~~`RUST_VOICE_RECEIVER_PATH` key is dead~~ — deleted 2026-08-26; the voice bridge resolves its own binary path.
 
 ---
 
