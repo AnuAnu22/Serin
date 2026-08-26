@@ -60,13 +60,17 @@ be dropped by design (docs/wiki/songbird-clientconnect-patch.md § Maintenance w
 
 ## Stale config & stale refs
 
-- `RUST_VOICE_RECEIVER_PATH` in `d2_1_base_config.py` points at a wrong default path and no
-  code reads it — RustVoiceBridge computes its own binary path (see [[bot_config]]).
+- ~~`RUST_VOICE_RECEIVER_PATH`~~ RESOLVED 2026-08-26: deleted from `d2_1_base_config.py`
+  (pointed at a wrong default, no code read it — RustVoiceBridge computes its own binary
+  path; panel frontend key-list updated to match. See [[bot_config]]).
 - db_protect (`d3_2_protect_core.py`) hardcodes ChromaDB dirs + a `required_tables` list that
   lags the real (Bayesian) schema; the d1_3 `d3_4_memory_store.py` CREATE TABLE is a stale
   legacy-schema duplicate of the authoritative `d4_3_schema_store` (CONNECTIONS F).
-- `docs/troubleshooting_guide.md` + `docs/deployment_checklist.md` reference the pre-Qdrant
-  ChromaDB world (e.g. `enhanced_api_routes.py`, `USE_QDRANT`) — stale.
+  NOTE 2026-08-26: verified `required_tables = ['users','relationships','recent_messages']`
+  all exist in the live schema — only the ChromaDB dir machinery is stale; full excision of
+  db_protect's chroma paths queued as follow-up (own commit, has tests to migrate).
+- ~~`docs/troubleshooting_guide.md` + `docs/deployment_checklist.md` reference the pre-Qdrant
+  ChromaDB world~~ RESOLVED 2026-08-26: both rewritten for Qdrant/SQLite.
 
 ## Architecture governance gaps (docs-level conflicts)
 

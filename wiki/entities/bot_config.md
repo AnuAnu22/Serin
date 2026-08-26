@@ -25,9 +25,9 @@ logger, the highest-inbound module in the graph.
 
 - Core: `DISCORD_TOKEN`, `DEBUG_MODE`, `TRACE_MESSAGES`, `MAINTENANCE_INTERVAL_HOURS=24`,
   `CONTROL_PANEL_PORT=8081`, `CONTROL_PANEL_KEY`, `CONTROL_PANEL_ALLOWED_ORIGINS`.
-- Voice: `ENABLE_VOICE=true`, `ENABLE_TTS=true`, `VOICE_RECEIVER_MODE='rust'` | `'pycord'`,
-  and ⚠️ `RUST_VOICE_RECEIVER_PATH` (STALE — wrong default, no code reads it; the bridge
-  resolves its own path — see [[known_debt]]).
+- Voice: `ENABLE_VOICE=true`, `ENABLE_TTS=true`, `VOICE_RECEIVER_MODE='rust'` | `'pycord'`.
+  (~~`RUST_VOICE_RECEIVER_PATH`~~ deleted 2026-08-26 — was stale; the bridge resolves
+  its own path — see [[known_debt]].)
 - Qdrant: `QDRANT_HOST/Port`, `QDRANT_USE_DOCKER`, container/image names.
 - Model: `LLM_MODEL='Qwen/Qwen2.5-7B-Instruct'`, `LLM_BASE_URL`, `LLM_API_KEY`,
   `LLM_SUPPORTS_VISION`/audio, temperature/top_p/max_tokens, `LLM_ENABLE_THINKING`.
