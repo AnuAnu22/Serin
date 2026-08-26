@@ -57,6 +57,7 @@ class MessagePipeline:
         dynamics_engine: Any | None = None,
         creator_ids: frozenset[str] | None = None,
         affect_engine: Any | None = None,
+        goals_engine: Any | None = None,
     ) -> MessagePipeline:
         """
         Factory method — wires all dependencies into stages.
@@ -96,9 +97,9 @@ class MessagePipeline:
             creator_ids = config.CREATOR_IDS
 
         pipeline = cls(stages=[
-            ResponseDecisionStage(dynamics=dynamics, creator_ids=creator_ids, affect_engine=affect_engine),
+            ResponseDecisionStage(dynamics=dynamics, creator_ids=creator_ids, affect_engine=affect_engine, goals_engine=goals_engine),
             MemoryRetrievalStage(memory_system, retrieval),
-            ResponsePlannerStage(personality=personality),
+            ResponsePlannerStage(personality=personality, goals_engine=goals_engine),
             TemporalStage(temporal_context),
             PersonalityStage(personality, mood_state=mood_state),
             PromptAssemblyStage(mention_translator, memory_system=memory_system, affect_engine=affect_engine),
