@@ -153,6 +153,10 @@ affect impressions. Constructed with `memory_system`; `dynamic_engine` attr is s
   (**CONNECTIONS-G touchpoint** — maintenance drives the conversation-physics attention allocator),
   and `_run_impression_batch()` which **reaches into `d1_1 d5_2_sqlite_store.get_users_due_impression`**
   and the memory's `affect_engine` to generate LLM sentiment impressions for due users.
+  Maintenance now also runs **`_run_goals_maintenance()`** (when `goals_engine` is attached): it
+  reviews/decays stale goals, promotes stable FORMING goals to ACTIVE, and — threshold-gated by
+  material volume, live-goal cap, and LLM availability — asks the background LLM to form at most one
+  new self-generated goal from recent conversation. Statements are stored verbatim; see [[goals_engine]].
 - **`d5_2_tooling_background_summary.py` — `BackgroundProcessorSummarizationMixin`** — the summarization
   logic (split out to keep d5_1 under 500 lines, Rule 2 mixin style). `_create_conversation_summary`
   (JSON prompt, thinking-model handling via `filter_thinking` PyO3, username-prefix strip, garbage-pattern

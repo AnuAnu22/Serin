@@ -19,6 +19,11 @@ from serin.d1_3_state_core.d2_3_model_system.d3_3_system_factory import (
     get_model_connector,
 )
 from serin.d1_3_state_core.d2_3_model_system.d3_4_system_interface import ModelInterface
+from serin.d1_3_state_core.d2_5_state_conversation.d3_4_goals_engine import (  # noqa: E402
+    MAX_ACTIVE_GOALS,
+    MIN_BATCH_LINES_FOR_FORMATION,
+    parse_formation,
+)
 from serin.d1_4_config_base.d2_3_core_logger import logger
 from serin.d1_5_ops_tooling.d2_2_tooling_background.d5_2_tooling_background_summary import (
     BackgroundProcessorSummarizationMixin,
@@ -65,6 +70,10 @@ class BackgroundProcessor(BackgroundProcessorSummarizationMixin):
 
         # Dynamics engine for physics-based conversation state (set externally)
         self.dynamics_engine: Any | None = None
+
+        # Goals engine for self-generated persistent goals (set externally,
+        # same duck-typed pattern); None until the manager attaches it.
+        self.goals_engine: Any | None = None
 
         logger.info(" Background processor initialized")
 
@@ -300,6 +309,15 @@ class BackgroundProcessor(BackgroundProcessorSummarizationMixin):
         except Exception as e:
             logger.debug(f" Dynamics engine maintenance failed: {e}")
 
+        # Goals: review/decay stale ones, promote stable FORMING goals, then
+        # maybe form ONE new goal from recent conversation (threshold-gated;
+        # content comes from the supporting LLM and is stored verbatim).
+        try:
+            if self.goals_engine is not None:
+                await self._run_goals_maintenance()
+        except Exception as e:
+            logger.debug(f" Goals maintenance skipped: {e}")
+
         # Generate LLM impressions for users due for one
         await self._run_impression_batch()
 
@@ -318,6 +336,71 @@ class BackgroundProcessor(BackgroundProcessorSummarizationMixin):
                 )
         except Exception as e:
             logger.debug(f" Pipeline metrics pruning skipped: {e}")
+
+    async def _run_goals_maintenance(self) -> None:
+        """Goals half of maintenance: review decay, promotion, formation.
+
+        Formation asks the supporting (small) LLM whether a new goal emerged
+        from recent conversation. Threshold-gated and deterministic: at most
+        one new goal per cycle, only when there is enough raw material and
+        few live goals already. The returned statement is validated JSON;
+        its CONTENT passes through verbatim or the formation is discarded.
+        """
+        assert self.goals_engine is not None  # caller guards
+        engine = self.goals_engine
+
+        # 1. Review: decay salience, auto-drop floor-dead goals, re-stamp.
+        reviewed = engine.review_due()
+        if reviewed:
+            logger.info(f" Goals review: {reviewed} goal(s) revisited")
+
+        # 2. Promote FORMING goals that survived their first review window.
+        promoted = engine.promote_ready()
+        if promoted:
+            logger.info(f" Goals promoted to ACTIVE: {promoted}")
+
+        # 3. Formation — needs recent conversation material.
+        from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_1_core_storage.d5_6_goal_storage import (
+            d6_1_goals_store,
+        )
+        live = d6_1_goals_store.get_active_goals(
+            self.memory, min_salience=0.0, limit=50)
+        if len(live) >= MAX_ACTIVE_GOALS:
+            logger.debug(" Goals: at active cap, skipping formation")
+            return
+        cursor = self.memory.conn.cursor()
+        cursor.execute(
+            "SELECT content FROM recent_messages ORDER BY timestamp DESC LIMIT 40")
+        lines = [str(row["content"]).strip() for row in cursor.fetchall()
+                 if row["content"]]
+        if len(lines) < MIN_BATCH_LINES_FOR_FORMATION:
+            return
+
+        prompt = engine.build_formation_prompt(
+            lines, [str(r["statement"]) for r in live])
+        if not self.extractor_llm or not self.extractor_llm.is_connected:
+            logger.debug(" Goals: background LLM unavailable - formation skipped")
+            return
+        try:
+            raw = await self.extractor_llm.chat_completion(
+                [{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=200,
+            )
+        except Exception as e:
+            logger.debug(f" Goal formation LLM call failed: {e}")
+            return
+        parsed = parse_formation(raw)
+        if parsed is None:
+            logger.debug(" Goals: formation reply malformed or empty - skipped")
+            return
+        statement, salience = parsed
+        gid = engine.form_goal(
+            statement, salience,
+            provenance="maintenance:formation",
+            detail="formed from recent conversation in background maintenance")
+        if gid > 0:
+            logger.info("goal.formed_from_conversation id=%s", gid)
 
     async def _run_impression_batch(self) -> None:
         """Generate LLM impressions for users who are due (≥25 messages since last, ≥10 total)."""

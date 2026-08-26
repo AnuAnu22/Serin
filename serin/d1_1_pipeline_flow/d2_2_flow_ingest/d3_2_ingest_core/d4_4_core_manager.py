@@ -143,12 +143,9 @@ class EnhancedMessageManagerV3:
         )
         self.voice_tracker = VoiceTracker(self.memory)
 
-        # Dynamics engine for physics-based conversation state
+        # Dynamics engine: physics-based conversation state; restored from the
+        # last session so rhythm survives restarts (SERIN_VISION Growth).
         self.dynamics_engine = ConversationDynamicsEngine()
-        # Restore per-channel momentum/phase/timing from the last session so
-        # conversational rhythm survives restarts (hot_reloader respawns the
-        # bot on every .py change — SERIN_VISION "Growth" demands accumulated
-        # state, not a fresh simulation per boot).
         try:
             snapshots = ConversationDynamicsEngine.load_persisted_snapshots(
                 self.memory,
@@ -164,6 +161,12 @@ class EnhancedMessageManagerV3:
             UserAffectEngine,
         )
         self.affect_engine = UserAffectEngine(self.memory)
+
+        # Goals engine: self-generated persistent goals (see wiki/goals_engine).
+        from serin.d1_3_state_core.d2_5_state_conversation.d3_4_goals_engine import (
+            GoalsEngine,
+        )
+        self.goals_engine = GoalsEngine(self.memory)
 
         # Pipeline instance (set externally by discord_bot.py after building)
         self.pipeline: Any = None

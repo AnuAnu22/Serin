@@ -331,6 +331,8 @@ class PipelineInitializer:
             self.message_manager.pipeline = pipeline
             if self.background_processor is not None:
                 self.background_processor.dynamics_engine = self.message_manager.dynamics_engine
+                self.background_processor.goals_engine = getattr(
+                    self.message_manager, "goals_engine", None)
             get_logger().success("MessagePipeline built and attached!")
         except Exception as e:
             get_logger().error(f"Pipeline build failed: {e}")

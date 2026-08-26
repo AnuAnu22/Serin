@@ -2,6 +2,19 @@
 
 Append-only chronology (`## [YYYY-MM-DD] <op> | <title>`). Latest first.
 
+## [2026-08-26] ingest | Goals engine C2 — formation + review machinery wired
+C2 of [[goals_engine]]: `d3_4_goals_engine.py` (GoalsEngine) added to d1_3 state layer with
+`build_formation_prompt`/`parse_formation` (verbatim, clamps salience, rejects malformed/empty/
+overlong), `review_due` (deterministic decay; auto-drop below floor), `promote_ready`,
+`pursuit_snapshot`, `touch_on_mention` (reinforcement from conversation overlap). Wired into
+`EnhancedMessageManagerV3` (shared with pipeline + BackgroundProcessor via the dynamics/affect
+pattern) and into `run_maintenance` via new `_run_goals_maintenance()` — threshold-gated by
+material volume, live-goal cap (MAX_ACTIVE_GOALS=5), and LLM connectivity. Tests:
+tests/test_goals_engine.py (13 tests: parse variants, decay/drop, promotion, pursuit, touch,
+stats). Docs synced: SUBSYSTEM_state_core_context (d3_4 section), SUBSYSTEM_ops_tooling
+(maintenance note), SUBSYSTEM_pipeline_remember (carried to currency in C1). Law-compliant
+(d4_4_core_manager held at 497 lines; trimmed pre-existing comment blocks).
+
 ## [2026-08-26] ingest | Goals engine C1 — schema + storage layer
 Landed the storage half of the goals engine ([[goals_engine]]): `goals` + `goal_evidence`
 DDL added to the authoritative schema (`d4_3_schema_store.py`; status CHECK state machine,
