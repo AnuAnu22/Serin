@@ -46,10 +46,28 @@ class ResponseDecisionStage(PipelineStage):
 
     def __init__(self, dynamics: Any | None = None,
                  creator_ids: frozenset[str] | None = None,
-                 affect_engine: Any | None = None) -> None:
+                 affect_engine: Any | None = None,
+                 goals_engine: Any | None = None) -> None:
         self.dynamics = dynamics
         self.creator_ids: frozenset[str] = creator_ids or frozenset()
         self.affect_engine = affect_engine
+        self.goals_engine = goals_engine
+
+    def _goal_salience_bonus(self, goals: list[dict[str, Any]]) -> float:
+        """Deterministic, bounded engagement lift from actively-pursued goals.
+
+        Each goal contributes 0.10 x its salience; the sum is the lift applied
+        to message salience before the Boltzmann decision. No randomness: the
+        weight is read straight from accumulated goal state (causality, not
+        performance). Statements are never read here - only their salience.
+        """
+        bonus = 0.0
+        for goal in goals[:3]:
+            try:
+                bonus += 0.10 * float(goal.get("salience", 0.0))
+            except (TypeError, ValueError):
+                continue
+        return bonus
 
     def _pick_reaction_emoji(self, content: str) -> str:
         """Pick an emoji reaction based on content."""
@@ -104,6 +122,24 @@ class ResponseDecisionStage(PipelineStage):
             salience -= 0.1
         if snap is not None:
             salience += 0.1 * snap.familiarity
+
+        # Self-generated goals (SERIN_VISION Growth): an actively-pursued goal
+        # is persistent intent, so it deterministically raises engagement on a
+        # bounded, salience-weighted curve. No RNG — the weight is read straight
+        # from accumulated goal state. Goal statements are never read here, only
+        # their salience, so this stays machinery, not curation.
+        active_goal_statements: list[str] = []
+        if self.goals_engine is not None:
+            try:
+                goals = self.goals_engine.pursuit_snapshot(limit=3)
+                for goal in goals:
+                    active_goal_statements.append(str(goal.get("statement", "")))
+                if goals:
+                    salience = min(1.0, salience + self._goal_salience_bonus(goals))
+                    ctx.metadata["active_goals"] = active_goal_statements
+            except Exception as e:  # never let goal reads break the decision
+                logger.debug("goals decision boost skipped: %s", e)
+
         salience = max(0.0, min(1.0, salience))
 
         user_valence = snap.valence if snap is not None else 0.0

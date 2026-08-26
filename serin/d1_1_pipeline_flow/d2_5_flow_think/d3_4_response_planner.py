@@ -62,8 +62,10 @@ class ResponsePlannerStage(PipelineStage):
     disagree/agree stance and a binding constraint (not a random roll).
     """
 
-    def __init__(self, personality: Any = None) -> None:
+    def __init__(self, personality: Any = None,
+                 goals_engine: Any | None = None) -> None:
         self.personality = personality
+        self.goals_engine = goals_engine
 
     async def _run(self, ctx: MessageContext) -> MessageContext:
         logger.debug("pipeline.response_planner_start", extra={
@@ -204,8 +206,26 @@ class ResponsePlannerStage(PipelineStage):
                         # No direct conflict (e.g. one side neutral) — don't force a stance.
                         pass
 
+        # ── 2b. Self-generated goals (SERIN_VISION Growth) ───────────────
+        active_goals_local = []
+        if self.goals_engine is not None:
+            try:
+                active_goals_local = self.goals_engine.pursuit_snapshot(limit=3)
+            except Exception as exc:
+                logger.debug("goals pursuit snapshot skipped: %s", exc)
+        if active_goals_local:
+            ctx.metadata["active_goals"] = [str(g.get("statement", "")) for g in active_goals_local]
+            top_goal = active_goals_local[0]
+            goal_constraint = (
+                f"Standing self-goal (salience {float(top_goal.get('salience', 0.0)):.2f}): "
+                f"{top_goal.get('statement', '')}. Let it color your engagement when naturally "
+                "relevant — do not force the topic."
+            )
+            constraints = [goal_constraint] + constraints
+
         # ── 3. Build response plan ───────────────────────────────────────
         ctx.response_plan = {
+            "active_goals": ctx.metadata.get("active_goals", []),
             "stance": stance,
             "confidence": round(confidence, 2),
             "constraints": constraints[:3],  # Cap at 3 for prompt space

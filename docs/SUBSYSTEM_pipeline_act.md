@@ -38,9 +38,9 @@ mutates — the structural reason d1_3 is the low layer.
 ### d3_1_act_runners/d4_2_runners_pipeline.py — MessagePipeline (10-stage DAG)  ⭐
 The conductor. `build()` constructs exactly these stages **in this order**:
 
-1. `ResponseDecisionStage` — should we even respond? (decision_temporal)
+1. `ResponseDecisionStage` — should we even respond? (decision_temporal); deterministically raises engagement salience from actively-pursued self-goals (see [[goals_engine]])
 2. `MemoryRetrievalStage` — pull memories/profile/context (memory_retrieval)
-3. `ResponsePlannerStage` — belief-constrained plan (via d2_5 response_planner)
+3. `ResponsePlannerStage` — belief-constrained plan (via d2_5 response_planner); injects the top active self-goal as a binding constraint + ctx.response_plan["active_goals"] (see [[goals_engine]])
 4. `TemporalStage` — resolve date references (decision_temporal)
 5. `PersonalityStage` — inject persona + tone (personality_stage)
 6. `PromptAssemblyStage` — build the actual prompt (prompt_assembly)
