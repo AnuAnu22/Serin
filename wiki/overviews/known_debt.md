@@ -14,11 +14,15 @@ Anything with a fix recommendation is ranked roughly by impact.
 
 ## Dead code clusters (dedup candidates — CONNECTIONS H)
 
-- **Two dead control-panel worlds**: `d3_1_panel_panels/` (6 files) + `d3_4_panel_routes.py`
-  — zero importers. LIVE = `d3_2_panel_server/` only.
-- **Duplicate live status routes**: `d4_7_state/d5_2_server_state` AND `d5_3_server_status`
-  both register `/ /api/status /api/stats /api/health`; `d5_3` is side-effect-imported LAST
-  and **shadows** `d5_2` at runtime while `debug_routes` still uses the `d5_2` copies.
+- **~~Two dead control-panel worlds~~ RESOLVED 2026-08-26**: `d3_1_panel_panels/` +
+  `d3_4_panel_routes.py` deleted (zero-importer proof + full gates).
+- **~~Duplicate live status routes~~ RESOLVED 2026-08-26**: `d4_7_state/d5_3_server_status`
+  deleted. CORRECTION of this page's earlier claim: Starlette serves the **FIRST**-registered
+  handler, so it was `d5_3` that was mounted-but-dead, not `d5_2`; `debug_routes` importing
+  the d5_2 helpers was always consistent with what HTTP actually served. Live probe:
+  duplicate `/api/status` registrations answer with the first handler. Guarded now by
+  `tests/server/test_route_uniqueness.py` (no path may register twice; canonical handlers
+  pinned to `d5_2_server_state`).
 - **MentionTranslator twins**: keep the pipeline copy
   (`d1_1 ... d4_3_mention_translator.py`); the `d1_3 core_voice` copy is dead (all ~10 import
   sites use the pipeline copy).

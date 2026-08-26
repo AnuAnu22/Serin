@@ -105,15 +105,6 @@ try:
 except Exception as e:
     _logger.error("FAILED to register debug routes: %s", e)
 
-# d5_3_server_status is imported for its module-level side effects
-try:
-    from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state import (
-        d5_3_server_status,  # noqa: F401  # pyright: ignore[reportUnusedImport]
-    )
-    _logger.info("d5_3_server_status imported OK")
-except Exception as e:
-    _logger.debug("d5_3_server_status not importable: %s", e)
-
 __all__ = [
     "make_json_safe",
     "bot_state",
