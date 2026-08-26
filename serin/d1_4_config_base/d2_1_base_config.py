@@ -52,6 +52,10 @@ class BotConfig:
         # local use). Never set this to "*" — see the CORS comment in
         # control_panel/server/state.py for why.
         self.CONTROL_PANEL_ALLOWED_ORIGINS: str = os.getenv('CONTROL_PANEL_ALLOWED_ORIGINS', '')
+        # Pipeline metrics history (pipeline_runs table + /api/metrics/pipeline).
+        # Recording is best-effort and never blocks the message flow.
+        self.PIPELINE_METRICS_ENABLED: bool = os.getenv('PIPELINE_METRICS_ENABLED', 'true').lower() == 'true'
+        self.PIPELINE_METRICS_RETENTION_DAYS: int = int(os.getenv('PIPELINE_METRICS_RETENTION_DAYS', '14'))
 
         # --- Feature Flags ---
         self.ENABLE_VOICE: bool = os.getenv('ENABLE_VOICE', 'true').lower() == 'true'
