@@ -29,7 +29,7 @@ sources · queries.
 - [[serin_di]] — the Rule-5 composition root / DI container.
 - [[enhanced_message_manager_v3]] — the ingest funnel that builds the pipeline per message.
 - [[rust_voice_bridge]] — the Python↔Rust voice subprocess seam (`RustVoiceBridge`).
-- [[bot_config]] — env-driven `BotConfig` singleton (+ its known stale key).
+- [[bot_config]] — env-driven `BotConfig` singleton (stale key purged 2026-08-26).
 
 ## Concepts — ideas & principles
 
@@ -41,8 +41,12 @@ sources · queries.
 
 ## Sources — distilled raw documents
 
-*None yet. First ingest (per SCHEMA) should capture the major docs: ARCHITECTURE, CONNECTIONS,
-THE_LAW, SERIN_VISION, and the `SUBSYSTEM_*.md` set, plus the `docs/wiki/` voice research wiki.*
+- [[source_architecture]] — `docs/ARCHITECTURE.md`: five-layer tree, subsystem map, entry duality.
+- [[source_connections]] — `docs/CONNECTIONS.md`: dedup clusters (mostly resolved 2026-08-26), live seams, Phase-5 recs.
+- [[source_the_law]] — `docs/THE_LAW.md`: root shape, depth naming, Rule-5 DAG, init-pipeline contract.
+- [[source_serin_vision]] — `docs/SERIN_VISION.md`: causality-not-performance, affect/memory/personality/voice principles.
+- [[source_subsystem_tests]] — `docs/SUBSYSTEM_tests.md`: four test kinds, DI meta-test, inspector, open gaps.
+- [[source_voice_wiki_research]] — `docs/wiki/` voice research: gateway-less driver, wire protocol, DAVE constraints.
 
 ## Queries — filed answers
 
