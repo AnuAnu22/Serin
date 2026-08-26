@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import time
 from datetime import datetime
-from typing import Any
+from typing import Any, Protocol
 
 from serin.d1_1_pipeline_flow.d2_1_flow_act.d3_3_stages_base import PipelineStage
 from serin.d1_3_state_core.d2_5_state_conversation.d3_2_message_context import (
@@ -23,10 +23,21 @@ from serin.d1_3_state_core.d2_5_state_conversation.d3_3_affect_engine import (
 from serin.d1_4_config_base.d2_3_core_logger import logger
 
 
+class DiscordClientLike(Protocol):
+    """Structural type for the pieces of the Discord client we touch."""
+
+    @property
+    def user(self) -> DiscordUserLike | None: ...
+
+
+class DiscordUserLike(Protocol):
+    id: int
+
+
 class MemoryWriteStage(PipelineStage):
     """Writes the interaction to the memory system after sending."""
 
-    def __init__(self, memory_system: Any, personality: Any = None, client: Any = None, small_llm: Any = None, affect_engine: Any = None) -> None:
+    def __init__(self, memory_system: Any, personality: Any = None, client: DiscordClientLike | None = None, small_llm: Any = None, affect_engine: Any = None) -> None:
         self.memory = memory_system
         self.personality = personality
         self.client = client
@@ -188,7 +199,7 @@ class MemoryWriteStage(PipelineStage):
                         logger.exception("pipeline.personality_update_failed: %s", e)
 
                 # 7. Update relationship
-                if self.client is not None:
+                if self.client is not None and self.client.user is not None:
                     try:
                         bot_user_id = str(self.client.user.id)
                         self.memory.update_relationship(bot_user_id, user_id)
@@ -234,9 +245,9 @@ class MemoryWriteStage(PipelineStage):
                 # (halt_reason set, final_response empty) — guarded above by the
                 # `if ctx.final_response` check.
                 bot_user_id = "serin"
-                try:
+                if self.client is not None and self.client.user is not None:
                     bot_user_id = str(self.client.user.id)
-                except Exception:
+                else:
                     logger.debug("pipeline.memory_write_bot_id_fallback")
                 try:
                     self.memory.store_recent_message(

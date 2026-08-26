@@ -170,7 +170,7 @@ class MessageCrawler(BackfillMixin):
                 self.stats['errors'] += 1
                 await asyncio.sleep(60)
 
-    async def _quick_sync_channel(self, channel: discord.channel.TextChannel) -> int:
+    async def _quick_sync_channel(self, channel: discord.TextChannel) -> int:
         """
         Quick sync a single channel.
 

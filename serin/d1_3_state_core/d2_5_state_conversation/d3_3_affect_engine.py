@@ -112,11 +112,14 @@ class UserAffectEngine:
         snap = self._cache.get(user_id)
         if snap is None:
             # Best-effort background load so the next tick has the DB value.
-            # If there is no running event loop (sync context, startup before
-            # the bot loop exists, or a test), skip it - a one-message lag on
-            # a cache miss is acceptable per the vision (Serin is imperfect).
+            # If there is no running event loop in this thread (sync context,
+            # startup before the bot loop exists, or a sync test), skip it -
+            # a one-message lag on a cache miss is acceptable per the vision
+            # (Serin is imperfect). get_running_loop (not the deprecated
+            # get_event_loop) keeps scheduling on pytest-asyncio's per-test
+            # loop instead of leaking loop state across tests.
             try:
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
             except RuntimeError:
                 return _NEUTRAL
             loop.call_soon(

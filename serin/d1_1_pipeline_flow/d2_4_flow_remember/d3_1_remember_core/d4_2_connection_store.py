@@ -53,7 +53,9 @@ def find_qdrant_container() -> str | None:
             filters={"name": config.QDRANT_DOCKER_CONTAINER_NAME},
         )
         for c in containers:
-            if config.QDRANT_DOCKER_CONTAINER_NAME in c.name:
+            # docker SDK may return name=None for unnamed containers; a bare
+            # "x in None" would raise TypeError mid-discovery.
+            if c.name and config.QDRANT_DOCKER_CONTAINER_NAME in c.name:
                 return config.QDRANT_DOCKER_CONTAINER_NAME
     except Exception:
         logger.exception("Failed to find Qdrant container by name")
