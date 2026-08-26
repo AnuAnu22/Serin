@@ -100,5 +100,5 @@ RustStdoutReader interface (`events`, `read_loop`, `_EOF`), RustVoiceBridge cons
 - **No network/async integration tests** against live Discord, Qdrant, or LLM (all mocked/MagicMock).
 - **No Rust `voice_receiver` subprocess integration test** (only the missing-binary path).
 - **No `serin_core` PyO3 soak/smoke test** (optional-accelerator fallbacks not covered).
-- **No coverage of the DEAD panel worlds** (d3_1_panel_panels, d3_4_panel_routes) — consistent with their dead status.
-- **No tests for gateway_transcribe's VoiceMemoryPipeline** (S11) or the Rust bridge wire protocol parse (AUDIO/JOIN/LEAVE/TTS_DONE framing) — covered only by contract checks, not execution.
+- ~~**No coverage of the DEAD panel worlds** (d3_1_panel_panels, d3_4_panel_routes)~~ — worlds deleted 2026-08-26; route registration is now guarded by `tests/server/test_route_uniqueness.py` (no duplicate path+method pairs).
+- ~~**No tests for ... the Rust bridge wire protocol parse**~~ wire framing CLOSED 2026-08-26 by Plan 4 (`tests/integration/test_wire_protocol.py`); VoiceMemoryPipeline coverage still open.

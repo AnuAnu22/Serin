@@ -13,6 +13,12 @@ from typing import Any
 
 from fastapi import FastAPI
 
+from serin.d1_3_state_core.d2_4_core_voice.d3_3_voice_profiles import (
+    create_profile,
+    delete_profile,
+    get_voice_profiles,
+    set_active_profile,
+)
 from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_7_state.d5_1_state_access import (
     make_json_safe,
 )
@@ -249,13 +255,7 @@ def _register_voice_routes(app: FastAPI, bot_state: dict[str, Any], existing_pat
         @app.get("/api/voice-profiles/list")
         async def list_voice_profiles() -> Any:
             try:
-                try:
-                    from serin.d1_3_state_core.voice.voice_profiles import (
-                        get_voice_profiles,
-                    )
-                    profiles = get_voice_profiles()
-                except Exception:
-                    profiles = []
+                profiles = get_voice_profiles()
                 return {"profiles": make_json_safe(profiles)}
             except Exception as e:
                 _logger.error("Error in /api/voice-profiles/list: %s", e)
@@ -269,9 +269,6 @@ def _register_voice_routes(app: FastAPI, bot_state: dict[str, Any], existing_pat
                 if not name:
                     return {"success": False, "error": "Profile name required"}
                 try:
-                    from serin.d1_3_state_core.voice.voice_profiles import (
-                        set_active_profile,
-                    )
                     set_active_profile(name)
                 except Exception as e:
                     _logger.error("Error setting active voice profile %s: %s", name, e)
@@ -289,10 +286,7 @@ def _register_voice_routes(app: FastAPI, bot_state: dict[str, Any], existing_pat
                 if not name:
                     return {"success": False, "error": "Name required"}
                 try:
-                    from serin.d1_3_state_core.voice.voice_profiles import (
-                        create_voice_profile,
-                    )
-                    create_voice_profile(name=name, speed=data.get("speed", 1.0), temperature=data.get("temperature", 0.7), description=data.get("description", ""))
+                    create_profile(name=name, speed=data.get("speed", 1.0), temperature=data.get("temperature", 0.7), description=data.get("description", ""))
                 except Exception as e:
                     _logger.error("Error creating voice profile %s: %s", name, e)
                     return {"success": False, "error": str(e)}
@@ -309,10 +303,7 @@ def _register_voice_routes(app: FastAPI, bot_state: dict[str, Any], existing_pat
                 if not name:
                     return {"success": False, "error": "Name required"}
                 try:
-                    from serin.d1_3_state_core.voice.voice_profiles import (
-                        delete_voice_profile,
-                    )
-                    delete_voice_profile(name)
+                    delete_profile(name)
                 except Exception as e:
                     _logger.error("Error deleting voice profile %s: %s", name, e)
                     return {"success": False, "error": str(e)}

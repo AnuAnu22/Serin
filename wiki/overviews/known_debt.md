@@ -23,12 +23,14 @@ Anything with a fix recommendation is ranked roughly by impact.
   duplicate `/api/status` registrations answer with the first handler. Guarded now by
   `tests/server/test_route_uniqueness.py` (no path may register twice; canonical handlers
   pinned to `d5_2_server_state`).
-- **MentionTranslator twins**: keep the pipeline copy
-  (`d1_1 ... d4_3_mention_translator.py`); the `d1_3 core_voice` copy is dead (all ~10 import
-  sites use the pipeline copy).
-- **VoiceProfileManager duplicate**: gateway `d4_1_models_profiles` has zero importers;
-  canonical twin is `d1_3 ... d3_3_voice_profiles.py`. `d6_2_missing_routes_voice` imports
-  the wrong (dead) one.
+- **~~MentionTranslator twins~~ RESOLVED 2026-08-26**: the `d1_3 core_voice` copy deleted
+  (pipeline copy canonical; zero-importer verified repo-wide).
+- **~~VoiceProfileManager duplicate~~ RESOLVED 2026-08-26**: gateway `d4_1_models_profiles`
+  deleted; canonical twin is `d1_3 ... d3_3_voice_profiles.py`. Follow-up: `d6_2_missing_routes_voice`
+  had FOUR lazy imports of a **phantom path** (`serin.d1_3_state_core.voice.voice_profiles` — never
+  existed, errors swallowed by except) — repointed to the canonical module, top-level imports,
+  API drift repaired (`create_voice_profile`→`create_profile`, `delete_voice_profile`→`delete_profile`).
+- **~~Dead bridge recovery~~ RESOLVED 2026-08-26**: `d4_3_bridge_recovery.py` deleted.
 - **Legacy belief stores**: `d1_1 d2_4_flow_remember` `d5_1_belief_beliefs` +
   `d5_2_belief_evidence` + `d4_3_memory_quality` + `d4_4_knowledge_retrieval` — nothing
   imports them except `tests/test_fact_belief_gating.py` (tracked in git as of 2026-08-25;
