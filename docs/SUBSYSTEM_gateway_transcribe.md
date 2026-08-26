@@ -21,8 +21,9 @@ Four files of substance + two empty/package `__init__`s + one `d3_1_transcribe_m
    queues them to the background processor, and **calls back into the legacy ingest path**
    (`serin_di.process_voice_input` → d1_1 message_process) to generate a voice response.
 3. **`d3_2_transcribe_decider.py` — `VoiceActionDecider`** — structured-output LLM decide join/leave/none.
-4. **`d3_1_transcribe_models/`** — `d4_1_models_profiles.py` (`VoiceProfileManager`, **DEAD duplicate**)
-   + `d4_2_models_tracker.py` (`VoiceTracker`).
+4. **`d3_1_transcribe_models/`** — `d4_2_models_tracker.py` (`VoiceTracker`).
+   (`d4_1_models_profiles.py` — the dead `VoiceProfileManager` duplicate — was deleted 2026-08-26;
+   canonical profiles live in `d1_3_state_core/d2_4_core_voice/d3_3_voice_profiles.py`.)
 
 ## Files
 

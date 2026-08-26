@@ -183,21 +183,30 @@ calls `record_sentiment` per message (edge G feedback loop, pinned by `tests/tes
 
 ### H. Dead duplicates / twin implementations — the dedup clusters ⭐
 Resolved answers to each Phase-1 duplicate question:
-- **MentionTranslator:** TWO exist — `d1_3_state_core/d2_4_core_voice/d3_1_mention_translator.py` and
+- **MentionTranslator:** TWO existed — `d1_3_state_core/d2_4_core_voice/d3_1_mention_translator.py` and
   `d1_1_pipeline_flow/d2_2_flow_ingest/d3_1_ingest_context/d4_3_mention_translator.py`. **ALL ~10 import
   sites use the PIPELINE copy** (serin_di:27,115; core_manager:23; sync_crawler:24; message_process;
-  discord_bot:39; pipeline_initializer; passive_monitor:14). The `core_voice` copy is dead → dedup.
+  discord_bot:39; pipeline_initializer; passive_monitor:14). The `core_voice` copy was deleted
+  2026-08-26 (zero-importer verified repo-wide incl. relative imports; `d2_4_core_voice/__init__.py`
+  confirmed empty).
 - **Control panel has TWO worlds:** `d1_5_ops_tooling/d2_1_control_panel/d3_1_panel_panels/` (d4_1_panel_control
   + d4_2_voice_routes d5_1..d6_1) AND `d3_4_panel_routes.py` (`register_enhanced_routes`, Qdrant) are
-  **DEAD** (zero importers/callers). LIVE = entirely `d3_2_panel_server/` (`init.py` wires
-  memory/personality/ops/test/debug/missing registrars + side-effect import `d5_3_server_status`).
+  **DEAD** (zero importers/callers) — **deleted 2026-08-26**. LIVE = entirely `d3_2_panel_server/`
+  (`init.py` wires memory/personality/ops/test/debug/missing registrars).
   Largest dedup cluster.
-- **Duplicate live status routes:** `d4_7_state/d5_2_server_state` AND `d4_7_state/d5_3_server_status` both
-  register `/ /api/status /api/stats /api/health`; `d5_3` is side-effect-imported LAST and **shadows**
-  `d5_2` at runtime, while `debug_routes` still uses the `d5_2` copies — a live shadowing hazard.
-- **VoiceProfileManager:** `d1_2_gateway_io/d2_3_voice_transcribe/d4_1_models_profiles` has ZERO importers;
-  canonical twin is `d1_3_state_core/d2_4_core_voice/d3_3_voice_profiles.py` (panel d1_5 imports that).
-  Stale cross-ref: `d6_2_missing_routes_voice` imports the wrong (dead) one.
+- **Duplicate live status routes — RESOLVED 2026-08-26:** `d4_7_state/d5_3_server_status` deleted.
+  CORRECTION to this page's original claim: Starlette serves the FIRST-registered handler, so the
+  side-effect-imported-last `d5_3` was the mounted-but-dead copy, not a shadower of `d5_2`;
+  `debug_routes` using the d5_2 helpers was always consistent with live HTTP behavior. Guarded by
+  `tests/server/test_route_uniqueness.py`.
+- **VoiceProfileManager — RESOLVED 2026-08-26:** dead twin
+  `d1_2_gateway_io/d2_3_voice_transcribe/d3_1_transcribe_models/d4_1_models_profiles.py` deleted
+  (zero importers). Canonical: `d1_3_state_core/d2_4_core_voice/d3_3_voice_profiles.py`. Follow-up fix:
+  `d6_2_missing_routes_voice` had FOUR lazy imports of the phantom path
+  `serin.d1_3_state_core.voice.voice_profiles` (ModuleNotFoundError swallowed by except) — all repointed
+  to the canonical module with top-level imports per AGENTS.md no-lazy-import rule; two API-name drifts
+  repaired (`create_voice_profile`→`create_profile`, `delete_voice_profile`→`delete_profile`), so those
+  panel routes now actually work instead of silently erroring.
 - **Legacy message_process batch path** superseded by the act pipeline (S8).
 - **Two sentiment tools** (vader vs nltk) coexist in ingest.
 
@@ -220,7 +229,8 @@ Resolved answers to each Phase-1 duplicate question:
 ### J. Python ↔ Rust voice seam (voice_receiver subprocess) — CONNECTIONS J ⭐
 (This supersedes the earlier "E" draft; the E-specific mechanics — threading.Lock stdin serialization,
 200-line stderr ring buffer, 5-restarts/60s recovery supervisor — described DEAD code:
-`d3_2_bridge_io/d4_3_bridge_recovery.py` has zero importers. The LIVE seam is below.)
+`d3_2_bridge_io/d4_3_bridge_recovery.py` had zero importers and was deleted 2026-08-26
+(Phase-2 voice supervision design tracked in GitHub issue #39 starts fresh). The LIVE seam is below.)
 - **Spawn:** `d1_2_gateway_io/d2_2_voice_system/d3_2_bridge_io/d4_4_process_watch/d5_1_process_watch.py:RustVoiceBridge.start()`
   (:116-205, re-verified 2026-08-25) self-resolves the binary via `os.pardir`×4 → `voice/rust_receiver/target/release/voice_receiver`,
   then `asyncio.create_subprocess_exec(binary, stdin=PIPE, stdout=PIPE, stderr=PIPE, env=RUST_BACKTRACE=full)`.

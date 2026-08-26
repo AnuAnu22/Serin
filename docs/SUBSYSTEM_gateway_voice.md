@@ -55,7 +55,7 @@ the class itself lives in `d4_4_process_watch/d5_1_process_watch.py`.
   requires `self.binary_path` exists (else "Build with: cd voice/rust_receiver && cargo build --release").
 - `is_running`, `get_stats`.
 
-**`d4_3_bridge_recovery.py` — DEAD CODE (zero importers).** Defines the *sophisticated* crash story:
+**`d4_3_bridge_recovery.py` — DELETED 2026-08-26 (was: DEAD CODE, zero importers).** Defines the *sophisticated* crash story:
 `_handle_process_death` (exit-code/signal diagnostics + stderr ring-buffer dump via `voice.process_died`/
 `process_killed`/`process_exited`), `_supervise_rust_process` (**rate-limited**: max 5 restart attempts
 within a 60s window, then gives up; re-spawns via `start`/`start_with_info`, calls `_reconnect_callback`),
