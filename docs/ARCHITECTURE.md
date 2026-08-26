@@ -36,7 +36,7 @@ Both terminate in `main()` in `d4_1_main_entry.py` (note: `main_entry` lives in 
 | Path | Owns |
 |---|---|
 | `serin/d1_1_pipeline_flow/` | Message pipeline feeders: `d2_1_flow_act` (10-stage DAG + dispatch), `d2_2_flow_ingest` (EnhancedMessageManagerV3, MentionTranslator canonical copy, perception), `d2_3_flow_perceive`, `d2_4_flow_remember` (**authoritative Bayesian schema** + Qdrant/SQLite store wiring), `d2_5_flow_think` (response_generator, response_planner, personality). Also `d1_1_serin_di.py` (Rule-5 composition root). |
-| `serin/d1_2_gateway_io/` | Discord gateway + voice: `d2_1_io_discord` (discord_bot, on_ready/on_message, PipelineInitializer, main_entry), `d2_2_voice_system` (AudioStreamProcessor, RustVoiceBridge/io_bridge, TTS engine, VoiceListener, VoiceOutputManager, TTSEngine), `d2_3_voice_transcribe` (WhisperTranscriber, VoiceMemoryPipeline, VoiceTracker, VoiceActionDecider, VoiceProfileManager-dead), `d2_4_io_di.py` (logger holder). |
+| `serin/d1_2_gateway_io/` | Discord gateway + voice: `d2_1_io_discord` (discord_bot, on_ready/on_message, PipelineInitializer, main_entry), `d2_2_voice_system` (AudioStreamProcessor, RustVoiceBridge/io_bridge, TTS engine, VoiceListener, VoiceOutputManager, TTSEngine), `d2_3_voice_transcribe` (WhisperTranscriber, VoiceMemoryPipeline, VoiceTracker, VoiceActionDecider; dead VoiceProfileManager twin at `d3_1_transcribe_models/d4_1_models_profiles.py`), `d2_4_io_di.py` (logger holder). |
 | `serin/d1_3_state_core/` | Shared state, LOWEST layer: `d2_1_logger`, `d2_2_core_memory` (QdrantMemorySystem, belief/evidence stores, **BM25 index + PyO3 seam**), `d2_3_model_system` (LLM connector/adapter/factory, **thinking_filter + PyO3 seam**), `d2_4_core_voice` (VoiceTracker, voice_profiles canonical, MentionTranslator-DEAD), `d2_5_state_conversation` (MessageContext envelope, ConversationDynamicsEngine, AffectEngine). |
 | `serin/d1_4_config_base/` | `BotConfig` singleton, `RUST_VOICE_RECEIVER_PATH` (**DEAD+STALE** — see CONNECTIONS J). |
 | `serin/d1_5_ops_tooling/` | Control panel + background: `d2_1_control_panel` (LIVE `d3_2_panel_server/`; DEAD `d3_1_panel_panels/` + `d3_4_panel_routes.py`), `d2_2_tooling_background` (BackgroundProcessor), `d2_3_hot_reloader`, `d2_4_passive_monitor`, `d2_5_voice_manager`. |
@@ -45,7 +45,7 @@ Both terminate in `main()` in `d4_1_main_entry.py` (note: `main_entry` lives in 
 | `scripts/undef-var-scanner/` | Rust dev/CI CLI — the only `{var}`-in-string detector; consumed by the test suite. |
 | `control_panel/static/` | HTML/JS for dashboard UI. |
 | `bot_data/` | Runtime data: `bot_data.db` (SQLite), `memory_fts.db` (FTS5), Qdrant collection. |
-| `tests/` | 40-file pytest suite (see `SUBSYSTEM_tests.md`). |
+| `tests/` | 60-file pytest suite (52 test modules; re-counted 2026-08-25 — see `SUBSYSTEM_tests.md`). |
 
 ---
 
@@ -69,7 +69,7 @@ Both terminate in `main()` in `d4_1_main_entry.py` (note: `main_entry` lives in 
 | 11 | **gateway_transcribe** | Whisper STT + VoiceMemoryPipeline + VoiceTracker/VoiceActionDecider; dead VoiceProfileManager duplicate | `SUBSYSTEM_gateway_transcribe.md` |
 | 12 | **ops_tooling** | Control panel (LIVE `d3_2_panel_server`), BackgroundProcessor, PassiveMonitor, hot_reloader, TTSVoiceManager; two dead panel worlds | `SUBSYSTEM_ops_tooling.md` |
 | 13 | **rust_accel** | Three unrelated Rust crates: `serin_core` (PyO3, optional), `voice_receiver` (voice subprocess), `undef-var-scanner` (dev CLI) | `SUBSYSTEM_rust_accel.md` |
-| 14 | **tests** | 40-file suite; de-facto SPEC of live code; contract/lint gates; one legacy-schema holdout | `SUBSYSTEM_tests.md` |
+| 14 | **tests** | 60-file suite (52 test modules); de-facto SPEC of live code; contract/lint gates; one legacy-schema holdout (`test_fact_belief_gating.py` — now tracked in git) | `SUBSYSTEM_tests.md` |
 
 ---
 
@@ -98,11 +98,15 @@ This is the Phase-4 "how it actually works end-to-end" walkthrough. Edge letters
    tags and basic cleanup (special tokens, name prefixes, whitespace, truncation) runs in
    **ResponseCleaningStage** — no contraction pass (the `apply_contractions` seam was deleted
    2026-08-18 with the RNG humanizer; see `docs/SERIN_VISION.md` § Operational Definitions row 1).
-7. **SendStage** sends the reply (skipping the dynamics delay on instant replies); **MemoryWriteStage**
+7. **SendStage** sends the reply (creator-override instant replies still respect the
+   `min_send_delay = 0.4` latency floor — SERIN_VISION row 6); **MemoryWriteStage**
    ALWAYS runs (even on halt) — it perceives via `perceive_message` and stores via remember, calls
-   `affect_engine.record_sentiment` (**edge G feedback loop**), and writes general memory. If the LLM
-   is present it would also write facts/beliefs, but with `small_llm=None` those stay empty (the exact
-   behavior `tests/test_fact_belief_gating.py` pins via the legacy stores — see edge F).
+   `affect_engine.record_sentiment` (**edge G feedback loop**), and writes general memory. It also
+   writes facts/beliefs through the **small LLM** (`SMALL_LLM_MODEL/BASE_URL/API_KEY`, which alias
+   the main LLM settings when unset — set them to a dedicated extraction endpoint to avoid
+   per-message llama-swap model swapping). With `small_llm=None` (backend down) those tables stay
+   empty (the exact behavior `tests/test_fact_belief_gating.py` pins via the legacy stores — see
+   edge F; the positive path is pinned by `tests/test_small_llm_accumulation.py`).
 
 ### The observability pipe (edge A) in the same run
 As the pipeline runs, stages broadcast to panel WebSocket clients: `runners_pipeline` emits run
@@ -125,6 +129,11 @@ the LIVE server (`d3_2_panel_server`) see decisions/logs live; `_ws_lock` guards
 - Panel routes read live `ConversationDynamicsEngine` state (`get_state_for_panel`, `decide_action`),
   `PersonalityState` mood history, and the `bot_state` dict (populated by `init_bot_state` at
   pipeline_initializer:414, served by `start_server(port)` at :427).
+- **Dynamics persistence (2026-08-26):** the engine's per-channel physics state now survives
+  restarts via the `channel_dynamics` SQLite table (`d4_3_schema_store.py` DDL; row functions in
+  `d4_1_core_storage/d5_4_dynamics_store.py`). Boot-restore in ingest core_manager; force-flush in
+  `run_maintenance` and `main()` shutdown; engine-side 60s flush throttle. Pinned by
+  `tests/test_dynamics_persistence.py`.
 - `/api/bot/restart` writes `.restart.signal` (confirm-gated); the hot_reloader subprocess picks it up
   and restarts the bot.
 - BackgroundProcessor summarizes RAW batches via the extractor LLM and runs
@@ -143,7 +152,7 @@ python discord_bot.py                    # Docker/root path → hot_reloader (au
 
 **Test:**
 ```bash
-pytest                                   # 40-file suite; contract/lint gates included
+pytest                                   # 60-file suite; contract/lint gates included
 cargo build --release --manifest-path scripts/undef-var-scanner/Cargo.toml   # enables Layer-2 Rust scan test
 ```
 

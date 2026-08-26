@@ -34,7 +34,7 @@ logger = logging.getLogger("serin")
 # (none)
 
 # --- Constants ---
-# (none)
+FLUSH_INTERVAL_S: float = 60.0   # min seconds between persistence flushes
 
 # --- Entry ---
 class ConversationDynamicsEngine:
@@ -56,6 +56,9 @@ class ConversationDynamicsEngine:
         })
         self.attention_allocation: dict[str, float] = {}
         self._last_allocation_time = 0.0
+        # Throttle for SQLite flushes (see flush_to_store) — persistence must
+        # never add per-message write latency to the pipeline.
+        self._last_flush_time: float = 0.0
 
     # --------------------------------------------------------
     # CORE UPDATE — called for EVERY message Serin sees
@@ -296,6 +299,105 @@ class ConversationDynamicsEngine:
 
     # --- Errors ---
     # (none)
+
+    # --------------------------------------------------------
+    # PERSISTENCE — survive restarts (SERIN_VISION "Growth")
+    # --------------------------------------------------------
+    def snapshot_persist_state(self) -> list[dict[str, Any]]:
+        """Export per-channel physics state for storage (pure, no I/O).
+
+        Returns one snapshot dict per channel with the channel_id attached;
+        shape matches the rows written by
+        ``d5_4_dynamics_store.upsert_channel_dynamics``.
+        """
+        snapshots: list[dict[str, Any]] = []
+        for cid, ch in self.channels.items():
+            if not ch["message_times"] and ch["last_active"] <= 0:
+                continue  # never-observed default entry — nothing to persist
+            snapshots.append({
+                "channel_id": cid,
+                "momentum": float(ch["momentum"]),
+                "phase": float(ch["phase"]),
+                "frequency": float(ch["frequency"]),
+                "temperature": float(ch["temperature"]),
+                "last_active": float(ch["last_active"]),
+                "total_words": int(ch["total_words"]),
+                "message_times": [float(t) for t in ch["message_times"]],
+                "word_counts": dict(ch["word_counts"]),
+                "participants": set(ch["participants"]),
+                "last_action": str(ch.get("last_action", "none")),
+                "last_action_time": float(ch.get("last_action_time", 0.0)),
+            })
+        return snapshots
+
+    def restore_from_snapshots(self, snapshots: list[dict[str, Any]]) -> int:
+        """Rebuild channel state from persisted snapshots. Returns count restored.
+
+        Called at boot before any message flows; a corrupt/empty snapshot is
+        skipped, never raised — degraded state beats a boot failure.
+        """
+        restored = 0
+        for snap in snapshots:
+            try:
+                ch = self.channels[str(snap["channel_id"])]
+                ch["momentum"] = max(0.0, min(1.0, float(snap["momentum"])))
+                ch["phase"] = float(snap["phase"]) % (2 * math.pi)
+                ch["frequency"] = max(0.0, float(snap["frequency"]))
+                ch["temperature"] = max(0.5, min(5.0, float(snap["temperature"])))
+                ch["last_active"] = float(snap["last_active"])
+                ch["total_words"] = max(0, int(snap["total_words"]))
+                times = [float(t) for t in snap.get("message_times", [])]
+                ch["message_times"] = sorted(times)[-50:]
+                counts: defaultdict[str, int] = defaultdict(int)
+                for word, count in dict(snap.get("word_counts", {})).items():
+                    counts[str(word)] = int(count)
+                ch["word_counts"] = counts
+                ch["participants"] = {str(p) for p in snap.get("participants", set())}
+                ch["last_action"] = str(snap.get("last_action", "none"))
+                ch["last_action_time"] = float(snap.get("last_action_time", 0.0))
+                restored += 1
+            except (KeyError, TypeError, ValueError):
+                logger.debug("Skipping malformed dynamics snapshot: %s",
+                             type(snap), exc_info=True)
+        if restored:
+            logger.info("dynamics.restored_channels", extra={"count": restored})
+        return restored
+
+    def flush_to_store(self, store: Any, force: bool = False) -> int:
+        """Persist current channel state to SQLite (throttled unless force=True).
+
+        The store is duck-typed (anything with ``.conn``) and the d1_1 module
+        holding the row functions is imported here — function-scoped — so this
+        d1_3 file never top-level-imports a d1_1 class (edge-B pattern).
+        Returns the number of channels flushed.
+        """
+        if store is None:
+            return 0
+        now = time.time()
+        if not force and now - self._last_flush_time < FLUSH_INTERVAL_S:
+            return 0
+        from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_1_core_storage.d5_4_dynamics_store import (
+            upsert_channel_dynamics,
+        )
+        flushed = 0
+        for snap in self.snapshot_persist_state():
+            upsert_channel_dynamics(store, snap)
+            flushed += 1
+        self._last_flush_time = now
+        return flushed
+
+    @staticmethod
+    def load_persisted_snapshots(store: Any) -> list[dict[str, Any]]:
+        """Read all persisted channel snapshots from SQLite (boot-time helper).
+
+        Same duck-typed store contract as ``flush_to_store``.
+        """
+        if store is None:
+            return []
+        from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_1_core_storage.d5_4_dynamics_store import (
+            load_channel_dynamics,
+        )
+        return load_channel_dynamics(store)
 
     # --------------------------------------------------------
     # PANEL EXPORT

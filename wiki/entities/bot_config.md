@@ -31,6 +31,10 @@ logger, the highest-inbound module in the graph.
 - Qdrant: `QDRANT_HOST/Port`, `QDRANT_USE_DOCKER`, container/image names.
 - Model: `LLM_MODEL='Qwen/Qwen2.5-7B-Instruct'`, `LLM_BASE_URL`, `LLM_API_KEY`,
   `LLM_SUPPORTS_VISION`/audio, temperature/top_p/max_tokens, `LLM_ENABLE_THINKING`.
+  Supporting LLM: `SMALL_LLM_MODEL/BASE_URL/API_KEY` — each **aliases the main
+  LLM value when unset**; set them to a dedicated extraction endpoint so
+  MemoryWriteStage's per-message fact extraction never swaps the chat model
+  (see [[qdrant_memory_system]]).
 - Channels/creator: `ALLOWED_CHANNEL_IDS` (set[int]), `CREATOR_IDS` (frozenset — **falls
   back to a hardcoded Discord user id** when unset, for deterministic live replies).
 - `PERSONALITY` dict (runtime-only).

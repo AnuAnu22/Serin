@@ -2,9 +2,9 @@
 type: overview
 tags: [pipeline, messages, flow]
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-25
 sources: [docs/ARCHITECTURE.md, docs/SUBSYSTEM_pipeline_act.md, docs/SUBSYSTEM_pipeline_ingest.md]
-status: seed
+status: live
 ---
 
 # Message Flow (text → reply)
@@ -33,9 +33,12 @@ plus the dynamics engine and affect engine (CONNECTIONS G at the source).
 5. **PersonalityStage** — inject persona + per-relationship tone.
 6. **PromptAssemblyStage** — build full prompt (8 context sections); edge A: `store_prompt_debug`.
 7. **LLMCallStage** — call the model; edge A: `update_last_prompt_debug` with latency.
-8. **ResponseCleaningStage** — strip thinking tags (`filter_thinking`), contractions
-   (`apply_contractions`), truncate.
-9. **SendStage** — type + send; skips dynamics delay on instant replies.
+8. **ResponseCleaningStage** — strip thinking tags (`filter_thinking`), then the single canonical
+   `clean_response` (special tokens, name prefixes, mentions, whitespace, one 2000-char truncation).
+   No contraction pass — the `apply_contractions` seam was deleted with the RNG humanizer
+   (2026-08-18; see [[2026-08-18_vision_to_code_fix_plan]]).
+9. **SendStage** — type + send; creator-override instant replies still respect the
+   `min_send_delay = 0.4` latency floor (SERIN_VISION row 6).
 10. **MemoryWriteStage** — **ALWAYS runs, even on halt**: perceives via `perceive_message`,
     stores via remember, `affect_engine.record_sentiment` (edge G feedback loop), writes memory.
 
@@ -43,8 +46,11 @@ plus the dynamics engine and affect engine (CONNECTIONS G at the source).
 
 The pipeline breaks early when the decision stage sets `halt_reason` — but the tail still runs
 MemoryWriteStage, so perception/memory/personality/affect update for every message, even when
-Serin stays silent. With `small_llm=None` the facts/beliefs stay empty (pinned by
-`tests/test_fact_belief_gating.py`, the legacy-schema holdout — see [[known_debt]]).
+Serin stays silent. Fact/belief extraction runs through the **small LLM** (`SMALL_LLM_*` env keys,
+aliased to the main LLM when unset — see [[qdrant_memory_system]]); with `small_llm=None` (backend
+down) the facts/beliefs tables stay empty (negative path pinned by
+`tests/test_fact_belief_gating.py`, positive accumulation path by
+`tests/test_small_llm_accumulation.py`).
 
 ## Observability (same run)
 
