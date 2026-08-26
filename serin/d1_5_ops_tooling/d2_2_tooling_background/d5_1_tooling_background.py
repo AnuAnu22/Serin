@@ -303,6 +303,22 @@ class BackgroundProcessor(BackgroundProcessorSummarizationMixin):
         # Generate LLM impressions for users due for one
         await self._run_impression_batch()
 
+        # Prune pipeline_runs metrics past retention (cheap indexed DELETE;
+        # recorder swallows storage errors so this can never break maintenance)
+        try:
+            from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_1_core_storage.d5_5_pipeline_metrics import (
+                prune_pipeline_runs,
+            )
+            from serin.d1_4_config_base.d2_1_base_config import config
+
+            if self.memory is not None and hasattr(self.memory, "conn"):
+                prune_pipeline_runs(
+                    self.memory,
+                    max_age_s=float(config.PIPELINE_METRICS_RETENTION_DAYS) * 86400.0,
+                )
+        except Exception as e:
+            logger.debug(f" Pipeline metrics pruning skipped: {e}")
+
     async def _run_impression_batch(self) -> None:
         """Generate LLM impressions for users who are due (≥25 messages since last, ≥10 total)."""
         try:

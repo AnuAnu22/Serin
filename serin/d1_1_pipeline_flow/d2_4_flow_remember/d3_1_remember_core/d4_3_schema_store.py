@@ -254,6 +254,31 @@ def init_sqlite_schema(conn: sqlite3.Connection, cursor: sqlite3.Cursor) -> None
         )
     """)
 
+    # Pipeline run metrics — one row per completed MessagePipeline.process()
+    # (edge-A in CONNECTIONS.md). Written by the d5_5_pipeline_metrics
+    # recorder via the duck-typed store contract; read by the control panel's
+    # /api/metrics/pipeline route. Kept here (authoritative schema) so boot
+    # creates it even if the first runs happen before any panel request.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS pipeline_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            started_ts REAL NOT NULL,
+            duration_ms REAL NOT NULL,
+            user_id TEXT,
+            channel_id TEXT,
+            halted INTEGER NOT NULL DEFAULT 0,
+            halt_reason TEXT NOT NULL DEFAULT '',
+            responded INTEGER NOT NULL DEFAULT 0,
+            stage_count INTEGER NOT NULL DEFAULT 0,
+            stages_json TEXT NOT NULL DEFAULT '[]',
+            error TEXT NOT NULL DEFAULT ''
+        )
+    """)
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_pipeline_runs_started "
+        "ON pipeline_runs(started_ts)"
+    )
+
     # Migration: add state column if table exists without it
     import sqlite3
     for col, dtype in [
