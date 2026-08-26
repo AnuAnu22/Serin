@@ -58,6 +58,16 @@ data/model (db_protect+core_memory+model_system) vs context/voice (this subsyste
   `get_user_affect` / `upsert_user_affect` from `d1_1_pipeline_flow/.../d5_2_sqlite_store.py`
   (the CONNECTIONS-B seam). `build_impression_prompt()` / `parse_impression()` handle the LLM.
 - `__init__.py` — empty.
+- `d3_4_goals_engine.py` — **GoalsEngine** (self-generated persistent goals). Owns the
+  goal lifecycle MACHINERY only: formation parsing, review decay, promotion, pursuit reads.
+  Content of a goal statement is never curated or sanitized — it is whatever the forming LLM
+  returned, validated only as JSON and stored verbatim (causality, not performance). Storage is
+  duck-typed/DI'd like the affect engine: it function-imports
+  `d5_6_goal_storage.d6_1_goals_store` (the CONNECTIONS-B seam). `build_formation_prompt()` /
+  `parse_formation()` handle the LLM; `review_due()` decays salience deterministically and
+  auto-drops goals below the floor; `pursuit_snapshot()` is the salience-ordered read consumed by
+  the pipeline. Formation + review are driven from BackgroundProcessor maintenance
+  (threshold-gated); see [[goals_engine]].
 
 ### d2_4_core_voice (voice decision state)
 
