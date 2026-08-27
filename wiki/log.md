@@ -14,6 +14,24 @@ tests/test_goals_pursuit.py (6 tests: bonus math, metadata surfacing, verbatim c
 priority, no-engine noop). Docs synced: SUBSYSTEM_pipeline_act stage list. ruff + mypy strict +
 structure gates green; 40 tests pass across goals layers.
 
+## [2026-08-26] ingest | Goals engine C7 - multi-user goal scoping
+C7 of [[goals_engine]]: goals are now scoped per user (the persona-scoped rib).
+The blocker was not personas per se but the missing user_id column - user_id
+already exists on recent_messages, so goals are keyed on it directly.
+- schema: goals.user_id column + ADD COLUMN migration; per-user index.
+- store: create_goal / get_active_goals / load_all_goals accept user_id
+  (None = global view, so existing panel + tests are unchanged).
+- engine: form_goal / pursuit_snapshot / promote_ready thread user_id;
+  maintenance formation now groups recent_messages by user_id and forms one
+  goal per user from that user line set (cap checked per user).
+- ResponseDecisionStage.pursuit_snapshot is now user-scoped via ctx.user_id,
+  so a user only gets engagement lift from that user own goals (Growth
+  intent, not borrowed from others).
+- self-play asserts two users form disjoint goals and per-user pursuit views
+  return only that user goal while a global snapshot still sees both.
+Docs: entity landed=C7. ruff + mypy strict + law gates green; 6 self-play
+tests pass (45 goals tests total).
+
 ## [2026-08-26] ingest | Goals engine C6 - self-play eval harness
 C6 of [[goals_engine]]: the engine is now assertable through REAL edge behavior,
 not just unit mocks of internals. tests/test_goals_selfplay.py drives:

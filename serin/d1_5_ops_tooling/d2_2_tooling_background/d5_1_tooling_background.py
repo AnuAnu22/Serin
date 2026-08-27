@@ -363,44 +363,49 @@ class BackgroundProcessor(BackgroundProcessorSummarizationMixin):
         from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_1_core_storage.d5_6_goal_storage import (
             d6_1_goals_store,
         )
-        live = d6_1_goals_store.get_active_goals(
-            self.memory, min_salience=0.0, limit=50)
-        if len(live) >= MAX_ACTIVE_GOALS:
-            logger.debug(" Goals: at active cap, skipping formation")
-            return
         cursor = self.memory.conn.cursor()
+        # Group recent lines by author so formation material is per-user (C7).
         cursor.execute(
-            "SELECT content FROM recent_messages ORDER BY timestamp DESC LIMIT 40")
-        lines = [str(row["content"]).strip() for row in cursor.fetchall()
-                 if row["content"]]
-        if len(lines) < MIN_BATCH_LINES_FOR_FORMATION:
-            return
-
-        prompt = engine.build_formation_prompt(
-            lines, [str(r["statement"]) for r in live])
-        if not self.extractor_llm or not self.extractor_llm.is_connected:
-            logger.debug(" Goals: background LLM unavailable - formation skipped")
-            return
-        try:
-            raw = await self.extractor_llm.chat_completion(
-                [{"role": "user", "content": prompt}],
-                temperature=0.7,
-                max_tokens=200,
-            )
-        except Exception as e:
-            logger.debug(f" Goal formation LLM call failed: {e}")
-            return
-        parsed = parse_formation(raw)
-        if parsed is None:
-            logger.debug(" Goals: formation reply malformed or empty - skipped")
-            return
-        statement, salience = parsed
-        gid = engine.form_goal(
-            statement, salience,
-            provenance="maintenance:formation",
-            detail="formed from recent conversation in background maintenance")
-        if gid > 0:
-            logger.info("goal.formed_from_conversation id=%s", gid)
+            "SELECT user_id, content FROM recent_messages "
+            "ORDER BY timestamp DESC")
+        per_user: dict[str, list[str]] = {}
+        for row in cursor.fetchall():
+            uid = str(row["user_id"])
+            text = str(row["content"]).strip()
+            if text:
+                per_user.setdefault(uid, []).append(text)
+        for user_id, lines in per_user.items():
+            if len(lines) < MIN_BATCH_LINES_FOR_FORMATION:
+                continue
+            live = d6_1_goals_store.get_active_goals(
+                self.memory, min_salience=0.0, limit=50, user_id=user_id)
+            if len(live) >= MAX_ACTIVE_GOALS:
+                logger.debug(" Goals: user %s at active cap, skipping", user_id)
+                continue
+            prompt = engine.build_formation_prompt(
+                lines, [str(r["statement"]) for r in live])
+            if not self.extractor_llm or not self.extractor_llm.is_connected:
+                logger.debug(" Goals: background LLM unavailable - formation skipped")
+                return
+            try:
+                raw = await self.extractor_llm.chat_completion(
+                    [{"role": "user", "content": prompt}],
+                    temperature=0.7,
+                    max_tokens=200,
+                )
+            except Exception as e:
+                logger.debug(f" Goal formation LLM call failed: {e}")
+                continue
+            parsed = parse_formation(raw)
+            if parsed is None:
+                logger.debug(" Goals: formation reply malformed or empty - skipped")
+                continue
+            statement, salience = parsed
+            engine.form_goal(
+                statement, salience,
+                provenance="maintenance:formation",
+                detail="formed from recent conversation in background maintenance",
+                user_id=user_id)
 
     async def _run_impression_batch(self) -> None:
         """Generate LLM impressions for users who are due (≥25 messages since last, ≥10 total)."""
