@@ -68,13 +68,13 @@ class FakeMemorySystem:
         init_sqlite_schema(self.conn, self.conn.cursor())
         self.affect_engine = None
 
-    def seed_recent(self, lines: list[str], channel: str = 'c1') -> None:
+    def seed_recent(self, lines: list[str], channel: str = 'c1', user_id: str = 'u1', username: str = 'alice', prefix: str = 'm') -> None:
         cur = self.conn.cursor()
         for i, text in enumerate(lines):
             cur.execute(
                 'INSERT INTO recent_messages (message_id, user_id, username, channel_id, content, timestamp) '
                 'VALUES (?,?,?,?,?, datetime(\'now\', ? || \' seconds\'))',
-                (f'm{i}', 'u1', 'alice', channel, text, f'-{i}'),
+                (f'{prefix}{i}', user_id, username, channel, text, f'-{i}'),
             )
         self.conn.commit()
 
@@ -182,3 +182,42 @@ def test_selfplay_decay_and_drop_over_reviews() -> None:
     # 0.20 - 6*0.03 = 0.02 < 0.05 floor -> DROPPED, no longer ACTIVE.
     assert counts.get('ACTIVE', 0) == 0
     assert counts.get('DROPPED', 0) >= 1
+
+
+def test_selfplay_goals_remain_separated_per_user() -> None:
+    """Two users form goals from their own lines; they never cross-contaminate.
+
+    Formation now groups recent_messages by user_id, and pursuit_snapshot is
+    user-scoped, so Alice's goals stay Alice's and Bob's stay Bob's (C7).
+    """
+    mem = FakeMemorySystem()
+    mem.seed_recent([
+        'i want to learn rust this year',
+        'a side project in rust would be fun',
+        'i should read the rust book',
+        'rust async is confusing but interesting',
+        'maybe build a rust cli tool',
+    ], user_id='u_alice', username='alice', prefix='a')
+    mem.seed_recent([
+        'i want to get better at watercolour',
+        'a daily sketch habit sounds nice',
+        'i should buy better brushes',
+        'watercolour landscapes relax me',
+        'maybe join a painting class',
+    ], user_id='u_bob', username='bob', prefix='b')
+    llm = FakeExtractorLLM([
+        '{"statement": "learn rust", "salience": 0.8}',
+        '{"statement": "practice watercolour", "salience": 0.7}',
+    ])
+    proc = _make_processor(mem, llm)
+    asyncio.run(proc._run_goals_maintenance())
+    alice = gs.get_active_goals(mem, min_salience=0.0, limit=50, user_id='u_alice')
+    bob = gs.get_active_goals(mem, min_salience=0.0, limit=50, user_id='u_bob')
+    assert len(alice) == 1 and 'learn rust' in str(alice[0]['statement'])
+    assert len(bob) == 1 and 'watercolour' in str(bob[0]['statement'])
+    assert all('watercolour' not in str(r['statement']) for r in alice)
+    assert all('learn rust' not in str(r['statement']) for r in bob)
+    engine = GoalsEngine(mem)
+    assert len(engine.pursuit_snapshot(limit=5, user_id='u_alice')) == 1
+    assert len(engine.pursuit_snapshot(limit=5, user_id='u_bob')) == 1
+    assert len(engine.pursuit_snapshot(limit=50)) == 2

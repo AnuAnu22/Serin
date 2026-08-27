@@ -35,7 +35,7 @@ _LIVE_STATUSES_SQL: str = "('FORMING', 'ACTIVE', 'PAUSED')"
 
 def create_goal(store: Any, statement: str, salience: float,
                 provenance: str = "", parent_goal_id: int | None = None,
-                status: str = "FORMING") -> int:
+                status: str = "FORMING", user_id: str = "global") -> int:
     """Insert one new goal row; returns its id (-1 on storage failure).
 
     `statement` is persisted verbatim. `status` defaults to FORMING;
@@ -47,11 +47,11 @@ def create_goal(store: Any, statement: str, salience: float,
         cursor.execute(
             """
             INSERT INTO goals (created_at, updated_at, statement, status,
-                               salience, origin_provenance, parent_goal_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                               salience, origin_provenance, parent_goal_id, user_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (now, now, statement, status, float(salience), provenance,
-             parent_goal_id),
+             parent_goal_id, user_id),
         )
         store.conn.commit()
         last_id = cursor.lastrowid
@@ -135,7 +135,7 @@ def bump_goal_salience(store: Any, goal_id: int, delta: float) -> bool:
 
 
 def get_active_goals(store: Any, min_salience: float = 0.0,
-                     limit: int = 20) -> list[dict[str, Any]]:
+                     limit: int = 20, user_id: str | None = None) -> list[dict[str, Any]]:
     """Return live goals ordered by salience DESC (the pursuit order).
 
     FORMING rows ride along: they were formed but not yet reviewed into
@@ -144,11 +144,18 @@ def get_active_goals(store: Any, min_salience: float = 0.0,
     """
     cursor: sqlite3.Cursor = store.conn.cursor()
     try:
-        cursor.execute(
-            "SELECT * FROM goals WHERE status IN ('FORMING', 'ACTIVE')"
-            " AND salience >= ? ORDER BY salience DESC LIMIT ?",
-            (float(min_salience), int(limit)),
-        )
+        if user_id is None:
+            cursor.execute(
+                "SELECT * FROM goals WHERE status IN ('FORMING', 'ACTIVE')"
+                " AND salience >= ? ORDER BY salience DESC LIMIT ?",
+                (float(min_salience), int(limit)),
+            )
+        else:
+            cursor.execute(
+                "SELECT * FROM goals WHERE status IN ('FORMING', 'ACTIVE')"
+                " AND salience >= ? AND user_id = ? ORDER BY salience DESC LIMIT ?",
+                (float(min_salience), user_id, int(limit)),
+            )
         rows: list[sqlite3.Row] = cursor.fetchall()
         return [dict(row) for row in rows]
     except Exception as e:
@@ -191,15 +198,24 @@ def count_goals_by_status(store: Any) -> dict[str, int]:
 
 
 def load_all_goals(store: Any, limit: int = 200,
-                   include_terminal: bool = True) -> list[dict[str, Any]]:
+                   include_terminal: bool = True,
+                   user_id: str | None = None) -> list[dict[str, Any]]:
     """Goals newest-first for the panel view; terminal ones optional."""
     query = "SELECT * FROM goals"
+    params: list[Any] = []
     if not include_terminal:
         query += " WHERE status IN " + _LIVE_STATUSES_SQL
+        if user_id is not None:
+            query += " AND user_id = ?"
+            params.append(user_id)
+    elif user_id is not None:
+        query += " WHERE user_id = ?"
+        params.append(user_id)
     query += " ORDER BY updated_at DESC LIMIT ?"
+    params.append(int(limit))
     cursor: sqlite3.Cursor = store.conn.cursor()
     try:
-        cursor.execute(query, (int(limit),))
+        cursor.execute(query, tuple(params))
         rows: list[sqlite3.Row] = cursor.fetchall()
         return [dict(row) for row in rows]
     except Exception as e:

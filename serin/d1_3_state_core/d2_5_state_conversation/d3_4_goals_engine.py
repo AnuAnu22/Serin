@@ -134,7 +134,8 @@ class GoalsEngine:
 
     def form_goal(self, statement: str, salience: float,
                   provenance: str, detail: str = "",
-                  parent_goal_id: int | None = None) -> int:
+                  parent_goal_id: int | None = None,
+                  user_id: str = "global") -> int:
         """Create one FORMING goal + its `formed` evidence entry."""
         from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_1_core_storage.d5_6_goal_storage import (
             d6_1_goals_store,
@@ -142,7 +143,8 @@ class GoalsEngine:
 
         gid = d6_1_goals_store.create_goal(
             self.memory, statement, salience,
-            provenance=provenance, parent_goal_id=parent_goal_id)
+            provenance=provenance, parent_goal_id=parent_goal_id,
+            user_id=user_id)
         if gid > 0:
             d6_1_goals_store.add_goal_evidence(
                 self.memory, gid, "formed",
@@ -193,7 +195,8 @@ class GoalsEngine:
             reviewed += 1
         return reviewed
 
-    def promote_ready(self, max_promote: int = 3) -> int:
+    def promote_ready(self, max_promote: int = 3,
+                      user_id: str | None = None) -> int:
         """Promote long-standing FORMING goals to ACTIVE.
 
         A FORMING goal whose row has survived one review window (i.e. it now
@@ -205,7 +208,7 @@ class GoalsEngine:
 
         promoted = 0
         for row in d6_1_goals_store.get_active_goals(
-                self.memory, min_salience=0.0, limit=50):
+                self.memory, min_salience=0.0, limit=50, user_id=user_id):
             if promoted >= max_promote:
                 break
             if (str(row.get("status")) == "FORMING"
@@ -220,14 +223,19 @@ class GoalsEngine:
 
     # -- pursuit ---------------------------------------------------------------
 
-    def pursuit_snapshot(self, limit: int = 3) -> list[dict[str, Any]]:
-        """Top-salience live goals above the pursuit floor (pipeline order)."""
+    def pursuit_snapshot(self, limit: int = 3,
+                      user_id: str | None = None) -> list[dict[str, Any]]:
+        """Top-salience live goals above the pursuit floor (pipeline order).
+
+        Pass user_id to scope pursuit to a single user (C7 multi-user).
+        """
         from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_1_core_storage.d5_6_goal_storage import (
             d6_1_goals_store,
         )
 
         return d6_1_goals_store.get_active_goals(
-            self.memory, min_salience=PURSUIT_MIN_SALIENCE, limit=limit)
+            self.memory, min_salience=PURSUIT_MIN_SALIENCE, limit=limit,
+            user_id=user_id)
 
     def touch_on_mention(self, fragment: str) -> int:
         """Reinforce goals whose statement overlaps `fragment` (lowercase).
