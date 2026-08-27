@@ -216,3 +216,4 @@ package-lock.json
 .gh-cache/
 .semgrep-home/
 .pyver_msg.txt
+all_issues_tmp.json

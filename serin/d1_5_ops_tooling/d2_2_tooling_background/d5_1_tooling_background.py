@@ -346,7 +346,7 @@ class BackgroundProcessor(BackgroundProcessorSummarizationMixin):
         few live goals already. The returned statement is validated JSON;
         its CONTENT passes through verbatim or the formation is discarded.
         """
-        assert self.goals_engine is not None  # caller guards
+        assert self.goals_engine is not None  # nosec B101  # caller guards
         engine = self.goals_engine
 
         # 1. Review: decay salience, auto-drop floor-dead goals, re-stamp.
