@@ -3,7 +3,7 @@ type: entity
 tags: [entity, goals, growth, state]
 created: 2026-08-26
 updated: 2026-08-26
-landed: C1 (schema+store) + C2 (formation/review machinery + maintenance wiring) + C3 (pursuit: decision energy + planner constraint) + C4 (persistence: boot-restore + shutdown flush) + C5 (panel: GET /api/goals)
+landed: C1 (schema+store) + C2 (formation/review machinery + maintenance wiring) + C3 (pursuit: decision energy + planner constraint) + C4 (persistence: boot-restore + shutdown flush) + C5 (panel: GET /api/goals) + C6 (eval-harness: self-play asserts form/pursue/decay/drop)
 sources: [docs/SERIN_VISION.md, serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_1_remember_core/d4_3_schema_store.py]
 status: live
 ---
