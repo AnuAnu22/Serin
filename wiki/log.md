@@ -2,6 +2,18 @@
 
 Append-only chronology (`## [YYYY-MM-DD] <op> | <title>`). Latest first.
 
+## [2026-08-26] ingest | Goals engine C1-C7 - complete subsystem
+Landed the full goals_engine subsystem ([[goals_engine]]): storage (goals +
+goal_evidence tables, row store, C1), formation + review machinery wired into
+BackgroundProcessor maintenance (C2), pursuit - salience-weighted decision energy
+in ResponseDecisionStage + verbatim goal binding constraints in ResponsePlannerStage
+(C3), persistence via boot restore + shutdown flush durability barrier (C4), control
+panel GET /api/goals (C5), a self-play eval harness asserting form/pursue/decay/drop
+through real edges with no live LLM (C6), and multi-user scoping by user_id so each
+user forms and pursues their own goals (C7). Statements stored verbatim - machinery
+only, no curation. Pinned by tests (goals_store, goals_engine, goals_pursuit,
+goals_persistence, goals_selfplay = 45 passing) + panel route tests.
+
 ## [2026-08-26] query | Dynamics Persistence Plan
 Filed `wiki/queries/2026-08-26_dynamics_persistence_plan.md` after implementing
 SQLite persistence for `ConversationDynamicsEngine`: new `channel_dynamics`
