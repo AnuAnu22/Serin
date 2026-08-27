@@ -14,6 +14,19 @@ tests/test_goals_pursuit.py (6 tests: bonus math, metadata surfacing, verbatim c
 priority, no-engine noop). Docs synced: SUBSYSTEM_pipeline_act stage list. ruff + mypy strict +
 structure gates green; 40 tests pass across goals layers.
 
+## [2026-08-26] ingest | Goals engine C4 - persistence (boot restore + shutdown flush)
+C4 of [[goals_engine]]: goals now SURVIVE restarts (SERIN_VISION Growth - accumulated
+state outlives the process). GoalsEngine gained restore_from_store() and
+flush_to_store(force=False) mirroring ConversationDynamicsEngine. Boot: core_manager
+folds goals-engine creation into the dynamics restore try and calls
+restore_from_store() (loads live rows, verifies schema round-trips, logs count). Shutdown:
+main_entry finally-block calls flush_to_store(force=True) which issues a final COMMIT
+so a hot reload SIGTERM cannot strand uncommitted goal rows. Mutations write through
+to the DB immediately, so flush is a durability barrier, not a state transfer. Tests:
+tests/test_goals_persistence.py (5 tests: restore loads live/skips terminal, never raises
+on broken store, throttle vs force, broken-store noop, interval constant). ruff + mypy
+strict + law structure green; 35 goals tests pass.
+
 ## [2026-08-26] ingest | Goals engine C2 — formation + review machinery wired
 C2 of [[goals_engine]]: `d3_4_goals_engine.py` (GoalsEngine) added to d1_3 state layer with
 `build_formation_prompt`/`parse_formation` (verbatim, clamps salience, rejects malformed/empty/

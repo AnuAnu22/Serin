@@ -29,6 +29,8 @@ logger = logging.getLogger("serin")
 REVIEW_INTERVAL_S: float = 6 * 3600.0
 #: At most this many live goals before formation stops proposing new ones.
 MAX_ACTIVE_GOALS: int = 5
+#: Throttle for flush_to_store commit barrier (seconds).
+FLUSH_INTERVAL_S: float = 30.0
 #: At most one new goal per maintenance cycle (slow burn, not spam).
 FORMATION_MAX_PER_CYCLE: int = 1
 #: Salience below this after decay means the goal quietly dies.
@@ -100,6 +102,11 @@ class GoalsEngine:
     def __init__(self, memory: Any) -> None:
         """``memory`` is duck-typed: anything with ``.conn`` (the core store)."""
         self.memory = memory
+        # Persistence mirror of ConversationDynamicsEngine: local cache of live
+        # rows, ids mutated since last flush, and last flush ts for throttling.
+        self._goals: dict[int, dict[str, Any]] = {}
+        self._dirty: set[int] = set()
+        self._last_flush: float = 0.0
 
     # -- formation ---------------------------------------------------------
 
@@ -273,6 +280,45 @@ class GoalsEngine:
         }
 
 # --- Helpers ---
+
+    def restore_from_store(self) -> int:
+        """Boot hydrate: confirm persisted goal rows exist and cache them.
+
+        Stateless over the DB; load live rows into a cache and verify the
+        schema round-trips. Returns live goal count. Never raises.
+        """
+        from serin.d1_1_pipeline_flow.d2_4_flow_remember.d3_1_remember_core.d4_1_core_storage.d5_6_goal_storage.d6_1_goals_store import (
+            load_all_goals,
+        )
+        try:
+            rows = load_all_goals(self.memory, include_terminal=False)
+        except Exception as exc:
+            logger.debug('goals restore skipped: %s', exc)
+            return 0
+        self._goals = {int(r['id']): dict(r) for r in rows}
+        self._dirty.clear()
+        logger.info('goals.boot_restore', extra={'goals': len(self._goals)})
+        return len(self._goals)
+
+    def flush_to_store(self, *, force: bool = False) -> int:
+        """Commit-barrier flush mirroring dynamics flush_to_store.
+
+        Mutations write through to the DB immediately, so durable state is
+        already on disk; ensures a final COMMIT so a hot reload cannot
+        strand an uncommitted transaction. Throttled unless force.
+        """
+        now = time.time()
+        if not force and (now - self._last_flush) < FLUSH_INTERVAL_S:
+            return 0
+        try:
+            self.memory.conn.commit()
+        except Exception as exc:
+            logger.debug('goals flush commit skipped: %s', exc)
+            return 0
+        self._last_flush = now
+        return len(self._goals)
+
+    # --- Helpers ---
 # (none)
 
 # --- Errors ---
