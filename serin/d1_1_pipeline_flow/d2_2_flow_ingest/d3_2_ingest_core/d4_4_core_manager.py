@@ -143,16 +143,20 @@ class EnhancedMessageManagerV3:
         )
         self.voice_tracker = VoiceTracker(self.memory)
 
-        # Dynamics engine: physics-based conversation state; restored from the
-        # last session so rhythm survives restarts (SERIN_VISION Growth).
+        # Dynamics engine: physics state restored from last session so rhythm survives restarts (Growth).
         self.dynamics_engine = ConversationDynamicsEngine()
         try:
-            snapshots = ConversationDynamicsEngine.load_persisted_snapshots(
-                self.memory,
-            )
+            snapshots = ConversationDynamicsEngine.load_persisted_snapshots(self.memory)
             if snapshots:
                 self.dynamics_engine.restore_from_snapshots(snapshots)
                 logger.info("dynamics.boot_restore", extra={"channels": len(snapshots)})
+            # Goals engine: self-generated persistent goals (Growth); confirm
+            # persisted rows at boot, shutdown flush commits in main_entry.
+            from serin.d1_3_state_core.d2_5_state_conversation.d3_4_goals_engine import (
+                GoalsEngine,
+            )
+            self.goals_engine = GoalsEngine(self.memory)
+            self.goals_engine.restore_from_store()
         except Exception as exc:
             logger.debug("dynamics restore skipped: %s", exc)
 
@@ -162,11 +166,6 @@ class EnhancedMessageManagerV3:
         )
         self.affect_engine = UserAffectEngine(self.memory)
 
-        # Goals engine: self-generated persistent goals (see wiki/goals_engine).
-        from serin.d1_3_state_core.d2_5_state_conversation.d3_4_goals_engine import (
-            GoalsEngine,
-        )
-        self.goals_engine = GoalsEngine(self.memory)
 
         # Pipeline instance (set externally by discord_bot.py after building)
         self.pipeline: Any = None

@@ -3,7 +3,7 @@ type: entity
 tags: [entity, goals, growth, state]
 created: 2026-08-26
 updated: 2026-08-26
-landed: C1 (schema+store) + C2 (formation/review machinery + maintenance wiring) + C3 (pursuit: decision energy + planner constraint)
+landed: C1 (schema+store) + C2 (formation/review machinery + maintenance wiring) + C3 (pursuit: decision energy + planner constraint) + C4 (persistence: boot-restore + shutdown flush)
 sources: [docs/SERIN_VISION.md, serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_1_remember_core/d4_3_schema_store.py]
 status: live
 ---
@@ -34,8 +34,13 @@ forming LLM produced and is stored verbatim; nothing curates, sanitizes, or temp
   salience-weighted energy in ResponseDecisionStage (via `_goal_salience_bonus`, 0.10 x
   salience per goal, bounded, no RNG) and goal-derived binding constraints via `ctx.response_plan`
   (top active goal quoted verbatim into constraints + `active_goals` key, slots ahead of belief
-  constraints but respects the 3-slot cap) consumed by PromptAssemblyStage; boot-restore/
-  shutdown-flush (C4) copies the channel_dynamics pattern; panel exposure at `GET /api/goals` (C5).
+  constraints but respects the 3-slot cap) consumed by PromptAssemblyStage. Persistence (C4)
+  mirrors ConversationDynamicsEngine: at boot core_manager calls
+  goals_engine.restore_from_store() (loads live rows, verifies schema round-trips);
+  at shutdown main_entry finally-block calls goals_engine.flush_to_store(force=True)
+  which issues a final COMMIT so a hot reload (SIGTERM) cannot strand uncommitted
+  goal rows. Mutations write through to the DB immediately, so the flush is a
+  durability barrier, not a state transfer; panel exposure at GET /api/goals (C5).
 - Tests: `tests/test_goals_store.py` (schema pin, transitions, terminal absorption,
   supersede provenance, salience clamps, pursuit order, review scheduling).
 

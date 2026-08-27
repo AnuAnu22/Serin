@@ -109,6 +109,11 @@ async def main() -> None:
             if engine is not None and memory is not None:
                 flushed = engine.flush_to_store(memory, force=True)
                 get_logger().info(f"Dynamics state saved on shutdown: {flushed} channels")
+            # Goals engine: commit persisted goal rows (Growth durability).
+            goals_engine = getattr(manager, "goals_engine", None)
+            if goals_engine is not None:
+                saved = goals_engine.flush_to_store(force=True)
+                get_logger().info(f"Goals state saved on shutdown: {saved} goals")
         except Exception as e:
             get_logger().debug(f"Dynamics shutdown flush skipped: {e}")
 
