@@ -14,6 +14,21 @@ tests/test_goals_pursuit.py (6 tests: bonus math, metadata surfacing, verbatim c
 priority, no-engine noop). Docs synced: SUBSYSTEM_pipeline_act stage list. ruff + mypy strict +
 structure gates green; 40 tests pass across goals layers.
 
+## [2026-08-26] ingest | Goals engine C6 - self-play eval harness
+C6 of [[goals_engine]]: the engine is now assertable through REAL edge behavior,
+not just unit mocks of internals. tests/test_goals_selfplay.py drives:
+- BackgroundProcessor._run_goals_maintenance with a scripted ModelInterface
+  stand-in: a forming LLM reply yields a verbatim ACTIVE/FORMING goal row; the
+  empty-goal escape hatch forms zero rows (no curation, verbatim-or-discard).
+- the state machine: review_due stamps a FORMING goal, promote_ready promotes
+  it to ACTIVE; review_due across forced windows decays salience and auto-drops
+  floor-dead goals (deterministic, no RNG).
+- ResponseDecisionStage._goal_salience_bonus: the pursuit weight is positive,
+  salience-scaled, and deterministic (Growth intent raises engagement).
+No live LLM required - the harness is CI-runnable (causality, not performance).
+Docs: entity landed=C6. ruff + mypy strict + law gates green; 5 self-play tests
+pass (44 goals tests total).
+
 ## [2026-08-26] ingest | Goals engine C5 - panel GET /api/goals
 C5 of [[goals_engine]]: the control panel now exposes goal state. New route
 module d6_5_goal_routes.py registers GET /api/goals, returning all goal rows
