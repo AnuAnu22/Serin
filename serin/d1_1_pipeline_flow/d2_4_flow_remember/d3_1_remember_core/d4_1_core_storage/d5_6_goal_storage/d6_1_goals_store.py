@@ -25,7 +25,9 @@ logger = logging.getLogger("serin")
 
 # --- Constants ---
 _TERMINAL_STATUSES: tuple[str, ...] = ("ACHIEVED", "DROPPED", "SUPERSEDED")
-_LIVE_STATUSES_SQL: str = "('FORMING', 'ACTIVE', 'PAUSED')"
+# Live statuses are a fixed, trusted set; passed as bound parameters (never
+# concatenated into SQL) so bandit B608 stays clean.
+_LIVE_STATUSES: tuple[str, ...] = ("FORMING", "ACTIVE", "PAUSED")
 
 # --- Helpers ---
 # (none)
@@ -170,10 +172,10 @@ def get_goals_due_review(store: Any, older_than_s: float,
     cursor: sqlite3.Cursor = store.conn.cursor()
     try:
         cursor.execute(
-            "SELECT * FROM goals WHERE status IN " + _LIVE_STATUSES_SQL +
+            "SELECT * FROM goals WHERE status IN (?, ?, ?)"
             " AND (last_reviewed_at IS NULL OR last_reviewed_at < ?)"
             " ORDER BY COALESCE(last_reviewed_at, 0) ASC LIMIT ?",
-            (cutoff, int(limit)),
+            (*_LIVE_STATUSES, cutoff, int(limit)),
         )
         rows: list[sqlite3.Row] = cursor.fetchall()
         return [dict(row) for row in rows]
@@ -204,7 +206,8 @@ def load_all_goals(store: Any, limit: int = 200,
     query = "SELECT * FROM goals"
     params: list[Any] = []
     if not include_terminal:
-        query += " WHERE status IN " + _LIVE_STATUSES_SQL
+        query += " WHERE status IN (?, ?, ?)"
+        params.extend(_LIVE_STATUSES)
         if user_id is not None:
             query += " AND user_id = ?"
             params.append(user_id)

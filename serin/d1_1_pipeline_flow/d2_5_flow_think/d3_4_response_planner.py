@@ -219,7 +219,7 @@ class ResponsePlannerStage(PipelineStage):
             try:
                 ctx.metadata["active_goals"] = active_goal_statements
             except Exception:
-                pass  # ctx without a metadata mapping (e.g. lightweight test stubs)
+                logger.debug("active_goals metadata write skipped (ctx has no metadata mapping)")
             top_goal = active_goals_local[0]
             goal_constraint = (
                 f"Standing self-goal (salience {float(top_goal.get('salience', 0.0)):.2f}): "
