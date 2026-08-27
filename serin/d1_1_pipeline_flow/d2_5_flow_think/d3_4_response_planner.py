@@ -208,13 +208,18 @@ class ResponsePlannerStage(PipelineStage):
 
         # ── 2b. Self-generated goals (SERIN_VISION Growth) ───────────────
         active_goals_local = []
+        active_goal_statements: list[str] = []
         if self.goals_engine is not None:
             try:
                 active_goals_local = self.goals_engine.pursuit_snapshot(limit=3)
             except Exception as exc:
                 logger.debug("goals pursuit snapshot skipped: %s", exc)
-        if active_goals_local:
-            ctx.metadata["active_goals"] = [str(g.get("statement", "")) for g in active_goals_local]
+        active_goal_statements = [str(g.get("statement", "")) for g in active_goals_local]
+        if active_goal_statements:
+            try:
+                ctx.metadata["active_goals"] = active_goal_statements
+            except Exception:
+                pass  # ctx without a metadata mapping (e.g. lightweight test stubs)
             top_goal = active_goals_local[0]
             goal_constraint = (
                 f"Standing self-goal (salience {float(top_goal.get('salience', 0.0)):.2f}): "
@@ -225,7 +230,7 @@ class ResponsePlannerStage(PipelineStage):
 
         # ── 3. Build response plan ───────────────────────────────────────
         ctx.response_plan = {
-            "active_goals": ctx.metadata.get("active_goals", []),
+            "active_goals": active_goal_statements,
             "stance": stance,
             "confidence": round(confidence, 2),
             "constraints": constraints[:3],  # Cap at 3 for prompt space
