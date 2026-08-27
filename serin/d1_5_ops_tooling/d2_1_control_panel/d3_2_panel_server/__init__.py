@@ -12,6 +12,9 @@ from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_6_routes.d5_
 from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_6_routes.d5_1_core_routes.d6_4_metrics_routes import (
     register_metrics_routes,
 )
+from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_6_routes.d5_1_core_routes.d6_5_goal_routes import (
+    register_goal_routes,
+)
 from serin.d1_5_ops_tooling.d2_1_control_panel.d3_2_panel_server.d4_6_routes.d5_2_voice_routes.d6_1_missing_routes import (
     register_missing_routes,
 )
@@ -85,6 +88,13 @@ try:
     register_metrics_routes(app, bot_state)
     _logger.info("Registered: metrics routes")
 except Exception as e:
+    _logger.error("FAILED to register metrics routes: %s", e)
+
+try:
+    register_goal_routes(app, bot_state)
+    _logger.info("Registered: goal routes")
+except Exception as e:
+    _logger.error("FAILED to register goal routes: %s", e)
     _logger.error("FAILED to register metrics routes: %s", e)
 
 try:

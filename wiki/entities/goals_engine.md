@@ -3,7 +3,7 @@ type: entity
 tags: [entity, goals, growth, state]
 created: 2026-08-26
 updated: 2026-08-26
-landed: C1 (schema+store) + C2 (formation/review machinery + maintenance wiring) + C3 (pursuit: decision energy + planner constraint) + C4 (persistence: boot-restore + shutdown flush)
+landed: C1 (schema+store) + C2 (formation/review machinery + maintenance wiring) + C3 (pursuit: decision energy + planner constraint) + C4 (persistence: boot-restore + shutdown flush) + C5 (panel: GET /api/goals)
 sources: [docs/SERIN_VISION.md, serin/d1_1_pipeline_flow/d2_4_flow_remember/d3_1_remember_core/d4_3_schema_store.py]
 status: live
 ---
@@ -40,7 +40,10 @@ forming LLM produced and is stored verbatim; nothing curates, sanitizes, or temp
   at shutdown main_entry finally-block calls goals_engine.flush_to_store(force=True)
   which issues a final COMMIT so a hot reload (SIGTERM) cannot strand uncommitted
   goal rows. Mutations write through to the DB immediately, so the flush is a
-  durability barrier, not a state transfer; panel exposure at GET /api/goals (C5).
+  durability barrier, not a state transfer. Panel (C5): GET /api/goals returns all
+  rows newest-first plus a status histogram and (when the engine is wired into
+  bot_state) the same stats() the maintenance loop uses; degrades to an empty
+  payload with a reason when no sqlite store is registered.
 - Tests: `tests/test_goals_store.py` (schema pin, transitions, terminal absorption,
   supersede provenance, salience clamps, pursuit order, review scheduling).
 
