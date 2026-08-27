@@ -298,12 +298,17 @@ def init_sqlite_schema(conn: sqlite3.Connection, cursor: sqlite3.Cursor) -> None
             salience REAL NOT NULL DEFAULT 0.5,
             origin_provenance TEXT NOT NULL DEFAULT '',
             parent_goal_id INTEGER,
+            user_id TEXT NOT NULL DEFAULT 'global',
             last_reviewed_at REAL
         )
     """)
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_goals_active_salience "
         "ON goals(status, salience DESC)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_goals_user_status "
+        "ON goals(user_id, status, salience DESC)"
     )
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS goal_evidence (
@@ -333,5 +338,13 @@ def init_sqlite_schema(conn: sqlite3.Connection, cursor: sqlite3.Cursor) -> None
             logger.info("Migration: column %s already exists, skipping", col)
         except Exception:
             logger.exception("Migration: ALTER TABLE beliefs.%s failed", col)
+
+    # Migration: goals.user_id (C7 multi-user scoping)
+    try:
+        cursor.execute("ALTER TABLE goals ADD COLUMN user_id TEXT NOT NULL DEFAULT 'global'")
+    except sqlite3.OperationalError:
+        logger.info("Migration: column user_id already exists, skipping")
+    except Exception:
+        logger.exception("Migration: ALTER TABLE goals.user_id failed")
 
     logger.debug(" SQLite schema initialized")

@@ -131,7 +131,8 @@ class ResponseDecisionStage(PipelineStage):
         active_goal_statements: list[str] = []
         if self.goals_engine is not None:
             try:
-                goals = self.goals_engine.pursuit_snapshot(limit=3)
+                goals = self.goals_engine.pursuit_snapshot(
+                    limit=3, user_id=getattr(ctx, 'user_id', None))
                 for goal in goals:
                     active_goal_statements.append(str(goal.get("statement", "")))
                 if goals:

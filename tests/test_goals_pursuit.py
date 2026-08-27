@@ -35,7 +35,7 @@ class FakeGoals:
     def __init__(self, goals: list[dict[str, Any]] | None) -> None:
         self._goals = goals
 
-    def pursuit_snapshot(self, limit: int = 3) -> list[dict[str, Any]]:
+    def pursuit_snapshot(self, limit: int = 3, user_id: str | None = None) -> list[dict[str, Any]]:
         if self._goals is None:
             return []
         return self._goals[:limit]
