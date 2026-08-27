@@ -34,6 +34,7 @@ def init_bot_state(
     bot_state['passive_monitor'] = passive_monitor
     bot_state['message_crawler'] = message_crawler
     bot_state['memory_system'] = memory_system
+    bot_state['goals_engine'] = getattr(message_manager, 'goals_engine', None)  # wiki/goals_engine
     bot_state['voice_listener'] = voice_listener
     bot_state['tts_engine'] = tts_engine
     bot_state['voice_manager'] = voice_manager

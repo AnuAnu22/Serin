@@ -14,6 +14,19 @@ tests/test_goals_pursuit.py (6 tests: bonus math, metadata surfacing, verbatim c
 priority, no-engine noop). Docs synced: SUBSYSTEM_pipeline_act stage list. ruff + mypy strict +
 structure gates green; 40 tests pass across goals layers.
 
+## [2026-08-26] ingest | Goals engine C5 - panel GET /api/goals
+C5 of [[goals_engine]]: the control panel now exposes goal state. New route
+module d6_5_goal_routes.py registers GET /api/goals, returning all goal rows
+newest-first (limit-capped, include_terminal toggle) plus a status histogram
+and - when bot_state exposes the live GoalsEngine - the same stats() the
+maintenance loop uses. The engine is wired into bot_state.goals_engine in
+panel_lifecycle.init_bot_state (sourced from message_manager.goals_engine), and
+the route is registered in panel_server.__init__ inside a try/except (mirrors
+the other core routes). Degrades to an empty payload + reason when no sqlite
+store is registered. Tests: tests/server/test_goals_routes.py (4 tests: rows+
+counts, terminal exclusion, engine-stats passthrough, no-store degradation).
+Route-uniqueness + law/import/mypy/ruff gates green; 6 panel tests pass.
+
 ## [2026-08-26] ingest | Goals engine C4 - persistence (boot restore + shutdown flush)
 C4 of [[goals_engine]]: goals now SURVIVE restarts (SERIN_VISION Growth - accumulated
 state outlives the process). GoalsEngine gained restore_from_store() and
