@@ -12,9 +12,9 @@ def search_memories(self, query: str, user_id: str | None = None, limit: int = 1
 def search_memories(self, query, user_id=None, limit=10): ...
 ```
 
-### Global variables in bot.py
+### Global variables
 
-Every module-level `= None` / `= ClassName(...)` must be annotated:
+Every module-level `= None` / `= ClassName(...)` must be annotated. In the Discord gateway these live in `serin/d1_2_gateway_io/d2_1_io_discord/d3_2_discord_bot.py`:
 
 ```python
 # GOOD
@@ -25,14 +25,14 @@ background_processor: BackgroundProcessor | None = None
 message_manager = None
 ```
 
-### Local variables in bot_pipeline_init.py on_ready()
+### Local variables in `on_ready()`
 
-Every `variable = ClassName(...)` must be annotated so pyright infers the type:
+Every `variable = ClassName(...)` must be annotated so pyright infers the type. `on_ready()` lives in `serin/d1_2_gateway_io/d2_1_io_discord/d3_1_pipeline_init/__init__.py`; component construction is delegated to `PipelineInitializer` (in `d4_1_pipeline_initializer.py`), whose instance attributes are annotated — often `Any | None` when the concrete type is not imported at init time:
 
 ```python
 # GOOD
+self.message_crawler: Any | None = None
 memory_system: QdrantMemorySystem = QdrantMemorySystem(...)
-message_crawler: MessageCrawler = MessageCrawler(client, memory_system, ...)
 
 # BAD
 memory_system = QdrantMemorySystem(...)
@@ -50,26 +50,28 @@ async def on_voice_state_update(
 
 ## Toolchain
 
-The codebase uses a comprehensive static analysis toolchain. Every tool must pass clean before merge.
+The codebase uses a comprehensive static-analysis toolchain. Tools marked **CI** must pass clean before merge; the others run on a schedule or before a specific action.
 
 ### Tool Reference
 
 | Tool | Role | Speed | Gate | Why |
 |---|---|---|---|---|
-| **ruff** | Linting, format, imports | ~100ms | CI | Catches F821 undefined names, syntax errors, import issues |
-| **mypy** | Type checking | ~5-30s | CI | Enforces type annotations, catches missing methods, wrong kwargs |
-| **pyright** | Type checking (LSP + CI) | ~3-10s | CI | Runs via Pylance in VS Code + `pyright serin/` in CI |
+| **ruff** | Lint, format, imports | ~100ms | CI | Catches F821 undefined names, syntax errors, import issues |
+| **mypy** | Type checking | ~5–30s | CI | Enforces type annotations, catches missing methods, wrong kwargs |
+| **pyright** | Type checking (LSP + CI) | ~3–10s | CI | Runs via Pylance in VS Code + `pyright serin/` in CI |
 | **semgrep** | Custom pattern matching | ~10s | CI | Catches stale kwargs (`n_results=`), bare excepts, direct `os.environ` |
-| **import-linter** | Architecture enforcement | ~2s | CI | Enforces THE_LAW.md Rule 5 layer boundaries |
+| **import-linter** | Architecture enforcement | ~2s | CI (soft)\* | Enforces THE_LAW Rule 5 layer boundaries |
 | **bandit** | Security scanning | ~2s | CI | Catches hardcoded secrets, command injection, unsafe `eval()` |
-| **pip-audit** | Supply chain audit | ~5s | CI | Finds known CVEs in dependencies |
-| **osv-scanner** | Supply chain audit (Go) | ~3s | CI | Scans lockfile for CVEs. Binary at `.tools/osv-scanner` |
-| **detect-secrets** | Secret leak prevention | ~2s | CI | Prevents accidental secret commits. Baseline at `.secrets.baseline` |
-| **vulture** | Dead code detection | ~1s | Weekly | Finds unused functions, dead branches, orphaned imports |
+| **pip-audit** | Supply-chain audit | ~5s | CI | Finds known CVEs in dependencies |
+| **osv-scanner** | Supply-chain audit | ~3s | CI | Scans `pyproject.toml` for CVEs. Binary at `.tools/osv-scanner` |
+| **detect-secrets** | Secret-leak prevention | ~2s | CI | Prevents accidental secret commits. Baseline at `.secrets.baseline` |
+| **vulture** | Dead-code detection | ~1s | Weekly | Finds unused functions, dead branches, orphaned imports |
 | **wily** | Complexity trends | ~15s | Weekly | Tracks complexity history over git commits |
 | **radon** | Complexity metrics | ~1s | Per-release | Tracks Cyclomatic Complexity per function |
 | **pydeps** | Dependency graph | ~5s | Before refactor | Visualizes circular imports and architectural tangles |
-| **cosmic-ray** | Mutation testing | ~1-4h | Pre-release | Validates test quality offline. Not per-commit |
+| **cosmic-ray** | Mutation testing | 1–4h | Pre-release | Validates test quality offline. Not per-commit |
+
+\* `import-linter` is not currently a declared dependency; `tests/test_static_analysis.py::test_import_linter` skips when the binary is absent. Install it before treating this as a hard gate.
 
 ### Quickstart Commands
 
@@ -79,7 +81,7 @@ uv run ruff check serin/                     # Lint (fast gate, ~100ms)
 uv run mypy serin/                           # Types (strict gate, ~30s)
 uv run pyright serin/                        # Types (LSP gate, ~10s)
 uv run semgrep --config .semgrep/rules/      # Custom patterns (~10s)
-.venv/bin/import-linter lint                  # Architecture layers (~2s)
+uv run import-linter lint                    # Architecture layers (~2s) — install import-linter first
 uv run bandit -r serin/ -q                   # Security (~2s)
 uv run pip-audit                             # Supply chain (~5s)
 .tools/osv-scanner -r pyproject.toml         # Supply chain (~3s)
@@ -96,11 +98,9 @@ uv run cosmic-ray run cosmic-ray.conf
 uv run cosmic-ray report cosmic-ray.conf
 ```
 
-### Ruff
+> The CI commands above are also enforced by `tests/test_static_analysis.py` (`ruff`, `mypy`, `pyright`, `semgrep`, `import-linter`, `bandit`, `detect-secrets`). Note `bandit` is run there with `-f json -q --skip B101`.
 
-```bash
-uv run ruff check serin/
-```
+### Ruff
 
 Must pass clean. Key rules:
 - `F821` — undefined name (`name 'models' is not defined`)
@@ -109,11 +109,7 @@ Must pass clean. Key rules:
 
 ### Mypy
 
-```bash
-uv run mypy serin/
-```
-
-Must pass clean. Configuration in `pyproject.toml`:
+Must pass clean. Configuration in `pyproject.toml` under `[tool.mypy]`:
 - `strict = true` — enables all strictness flags
 - `ignore_missing_imports = true` — skips third-party libs without stubs
 - `follow_imports = "silent"` — only checks files we explicitly include
@@ -122,114 +118,77 @@ Annotating a `variable = ClassName(...)` in `on_ready()` lets mypy verify every 
 
 ### Pyright
 
-```bash
-uv run pyright serin/
-```
-
 Configuration in `pyrightconfig.json` at project root. Catches:
 - Wrong argument types (e.g., passing `str` where `int` expected)
-- Missing attributes on None (e.g., `x.id` when `x` could be `None`)
-- Import path mismatches (e.g., `from .listener import VoiceOutputManager` after class moved)
+- Missing attributes on `None` (e.g., `x.id` when `x` could be `None`)
+- Import-path mismatches (e.g., a class moved between modules)
 - Type inference for unannotated variables
 
 ### Semgrep
-
-```bash
-uv run semgrep --config .semgrep/rules/
-```
 
 Custom rules in `.semgrep/rules/`:
 - `no-bare-except.yaml` — catches bare `except:` (catches `BaseException`)
 - `no-direct-env-access.yaml` — catches `os.environ[...]` outside config
 - `no-eval.yaml` — catches unsafe `eval()` calls
-- `no-stale-kwargs.yaml` — catches `n_results=` (should be `limit=`)
+- `no-stale-kwargs.yaml` — catches `n_results=` on `search_memories` (should be `limit=`)
 - `no-deprecated-imports.yaml` — catches imports from removed modules
+- `no-mood-directive.yaml` — forbids instructing the model's mood ("Current mood: …", "Be energetic and punchy") instead of letting mood be caused by real state
+- `no-performative-randomness.yaml` — forbids RNG (`random.choice`, `secrets.choice`, `_rand()`, …) to fabricate personality/humanization behavior; imperfection must be caused by real accumulated state
 
 ### Import-linter
 
-```bash
-.venv/bin/import-linter lint
-```
+Enforces THE_LAW Rule 5 layer boundaries (see `docs/THE_LAW.md`). Logical layers and their current module prefixes:
 
-Configuration in `pyproject.toml` under `[tool.import_linter]`. Enforces THE_LAW.md Rule 5:
-- config → state → pipeline → gateway → ops
-- A layer can only import from layers above it (lower index) or same layer
-- E.g., `serin.pipeline` cannot import `serin.gateway`
-- E.g., `serin.gateway` can import `serin.pipeline`, `serin.state`, `serin.config`
-- E.g., `serin.ops` can import any layer
+| Logical layer | Module |
+|---|---|
+| config | `serin.d1_4_config_base` |
+| state | `serin.d1_3_state_core` |
+| pipeline | `serin.d1_1_pipeline_flow` |
+| gateway | `serin.d1_2_gateway_io` |
+| ops | `serin.d1_5_ops_tooling` |
+
+A layer may only import from layers below it (toward `config`) or its own layer:
+- `serin.d1_1_pipeline_flow` cannot import `serin.d1_2_gateway_io`
+- `serin.d1_2_gateway_io` can import `serin.d1_1_pipeline_flow`, `serin.d1_3_state_core`, `serin.d1_4_config_base`
+- `serin.d1_5_ops_tooling` can import any layer
+
+Configuration lives in `pyproject.toml` under `[tool.importlinter]`. A few intentional violations are allow-listed via `ignore_imports`.
 
 ### Bandit
 
-```bash
-uv run bandit -r serin/ -f json -q
-```
-
-Scans for hardcoded secrets, command injection, unsafe `eval()`, and other security issues. Skip false positives with `# nosec` on specific lines.
+Scans for hardcoded secrets, command injection, unsafe `eval()`, and other security issues. Skip acknowledged false positives with `# nosec` on the specific line. In CI it runs with `-f json -q --skip B101`.
 
 ### Pip-audit
-
-```bash
-uv run pip-audit
-```
 
 Scans all installed packages against the Python Vulnerability Database (PyPI advisory DB). Must pass clean before any deployment.
 
 ### OSV Scanner
 
-```bash
-.tools/osv-scanner -r pyproject.toml
-```
-
 Scans dependencies for known vulnerabilities using the Open Source Vulnerabilities database. Binary at `.tools/osv-scanner`.
 
 ### Detect Secrets
 
-```bash
-uv run detect-secrets scan --baseline .secrets.baseline
-```
-
-Prevents accidental commit of secrets (API keys, tokens, passwords). Baseline at `.secrets.baseline` whitelists known non-secrets. Update baseline after adding legitimate secrets to config files.
+Prevents accidental commit of secrets (API keys, tokens, passwords). Baseline at `.secrets.baseline` whitelists known non-secrets. Update the baseline after adding legitimate secrets to config files.
 
 ### Vulture (weekly)
-
-```bash
-uv run vulture serin/
-```
 
 Finds dead code: unused functions, methods, imports, and variables. Run weekly or before major refactors.
 
 ### Wily (weekly)
 
-```bash
-uv run wily build serin/ && uv run wily report serin/
-```
-
-Tracks complexity trends over git history. Must run on a clean repo (no dirty files). First build creates the archive; subsequent runs compare against previous commits.
+Tracks complexity trends over git history. Must run on a clean repo (no dirty files). The first build creates the archive; subsequent runs compare against previous commits.
 
 ### Radon (per-release)
-
-```bash
-uv run radon cc serin/ -s
-```
 
 Reports Cyclomatic Complexity per function. Use to identify hotspots before release.
 
 ### Pydeps (before refactor)
 
-```bash
-uv run pydeps serin/
-```
-
 Generates a dependency graph to visualize circular imports and architectural violations. Run before any major refactor.
 
 ### Cosmic-ray (pre-release only)
 
-```bash
-uv run cosmic-ray run cosmic-ray.conf
-uv run cosmic-ray report cosmic-ray.conf
-```
-
-Mutation testing — runs modified versions of the code against the test suite to validate test quality. Takes 1-4 hours. Run offline before release, not per-commit.
+Mutation testing — runs modified versions of the code against the test suite to validate test quality. Takes 1–4 hours. Run offline before release, not per-commit.
 
 ## What NOT to Do
 
@@ -258,22 +217,22 @@ All imports must be at the top of the file. If a function uses `models`, `torch`
 
 ### No mismatch between file path and import path
 
-If `VoiceOutputManager` moves from `listener.py` to `output.py`, every `from .listener import VoiceOutputManager` must be updated. Pyright catches this — run it.
+If a class moves between modules, every `from ... import <Class>` must be updated. Pyright catches this — run it. Example: `VoiceOutputManager` now lives in `serin/d1_2_gateway_io/d2_2_voice_system/d3_4_system_output.py`, so import it from there rather than from a stale `listener`/`output` module.
 
 ## Init Pipeline Contract
 
-`serin/gateway/discord/bot_pipeline_init.py`'s `on_ready()` is the single source of truth for all component initialization. Every `variable = ClassName(...)` must:
+`serin/d1_2_gateway_io/d2_1_io_discord/d3_1_pipeline_init/__init__.py`'s `on_ready()` is the single source of truth for component initialization. It constructs a `PipelineInitializer` and calls `await _initializer.initialize()`; the initializer's methods (`_init_message_manager`, `_init_background_processors`, `_init_voice_system`, `_build_pipeline`, …) build each component. Every component attribute (`self.message_manager`, `self.message_crawler`, etc.) must:
 
-1. Have a type annotation
+1. Have a type annotation (use `Any | None` when the concrete type is not imported at init time)
 2. Have its `ClassName.__init__` fully annotated
-3. Have every method called on `variable` during init match the class's real method signatures
+3. Have every method called on it during init match the class's real method signatures
 
 ## Common Pitfalls
 
 | Issue | Fix |
 |---|---|
-| `search_memories(n_results=5)` wrong kwarg | Check the method signature first — it might be `limit=` instead |
-| `from listener import VoiceOutputManager` wrong path | Verify the class is actually exported from that module |
+| `search_memories(n_results=5)` wrong kwarg | `QdrantMemorySystem.search_memories` takes `limit=`, not `n_results=` (the semgrep `no-stale-kwargs` rule enforces this) |
+| Wrong import path for a moved class | Verify the class is actually exported from the module you import from (e.g. `VoiceOutputManager` → `d3_4_system_output`) |
 | Missing `from __future__ import annotations` | Add at top of file to enable forward references |
 | `store` parameter in extracted module functions | Type it: `store: "QdrantMemorySystem"` |
 | `Optional[X]` vs `X \| None` | Use `X \| None` (Python 3.10+ union syntax) |
